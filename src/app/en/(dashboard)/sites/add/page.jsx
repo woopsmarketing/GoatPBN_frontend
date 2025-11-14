@@ -267,9 +267,7 @@ export default function SiteAddPageEn() {
     };
 
     const config = statusConfig[status] || statusConfig.error;
-    const lastCheckDate = lastCheck
-      ? new Date(lastCheck).toLocaleString('en-US', { hour12: false })
-      : 'Not checked';
+    const lastCheckDate = lastCheck ? new Date(lastCheck).toLocaleString('en-US', { hour12: false }) : 'Not checked';
 
     return (
       <div className="text-center">

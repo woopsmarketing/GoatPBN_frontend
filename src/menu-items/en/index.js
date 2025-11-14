@@ -10,4 +10,3 @@ const menuItemsEn = {
 };
 
 export default menuItemsEn;
-

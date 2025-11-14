@@ -69,4 +69,3 @@ export function useDashboardLocale() {
 }
 
 export { defaultDashboardLocale };
-

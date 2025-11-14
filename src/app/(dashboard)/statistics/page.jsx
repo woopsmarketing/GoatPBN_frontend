@@ -222,16 +222,14 @@ export default function StatisticsPage() {
       try {
         // 사용자 ID 가져오기 (실제로는 Auth에서)
         const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
-        
+
         const response = await fetch(`http://localhost:8000/api/credits/summary/${userId}`);
         if (response.ok) {
           const data = await response.json();
-          
+
           // API 응답을 UI 형식으로 변환
-          const dailyUsage = data.credits_used > 0 
-            ? Math.ceil(data.credits_used / Math.max(30 - (data.days_remaining || 0), 1))
-            : 0;
-          
+          const dailyUsage = data.credits_used > 0 ? Math.ceil(data.credits_used / Math.max(30 - (data.days_remaining || 0), 1)) : 0;
+
           setCreditUsage({
             used: data.credits_used || 0,
             total: data.credits_total || 100,

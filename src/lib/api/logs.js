@@ -33,7 +33,7 @@ export const logsAPI = {
       const { data, error } = await supabase
         .from('logs')
         .select('*')
-        .eq('user_id', user.id)  // 사용자별 필터링 추가
+        .eq('user_id', user.id) // 사용자별 필터링 추가
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -75,7 +75,7 @@ export const logsAPI = {
       let query = supabase
         .from('logs')
         .select('*, campaigns(name, site_id)')
-        .eq('user_id', user.id)  // 사용자별 필터링 추가
+        .eq('user_id', user.id) // 사용자별 필터링 추가
         .order('created_at', { ascending: false });
 
       // 상태 필터

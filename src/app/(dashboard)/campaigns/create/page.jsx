@@ -21,25 +21,25 @@ export default function CampaignCreatePage() {
     // 기본 정보
     name: '',
     description: '',
-    
+
     // 사이트 설정 (완전 개선)
     siteDistribution: 'manual', // auto, manual
     selectedSites: [], // 선택된 사이트 ID 배열
     targetSite: '',
-    
+
     // 키워드 설정
     keywords: [],
-    
+
     // 수량 및 기간
     quantity: '',
     duration: '',
-    
+
     // 시작 시간 설정
     startType: 'delayed', // immediate, delayed, scheduled (기본값을 delayed로 변경)
     scheduledDate: '',
     scheduledTime: '',
     delayMinutes: 10, // 기본값을 10분으로 변경
-    
+
     // 콘텐츠 생성 옵션 (content_generation_pipeline.py 매개변수와 일치)
     persona: 'expert', // expert, beginner, professional
     sectionCount: 5, // 기본값 6 → 5로 변경
@@ -75,13 +75,13 @@ export default function CampaignCreatePage() {
     loadSites();
     loadUserCredits();
   }, []);
-  
+
   // 사용자 크레딧 로드
   const loadUserCredits = async () => {
     try {
       // 사용자 ID 가져오기 (실제로는 Auth에서)
       const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
-      
+
       const response = await fetch(`http://localhost:8000/api/credits/summary/${userId}`);
       if (response.ok) {
         const data = await response.json();
@@ -99,10 +99,10 @@ export default function CampaignCreatePage() {
       const quantity = parseInt(formData.quantity);
       const duration = parseInt(formData.duration);
       const dailyTarget = Math.ceil(quantity / duration);
-      
+
       const today = new Date();
-      const completionDate = new Date(today.getTime() + (duration * 24 * 60 * 60 * 1000));
-      
+      const completionDate = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000);
+
       setCalculations({
         dailyTarget,
         estimatedCompletion: completionDate
@@ -120,28 +120,28 @@ export default function CampaignCreatePage() {
       console.error('사이트 로드 실패:', error);
     }
   };
-  
+
   // 💳 크레딧 계산 함수
   const calculateCreditsPerContent = (formData) => {
     let credits = 10; // 기본 크레딧
-    
+
     // 추가 섹션
     const sectionCount = parseInt(formData.sectionCount) || 5;
     if (sectionCount > 5) {
-      credits += (sectionCount - 5);
+      credits += sectionCount - 5;
     }
-    
+
     // 섹션 이미지
     if (formData.includeImages) {
       const imageCount = parseInt(formData.sectionImageCount) || 0;
       credits += imageCount * 2;
     }
-    
+
     // 옵션들
     if (formData.includeToc) credits += 1;
     if (formData.includeBacklinks) credits += 1;
     if (formData.includeInternalLinks) credits += 1;
-    
+
     return credits;
   };
 
@@ -151,11 +151,11 @@ export default function CampaignCreatePage() {
       // 콤마로 구분된 키워드들을 분리하고 공백 제거
       const keywordsToAdd = newKeyword
         .split(',')
-        .map(keyword => keyword.trim())
-        .filter(keyword => keyword && !formData.keywords.includes(keyword));
-      
+        .map((keyword) => keyword.trim())
+        .filter((keyword) => keyword && !formData.keywords.includes(keyword));
+
       if (keywordsToAdd.length > 0) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           keywords: [...prev.keywords, ...keywordsToAdd]
         }));
@@ -166,7 +166,7 @@ export default function CampaignCreatePage() {
 
   // 키워드 제거
   const removeKeyword = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       keywords: prev.keywords.filter((_, i) => i !== index)
     }));
@@ -174,10 +174,10 @@ export default function CampaignCreatePage() {
 
   // 사이트 선택/해제
   const toggleSiteSelection = (siteId) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       selectedSites: prev.selectedSites.includes(siteId)
-        ? prev.selectedSites.filter(id => id !== siteId)
+        ? prev.selectedSites.filter((id) => id !== siteId)
         : [...prev.selectedSites, siteId]
     }));
   };
@@ -186,15 +186,15 @@ export default function CampaignCreatePage() {
   const toggleAllSites = () => {
     if (formData.selectedSites.length === sites.length) {
       // 모든 사이트가 선택된 경우 -> 모두 해제
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         selectedSites: []
       }));
     } else {
       // 일부 또는 아무것도 선택되지 않은 경우 -> 모두 선택
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        selectedSites: sites.map(site => site.id)
+        selectedSites: sites.map((site) => site.id)
       }));
     }
   };
@@ -208,7 +208,7 @@ export default function CampaignCreatePage() {
     if (formData.keywords.length === 0) newErrors.keywords = '최소 1개의 키워드를 추가하세요';
     if (!formData.quantity || formData.quantity < 1) newErrors.quantity = '올바른 수량을 입력하세요';
     if (!formData.duration || formData.duration < 1) newErrors.duration = '올바른 기간을 입력하세요';
-    
+
     if (formData.siteDistribution === 'manual' && formData.selectedSites.length === 0) {
       newErrors.selectedSites = '최소 1개의 사이트를 선택하세요';
     }
@@ -225,7 +225,7 @@ export default function CampaignCreatePage() {
   // 캠페인 생성 처리
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -251,26 +251,26 @@ export default function CampaignCreatePage() {
         start_type: formData.startType,
         scheduled_start: scheduledStart?.toISOString(),
         delay_minutes: parseInt(formData.delayMinutes), // delayMinutes 추가
-        
+
         // 콘텐츠 생성 옵션
         persona: formData.persona,
         sectionCount: parseInt(formData.sectionCount),
         includeImages: formData.includeImages,
-        sectionImageCount: parseInt(formData.sectionImageCount),  // 🆕 고정 개수 방식
+        sectionImageCount: parseInt(formData.sectionImageCount), // 🆕 고정 개수 방식
         includeToc: formData.includeToc,
         includeBacklinks: formData.includeBacklinks,
         includeInternalLinks: formData.includeInternalLinks,
-        
+
         // 💳 크레딧 계산 (프론트엔드에서 계산하여 전달)
         creditsPerContent: calculateCreditsPerContent(formData),
-        
+
         status: 'pending' // 초기 상태
       };
 
       console.log('캠페인 생성 데이터:', campaignData);
 
       const result = await campaignsAPI.createCampaign(campaignData);
-      
+
       if (result.success) {
         alert('캠페인이 성공적으로 생성되었습니다!');
         router.push('/campaigns');
@@ -300,13 +300,11 @@ export default function CampaignCreatePage() {
         <MainCard title="📋 기본 정보">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                캠페인 이름 *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">캠페인 이름 *</label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="예: 아르바이트 백링크 캠페인"
               />
@@ -314,33 +312,27 @@ export default function CampaignCreatePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                콘텐츠 톤앤매너 *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">콘텐츠 톤앤매너 *</label>
               <select
                 value={formData.persona}
-                onChange={(e) => setFormData(prev => ({ ...prev, persona: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, persona: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {personaOptions.map(option => (
+                {personaOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {personaOptions.find(p => p.value === formData.persona)?.description}
-              </p>
+              <p className="text-xs text-gray-500 mt-1">{personaOptions.find((p) => p.value === formData.persona)?.description}</p>
             </div>
           </div>
 
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              캠페인 설명
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">캠페인 설명</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="캠페인의 목적과 전략을 설명하세요..."
@@ -351,26 +343,20 @@ export default function CampaignCreatePage() {
         {/* 백링크 설정 */}
         <MainCard title="🔗 백링크 설정">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              백링크를 받을 사이트 주소 *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">백링크를 받을 사이트 주소 *</label>
             <input
               type="url"
               value={formData.targetSite}
-              onChange={(e) => setFormData(prev => ({ ...prev, targetSite: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, targetSite: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="https://example.com"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              http:// 또는 https://를 포함해서 입력하세요
-            </p>
+            <p className="text-xs text-gray-500 mt-1">http:// 또는 https://를 포함해서 입력하세요</p>
             {errors.targetSite && <p className="text-red-500 text-sm mt-1">{errors.targetSite}</p>}
           </div>
 
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              키워드 (앵커텍스트) *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">키워드 (앵커텍스트) *</label>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -380,28 +366,17 @@ export default function CampaignCreatePage() {
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="키워드를 입력하세요 (콤마로 구분하여 여러 키워드 입력 가능)"
               />
-              <TailwindButton
-                type="button"
-                onClick={addKeyword}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
+              <TailwindButton type="button" onClick={addKeyword} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                 추가
               </TailwindButton>
             </div>
-            
+
             {formData.keywords.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {formData.keywords.map((keyword, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
-                  >
+                  <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
                     {keyword}
-                    <button
-                      type="button"
-                      onClick={() => removeKeyword(index)}
-                      className="ml-2 text-blue-600 hover:text-blue-800"
-                    >
+                    <button type="button" onClick={() => removeKeyword(index)} className="ml-2 text-blue-600 hover:text-blue-800">
                       ×
                     </button>
                   </span>
@@ -416,9 +391,7 @@ export default function CampaignCreatePage() {
         <MainCard title="🌐 사이트 선택">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                사이트 배포 방식
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">사이트 배포 방식</label>
               <div className="flex space-x-4">
                 <label className="flex items-center">
                   <input
@@ -426,7 +399,7 @@ export default function CampaignCreatePage() {
                     name="siteDistribution"
                     value="auto"
                     checked={formData.siteDistribution === 'auto'}
-                    onChange={(e) => setFormData(prev => ({ ...prev, siteDistribution: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, siteDistribution: e.target.value }))}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-700">자동 배포</span>
@@ -438,7 +411,7 @@ export default function CampaignCreatePage() {
                     name="siteDistribution"
                     value="manual"
                     checked={formData.siteDistribution === 'manual'}
-                    onChange={(e) => setFormData(prev => ({ ...prev, siteDistribution: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, siteDistribution: e.target.value }))}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-700">수동 선택</span>
@@ -450,9 +423,7 @@ export default function CampaignCreatePage() {
             {formData.siteDistribution === 'manual' && (
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    사용할 사이트 선택 *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">사용할 사이트 선택 *</label>
                   <TailwindButton
                     type="button"
                     onClick={toggleAllSites}
@@ -465,7 +436,11 @@ export default function CampaignCreatePage() {
                 {sites.length === 0 ? (
                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                     <p className="text-sm text-yellow-800">
-                      등록된 사이트가 없습니다. 먼저 <a href="/sites/add" className="text-blue-600 hover:underline">사이트를 추가</a>해주세요.
+                      등록된 사이트가 없습니다. 먼저{' '}
+                      <a href="/sites/add" className="text-blue-600 hover:underline">
+                        사이트를 추가
+                      </a>
+                      해주세요.
                     </p>
                   </div>
                 ) : (
@@ -474,9 +449,7 @@ export default function CampaignCreatePage() {
                       <div
                         key={site.id}
                         className={`p-3 border rounded-md cursor-pointer transition-colors ${
-                          formData.selectedSites.includes(site.id)
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-300 hover:border-gray-400'
+                          formData.selectedSites.includes(site.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
                         }`}
                         onClick={() => toggleSiteSelection(site.id)}
                       >
@@ -491,11 +464,11 @@ export default function CampaignCreatePage() {
                             <div className="text-sm font-medium text-gray-900">{site.name}</div>
                             <div className="text-xs text-gray-500">{site.url}</div>
                             <div className="flex items-center mt-1">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                site.status === 'connected' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  site.status === 'connected' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}
+                              >
                                 {site.status === 'connected' ? '연결됨' : '연결 안됨'}
                               </span>
                             </div>
@@ -514,9 +487,7 @@ export default function CampaignCreatePage() {
                   </div>
                 )}
 
-                {errors.selectedSites && (
-                  <p className="text-red-500 text-sm mt-1">{errors.selectedSites}</p>
-                )}
+                {errors.selectedSites && <p className="text-red-500 text-sm mt-1">{errors.selectedSites}</p>}
               </div>
             )}
           </div>
@@ -526,14 +497,12 @@ export default function CampaignCreatePage() {
         <MainCard title="⚙️ 캠페인 설정">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                생성할 콘텐츠 수량 *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">생성할 콘텐츠 수량 *</label>
               <input
                 type="number"
                 min="1"
                 value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="예: 50"
               />
@@ -541,14 +510,12 @@ export default function CampaignCreatePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                캠페인 기간 (일) *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">캠페인 기간 (일) *</label>
               <input
                 type="number"
                 min="1"
                 value={formData.duration}
-                onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, duration: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="예: 20"
               />
@@ -561,9 +528,7 @@ export default function CampaignCreatePage() {
               <h4 className="font-medium text-blue-900">📊 예상 실행 계획</h4>
               <div className="mt-2 text-sm text-blue-700">
                 <p>• 일일 목표: 약 {calculations.dailyTarget}개 콘텐츠</p>
-                {calculations.estimatedCompletion && (
-                  <p>• 예상 완료일: {calculations.estimatedCompletion.toLocaleDateString()}</p>
-                )}
+                {calculations.estimatedCompletion && <p>• 예상 완료일: {calculations.estimatedCompletion.toLocaleDateString()}</p>}
               </div>
             </div>
           )}
@@ -573,39 +538,33 @@ export default function CampaignCreatePage() {
         <MainCard title="📝 콘텐츠 생성 옵션">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                섹션 수
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">섹션 수</label>
               <input
                 type="number"
                 min="3"
                 max="15"
                 value={formData.sectionCount}
-                onChange={(e) => setFormData(prev => ({ ...prev, sectionCount: parseInt(e.target.value) || 5 }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, sectionCount: parseInt(e.target.value) || 5 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-xs text-gray-500 mt-1">
-                콘텐츠에 포함될 섹션 개수 (3-15개). 
+                콘텐츠에 포함될 섹션 개수 (3-15개).
                 <span className="text-blue-600 font-semibold">5개 초과 시 +1 크레딧/개</span>
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                섹션 이미지 개수
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">섹션 이미지 개수</label>
               <input
                 type="number"
                 min="0"
                 max={formData.sectionCount || 5}
                 value={formData.sectionImageCount}
-                onChange={(e) => setFormData(prev => ({ ...prev, sectionImageCount: parseInt(e.target.value) || 0 }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, sectionImageCount: parseInt(e.target.value) || 0 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!formData.includeImages}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                메인 이미지(1개)는 자동 생성됩니다. +2 크레딧/개
-              </p>
+              <p className="text-xs text-gray-500 mt-1">메인 이미지(1개)는 자동 생성됩니다. +2 크레딧/개</p>
             </div>
           </div>
 
@@ -615,7 +574,7 @@ export default function CampaignCreatePage() {
                 type="checkbox"
                 id="includeImages"
                 checked={formData.includeImages}
-                onChange={(e) => setFormData(prev => ({ ...prev, includeImages: e.target.checked }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeImages: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="includeImages" className="ml-2 text-sm text-gray-700">
@@ -629,7 +588,7 @@ export default function CampaignCreatePage() {
                 type="checkbox"
                 id="includeToc"
                 checked={formData.includeToc}
-                onChange={(e) => setFormData(prev => ({ ...prev, includeToc: e.target.checked }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeToc: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="includeToc" className="ml-2 text-sm text-gray-700">
@@ -643,7 +602,7 @@ export default function CampaignCreatePage() {
                 type="checkbox"
                 id="includeBacklinks"
                 checked={formData.includeBacklinks}
-                onChange={(e) => setFormData(prev => ({ ...prev, includeBacklinks: e.target.checked }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeBacklinks: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="includeBacklinks" className="ml-2 text-sm text-gray-700">
@@ -657,7 +616,7 @@ export default function CampaignCreatePage() {
                 type="checkbox"
                 id="includeInternalLinks"
                 checked={formData.includeInternalLinks}
-                onChange={(e) => setFormData(prev => ({ ...prev, includeInternalLinks: e.target.checked }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeInternalLinks: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="includeInternalLinks" className="ml-2 text-sm text-gray-700">
@@ -681,7 +640,7 @@ export default function CampaignCreatePage() {
                 name="startType"
                 value="immediate"
                 checked={formData.startType === 'immediate'}
-                onChange={(e) => setFormData(prev => ({ ...prev, startType: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, startType: e.target.value }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="immediate" className="ml-2 text-sm text-gray-700">
@@ -697,7 +656,7 @@ export default function CampaignCreatePage() {
                 name="startType"
                 value="delayed"
                 checked={formData.startType === 'delayed'}
-                onChange={(e) => setFormData(prev => ({ ...prev, startType: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, startType: e.target.value }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="delayed" className="ml-2 text-sm text-gray-700">
@@ -709,7 +668,7 @@ export default function CampaignCreatePage() {
                   min="5"
                   max="1440"
                   value={formData.delayMinutes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, delayMinutes: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, delayMinutes: e.target.value }))}
                   className="ml-2 w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                 />
               )}
@@ -725,7 +684,7 @@ export default function CampaignCreatePage() {
                 name="startType"
                 value="scheduled"
                 checked={formData.startType === 'scheduled'}
-                onChange={(e) => setFormData(prev => ({ ...prev, startType: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, startType: e.target.value }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="scheduled" className="ml-2 text-sm text-gray-700">
@@ -740,7 +699,7 @@ export default function CampaignCreatePage() {
                   <input
                     type="date"
                     value={formData.scheduledDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, scheduledDate: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     min={new Date().toISOString().split('T')[0]}
                   />
@@ -750,7 +709,7 @@ export default function CampaignCreatePage() {
                   <input
                     type="time"
                     value={formData.scheduledTime}
-                    onChange={(e) => setFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, scheduledTime: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {errors.scheduledTime && <p className="text-red-500 text-sm mt-1">{errors.scheduledTime}</p>}

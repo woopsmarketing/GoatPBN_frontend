@@ -156,9 +156,7 @@ export default function DashboardPage() {
       await loadDashboardData();
     } catch (error) {
       console.error('❌ 연결 점검 오류:', error);
-      alert(
-        isEnglish ? `Connection check failed: ${error.message}` : `연결 점검 중 오류가 발생했습니다: ${error.message}`
-      );
+      alert(isEnglish ? `Connection check failed: ${error.message}` : `연결 점검 중 오류가 발생했습니다: ${error.message}`);
     }
   };
 
@@ -195,7 +193,11 @@ export default function DashboardPage() {
         <div className="flex items-start">
           <div className="flex-shrink-0">
             <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2z"
+                clipRule="evenodd"
+              />
             </svg>
           </div>
           <div className="ml-3">
@@ -216,7 +218,11 @@ export default function DashboardPage() {
         <div className="flex items-start">
           <div className="flex-shrink-0">
             <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
             </svg>
           </div>
           <div className="ml-3">
@@ -224,7 +230,9 @@ export default function DashboardPage() {
               {isEnglish ? '⚡ Daily throughput limit: 1,000 links/day' : '⚡ 일일 최대 처리량: 1000개 링크/일'}
             </p>
             <p className="text-sm text-amber-700 mt-1">
-              {isEnglish ? 'When multiple campaigns run, jobs are prioritized within the daily limit.' : '여러 캠페인이 있을 경우 일일 한도에 따라 우선순위 처리됩니다.'}
+              {isEnglish
+                ? 'When multiple campaigns run, jobs are prioritized within the daily limit.'
+                : '여러 캠페인이 있을 경우 일일 한도에 따라 우선순위 처리됩니다.'}
             </p>
           </div>
         </div>
@@ -333,9 +341,7 @@ export default function DashboardPage() {
         </div>
         <div className="overflow-x-auto">
           {dashboardData.isLoading ? (
-            <div className="text-center py-8 text-gray-500">
-              {isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}
-            </div>
+            <div className="text-center py-8 text-gray-500">{isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}</div>
           ) : dashboardData.recentActivities && dashboardData.recentActivities.length > 0 ? (
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -447,9 +453,7 @@ export default function DashboardPage() {
         {/* 진행률 */}
         <MainCard>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {isEnglish ? '📈 Active Campaign Progress' : '📈 활성 캠페인 진행률'}
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900">{isEnglish ? '📈 Active Campaign Progress' : '📈 활성 캠페인 진행률'}</h2>
             <div className="flex gap-2">
               <TailwindButton variant="ghost" onClick={() => router.push(localizePath('/campaigns'))}>
                 {isEnglish ? 'View all campaigns' : '모든 캠페인 보기'}
@@ -461,14 +465,10 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-4">
             {dashboardData.isLoading ? (
-              <div className="text-center py-4 text-gray-500">
-                {isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}
-              </div>
+              <div className="text-center py-4 text-gray-500">{isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}</div>
             ) : dashboardData.progressList.length === 0 ? (
               <div className="text-center py-6">
-                <div className="text-base text-gray-500 mb-2">
-                  {isEnglish ? 'No active campaigns' : '활성 캠페인이 없습니다'}
-                </div>
+                <div className="text-base text-gray-500 mb-2">{isEnglish ? 'No active campaigns' : '활성 캠페인이 없습니다'}</div>
                 <div className="text-sm text-gray-400">
                   {isEnglish ? 'Create a new campaign or activate an existing one.' : '새 캠페인을 생성하거나 기존 캠페인을 활성화하세요'}
                 </div>
@@ -482,19 +482,13 @@ export default function DashboardPage() {
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-blue-600 font-semibold">{item.progress}%</span>
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                        {isEnglish ? 'Active' : '활성'}
-                      </span>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{isEnglish ? 'Active' : '활성'}</span>
                     </div>
                   </div>
                   <ProgressBar value={item.progress} />
                   <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>
-                      {isEnglish ? `${item.completedCount} completed` : `${item.completedCount}개 완료`}
-                    </span>
-                    <span>
-                      {isEnglish ? `/ ${item.totalQuantity} target` : `/ ${item.totalQuantity}개 목표`}
-                    </span>
+                    <span>{isEnglish ? `${item.completedCount} completed` : `${item.completedCount}개 완료`}</span>
+                    <span>{isEnglish ? `/ ${item.totalQuantity} target` : `/ ${item.totalQuantity}개 목표`}</span>
                   </div>
                 </div>
               ))
@@ -512,9 +506,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-4">
             {alerts.length === 0 && (
-              <div className="text-base text-gray-500">
-                {isEnglish ? 'No new alerts.' : '새로운 알림이 없습니다.'}
-              </div>
+              <div className="text-base text-gray-500">{isEnglish ? 'No new alerts.' : '새로운 알림이 없습니다.'}</div>
             )}
             {alerts.map((a) => (
               <div key={a.id} className="p-4 rounded-lg bg-red-50 border border-red-100">
@@ -540,9 +532,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-4">
             {dashboardData.isLoading ? (
-              <div className="text-center py-4 text-gray-500">
-                {isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}
-              </div>
+              <div className="text-center py-4 text-gray-500">{isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}</div>
             ) : (
               <>
                 <div className="space-y-2">
@@ -589,20 +579,14 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-4">
             {dashboardData.isLoading ? (
-              <div className="text-center py-4 text-gray-500">
-                {isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}
-              </div>
+              <div className="text-center py-4 text-gray-500">{isEnglish ? '⏳ Loading data...' : '⏳ 데이터를 불러오는 중...'}</div>
             ) : (
               <>
                 <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                   <div>
-                    <div className="text-base text-gray-600">
-                      {isEnglish ? 'Total progress vs. goal' : '총 목표 대비 달성률'}
-                    </div>
+                    <div className="text-base text-gray-600">{isEnglish ? 'Total progress vs. goal' : '총 목표 대비 달성률'}</div>
                     <div className="text-xl font-semibold text-blue-600">
-                      {isEnglish
-                        ? `${dashboardData.kpi.totalContentGenerated} items`
-                        : `${dashboardData.kpi.totalContentGenerated}개`}
+                      {isEnglish ? `${dashboardData.kpi.totalContentGenerated} items` : `${dashboardData.kpi.totalContentGenerated}개`}
                     </div>
                   </div>
                   <div className="text-right">
@@ -611,9 +595,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-base text-gray-600 mb-3">
-                    {isEnglish ? 'Campaign status overview' : '캠페인 상태 분포'}
-                  </div>
+                  <div className="text-base text-gray-600 mb-3">{isEnglish ? 'Campaign status overview' : '캠페인 상태 분포'}</div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-base">
                       <span className="text-gray-700">{isEnglish ? 'Active campaigns' : '활성 캠페인'}</span>
@@ -690,9 +672,7 @@ export default function DashboardPage() {
         {/* FAQ / 사용방법 */}
         <MainCard>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {isEnglish ? '❓ Frequently Asked Questions' : '❓ 자주 묻는 질문'}
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900">{isEnglish ? '❓ Frequently Asked Questions' : '❓ 자주 묻는 질문'}</h2>
             <TailwindButton variant="ghost" onClick={() => console.log('API 구현중 - 전체 FAQ')}>
               {isEnglish ? 'View all' : '전체 보기'}
             </TailwindButton>

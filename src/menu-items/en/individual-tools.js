@@ -67,4 +67,3 @@ const individualToolsEn = {
 };
 
 export default individualToolsEn;
-

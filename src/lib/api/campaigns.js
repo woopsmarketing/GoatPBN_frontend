@@ -83,27 +83,27 @@ export const campaignsAPI = {
         keywords: Array.isArray(campaignData.keywords) ? campaignData.keywords : [campaignData.keywords],
         quantity,
         duration,
-        
+
         // 콘텐츠 생성 옵션 (content_generation_pipeline.py와 일치)
         persona: campaignData.persona || 'expert',
-        section_count: parseInt(campaignData.sectionCount) || 5,  // 🆕 기본값 5
+        section_count: parseInt(campaignData.sectionCount) || 5, // 🆕 기본값 5
         include_images: campaignData.includeImages || false,
-        section_image_count: parseInt(campaignData.sectionImageCount) || 0,  // 🆕 고정 개수 방식
+        section_image_count: parseInt(campaignData.sectionImageCount) || 0, // 🆕 고정 개수 방식
         include_toc: campaignData.includeToc || false,
         include_backlinks: campaignData.includeBacklinks || false,
         include_internal_links: campaignData.includeInternalLinks || false,
-        
+
         // 💳 크레딧 계산 결과 저장
         credits_per_content: parseInt(campaignData.creditsPerContent) || 10,
-        
+
         // 시작 시간 설정
         start_type: campaignData.start_type || 'immediate',
         scheduled_start: campaignData.scheduled_start,
-        
+
         // 상태 및 진행률 (기존 status 컬럼 사용)
         status: 'pending', // 초기 상태
         completed_count: 0,
-        
+
         // 스케줄링 관련 컬럼 초기화
         daily_execution_count: 0,
         remaining_quantity: quantity,
@@ -122,11 +122,7 @@ export const campaignsAPI = {
 
       console.log('Supabase 삽입 데이터:', newCampaign);
 
-      const { data, error } = await supabase
-        .from('campaigns')
-        .insert([newCampaign])
-        .select()
-        .single();
+      const { data, error } = await supabase.from('campaigns').insert([newCampaign]).select().single();
 
       if (error) {
         console.error('Supabase 삽입 에러:', error);
@@ -147,16 +143,16 @@ export const campaignsAPI = {
         try {
           // delayMinutes는 campaignData에서 가져오거나 기본값 5분 사용
           const delayMinutes = campaignData.delayMinutes || campaignData.delay_minutes || 5;
-          
+
           console.log('✅ 스케줄 초기화 시작:', {
             campaign_id: data.id,
             user_id: user.id,
             start_type: newCampaign.start_type,
             delay_minutes: delayMinutes
           });
-          
+
           await this.initializeCampaignSchedule(data.id, user.id, newCampaign.start_type, delayMinutes);
-          
+
           console.log('✅ 스케줄 초기화 완료:', newCampaign.start_type);
         } catch (scheduleError) {
           console.error('❌ 캠페인 스케줄 초기화 실패:', scheduleError);
@@ -208,7 +204,7 @@ export const campaignsAPI = {
       const response = await fetch('http://localhost:8000/api/campaigns/initialize-schedule', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
       });

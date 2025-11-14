@@ -187,7 +187,9 @@ export default function ReportsPageEn() {
    */
   const campaigns = useMemo(() => {
     return campaignData
-      .filter((campaign) => (statusFilter === 'all' ? true : statusFilter === 'active' ? campaign.status === 'active' : campaign.status === 'completed'))
+      .filter((campaign) =>
+        statusFilter === 'all' ? true : statusFilter === 'active' ? campaign.status === 'active' : campaign.status === 'completed'
+      )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [campaignData, statusFilter]);
 
@@ -256,7 +258,9 @@ export default function ReportsPageEn() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-600 mt-1">Monitor campaign performance, review detailed logs, and export CSV summaries for stakeholders.</p>
+          <p className="text-gray-600 mt-1">
+            Monitor campaign performance, review detailed logs, and export CSV summaries for stakeholders.
+          </p>
         </div>
         <div className="flex gap-3">
           <TailwindButton variant="secondary" onClick={fetchReportsData}>

@@ -4,4 +4,3 @@
 // 기능 요약: 기본 키워드 생성기 페이지를 공유
 
 export { default } from '../../../../(dashboard)/tools/keyword-generator/page';
-

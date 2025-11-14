@@ -116,11 +116,7 @@ export default function SiteListPageEn() {
 
       const site = sites.find((s) => s.id === siteId);
       if (site) {
-        alert(
-          `✅ Connection test finished for ${site.name}.\n\nStatus: ${
-            site.status === 'connected' ? 'Connected' : 'Disconnected'
-          }`
-        );
+        alert(`✅ Connection test finished for ${site.name}.\n\nStatus: ${site.status === 'connected' ? 'Connected' : 'Disconnected'}`);
       }
     } catch (error) {
       console.error('Connection test error:', error);
@@ -384,9 +380,7 @@ export default function SiteListPageEn() {
 
   const ConnectionStatus = ({ status, lastCheck, showDetail = true, siteId = null }) => {
     const statusStyle = getStatusStyle(status);
-    const lastCheckDate = lastCheck
-      ? new Date(lastCheck).toLocaleString('en-US', { hour12: false })
-      : 'Not checked';
+    const lastCheckDate = lastCheck ? new Date(lastCheck).toLocaleString('en-US', { hour12: false }) : 'Not checked';
     const isTesting = siteId && testingSites.has(siteId);
 
     return (

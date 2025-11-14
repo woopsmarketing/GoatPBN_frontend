@@ -25,7 +25,7 @@ export function detectUserTimezone() {
 export function utcToLocal(utcTime, timezone = null) {
   const date = typeof utcTime === 'string' ? new Date(utcTime) : utcTime;
   const userTimezone = timezone || detectUserTimezone();
-  
+
   // Date 객체는 이미 사용자 타임존을 고려하므로 그대로 반환
   return date;
 }
@@ -42,7 +42,7 @@ export function formatUTCTime(utcTime, format = 'datetime', timezone = null) {
   const userTimezone = timezone || detectUserTimezone();
 
   const options = {
-    timeZone: userTimezone,
+    timeZone: userTimezone
   };
 
   switch (format) {
@@ -51,7 +51,7 @@ export function formatUTCTime(utcTime, format = 'datetime', timezone = null) {
         ...options,
         year: 'numeric',
         month: '2-digit',
-        day: '2-digit',
+        day: '2-digit'
       });
 
     case 'time':
@@ -60,7 +60,7 @@ export function formatUTCTime(utcTime, format = 'datetime', timezone = null) {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        hour12: false,
+        hour12: false
       });
 
     case 'datetime':
@@ -72,7 +72,7 @@ export function formatUTCTime(utcTime, format = 'datetime', timezone = null) {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        hour12: false,
+        hour12: false
       });
 
     case 'relative':
@@ -100,7 +100,7 @@ function getRelativeTime(date) {
   if (diffMin < 60) return `${diffMin}분 전`;
   if (diffHour < 24) return `${diffHour}시간 전`;
   if (diffDay < 30) return `${diffDay}일 전`;
-  
+
   return formatUTCTime(date, 'date');
 }
 
@@ -120,11 +120,11 @@ export function localToUTC(localTime) {
 export function getTimezoneInfo() {
   const timezone = detectUserTimezone();
   const offset = -new Date().getTimezoneOffset() / 60;
-  
+
   return {
     timezone,
     offset,
-    offsetString: `UTC${offset >= 0 ? '+' : ''}${offset}`,
+    offsetString: `UTC${offset >= 0 ? '+' : ''}${offset}`
   };
 }
 
@@ -157,4 +157,3 @@ export function useTimezone() {
 if (typeof window !== 'undefined') {
   console.log('🌍 타임존 정보:', getTimezoneInfo());
 }
-

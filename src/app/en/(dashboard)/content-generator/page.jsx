@@ -175,9 +175,7 @@ export default function ContentGeneratorPageEn() {
         {/* 헤더 영역 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">🚀 AI Content Generator</h1>
-          <p className="text-gray-600">
-            Configure your keyword and options, then auto-generate articles and publish them to WordPress.
-          </p>
+          <p className="text-gray-600">Configure your keyword and options, then auto-generate articles and publish them to WordPress.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

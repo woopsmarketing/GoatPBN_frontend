@@ -319,9 +319,7 @@ export default function CampaignCreatePageEn() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {personaOptions.find((p) => p.value === formData.persona)?.description}
-              </p>
+              <p className="text-xs text-gray-500 mt-1">{personaOptions.find((p) => p.value === formData.persona)?.description}</p>
             </div>
           </div>
 
@@ -373,11 +371,7 @@ export default function CampaignCreatePageEn() {
                 {formData.keywords.map((keyword, index) => (
                   <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
                     {keyword}
-                    <button
-                      type="button"
-                      onClick={() => removeKeyword(index)}
-                      className="ml-2 text-blue-600 hover:text-blue-800"
-                    >
+                    <button type="button" onClick={() => removeKeyword(index)} className="ml-2 text-blue-600 hover:text-blue-800">
                       ×
                     </button>
                   </span>

@@ -147,31 +147,34 @@ export default function CampaignListPageEn() {
     }
   }, [selectedCampaigns, campaigns]);
 
-  const handleDuplicateCampaign = useCallback(async (campaign) => {
-    try {
-      const duplicatedCampaignData = {
-        siteId: campaign.siteId,
-        name: `${campaign.name} (Copy)`,
-        targetSite: campaign.targetSite,
-        keywords: campaign.keywords,
-        quantity: campaign.quantity,
-        duration: campaign.duration,
-        status: 'paused'
-      };
+  const handleDuplicateCampaign = useCallback(
+    async (campaign) => {
+      try {
+        const duplicatedCampaignData = {
+          siteId: campaign.siteId,
+          name: `${campaign.name} (Copy)`,
+          targetSite: campaign.targetSite,
+          keywords: campaign.keywords,
+          quantity: campaign.quantity,
+          duration: campaign.duration,
+          status: 'paused'
+        };
 
-      const { error } = await campaignsAPI.createCampaign(duplicatedCampaignData);
+        const { error } = await campaignsAPI.createCampaign(duplicatedCampaignData);
 
-      if (error) {
-        throw new Error(error);
+        if (error) {
+          throw new Error(error);
+        }
+
+        await loadCampaigns();
+        alert('Campaign duplicated successfully.');
+      } catch (error) {
+        console.error('Duplicate campaign failed:', error);
+        alert(`Failed to duplicate campaign: ${error.message}`);
       }
-
-      await loadCampaigns();
-      alert('Campaign duplicated successfully.');
-    } catch (error) {
-      console.error('Duplicate campaign failed:', error);
-      alert(`Failed to duplicate campaign: ${error.message}`);
-    }
-  }, [loadCampaigns]);
+    },
+    [loadCampaigns]
+  );
 
   const handleStatusChange = useCallback(async (campaignId, newStatus) => {
     try {
@@ -438,7 +441,9 @@ export default function CampaignListPageEn() {
                 )}
 
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}
+                  >
                     {statusStyle.badge}
                   </span>
                   <span className="text-sm text-gray-500">{siteInfo.name}</span>
@@ -461,11 +466,19 @@ export default function CampaignListPageEn() {
                       ✏️
                     </button>
                     {campaign.status === 'active' ? (
-                      <button onClick={() => onStatusChange(campaign.id, 'paused')} className="text-yellow-600 hover:text-yellow-800 text-sm" title="Pause">
+                      <button
+                        onClick={() => onStatusChange(campaign.id, 'paused')}
+                        className="text-yellow-600 hover:text-yellow-800 text-sm"
+                        title="Pause"
+                      >
                         ⏸️
                       </button>
                     ) : campaign.status === 'paused' ? (
-                      <button onClick={() => onStatusChange(campaign.id, 'active')} className="text-green-600 hover:text-green-800 text-sm" title="Resume">
+                      <button
+                        onClick={() => onStatusChange(campaign.id, 'active')}
+                        className="text-green-600 hover:text-green-800 text-sm"
+                        title="Resume"
+                      >
                         ▶️
                       </button>
                     ) : null}
@@ -634,7 +647,10 @@ export default function CampaignListPageEn() {
                     <div className="max-h-32 overflow-y-auto border border-gray-200 rounded p-2 bg-gray-50">
                       <div className="space-y-1">
                         {editFormData.keywords.map((keyword, index) => (
-                          <div key={`keyword-${campaign.id}-${index}`} className="flex items-center gap-2 p-1 bg-white rounded border border-gray-100">
+                          <div
+                            key={`keyword-${campaign.id}-${index}`}
+                            className="flex items-center gap-2 p-1 bg-white rounded border border-gray-100"
+                          >
                             <span className="text-xs text-gray-500 font-mono w-6 text-right">{index + 1}.</span>
                             <input
                               key={`input-${campaign.id}-${index}`}
@@ -749,9 +765,7 @@ export default function CampaignListPageEn() {
                         <span className="font-semibold text-blue-600">{editFormData.imageCount}</span>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Includes 1 main image + {editFormData.imageCount - 1} section images.
-                    </p>
+                    <p className="text-xs text-gray-500">Includes 1 main image + {editFormData.imageCount - 1} section images.</p>
                   </div>
                 )}
               </div>
