@@ -4,11 +4,50 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { authAPI } from '../../../lib/supabase';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    let subscription;
+
+    const initializeAuthState = async () => {
+      try {
+        // 기존 세션이 있다면 바로 대시보드로 이동
+        const {
+          data: { session }
+        } = await authAPI.getSession();
+
+        if (session) {
+          if (typeof window !== 'undefined' && window.location.hash) {
+            window.location.hash = '';
+          }
+          router.replace('/dashboard');
+          return;
+        }
+      } catch (error) {
+        console.error('세션 확인 오류:', error);
+      }
+
+      // 로그인 상태 변화를 감지해서 SIGNED_IN 이벤트가 오면 대시보드로 리다이렉트
+      subscription = authAPI.onAuthStateChange((event) => {
+        if (event === 'SIGNED_IN') {
+          if (typeof window !== 'undefined' && window.location.hash) {
+            window.location.hash = '';
+          }
+          router.replace('/dashboard');
+        }
+      })?.data?.subscription;
+    };
+
+    initializeAuthState();
+
+    return () => subscription?.unsubscribe();
+  }, [router]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
