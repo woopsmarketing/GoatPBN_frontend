@@ -20,17 +20,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export const authAPI = {
   // 구글 로그인
   signInWithGoogle: (customOptions = {}) => {
-    const defaultRedirect =
-      typeof window !== 'undefined' ? `${window.location.origin}` : `${supabaseUrl ?? ''}`;
-    const options = {
-      redirectTo: defaultRedirect,
-      ...customOptions
-    };
-
-    return supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options
-    });
+    const defaultRedirect = typeof window !== 'undefined' ? `${window.location.origin}` : supabaseUrl || '';
+    const options = { redirectTo: defaultRedirect, ...customOptions };
+    return supabase.auth.signInWithOAuth({ provider: 'google', options });
   },
 
   // 로그아웃
