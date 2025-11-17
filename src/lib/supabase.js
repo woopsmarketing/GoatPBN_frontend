@@ -1,4 +1,4 @@
-// src/lib/supabase.js
+// v1.1 - Google OAuth 리다이렉트 동적 옵션 지원 (2025.11.17)
 // 한글 주석: Supabase 클라이언트 설정 및 인증 관리
 // 목적: 프론트엔드에서 Supabase 데이터베이스와 통신하기 위한 연결 설정
 
@@ -19,13 +19,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // 인증 관련 함수들
 export const authAPI = {
   // 구글 로그인
-  signInWithGoogle: () =>
-    supabase.auth.signInWithOAuth({
+  signInWithGoogle: (customOptions = {}) => {
+    const defaultRedirect =
+      typeof window !== 'undefined' ? `${window.location.origin}` : `${supabaseUrl ?? ''}`;
+
+    const options = {
+      redirectTo: defaultRedirect,
+      ...customOptions
+    };
+
+    return supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`
-      }
-    }),
+      options
+    });
+  },
 
   // 로그아웃
   signOut: () => supabase.auth.signOut(),

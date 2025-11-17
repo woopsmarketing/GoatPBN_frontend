@@ -1,5 +1,4 @@
-import AuthLoginPage from './auth/login/page';
+// v1.1 - 루트 경로에 한국어 로그인 페이지 연결 (2025.11.17)
+// 기능 요약: 기본 접속 시 /ko 페이지와 동일한 로그인 화면 제공
 
-export default function HomePage() {
-  return <AuthLoginPage />;
-}
+export { default } from './ko/page';
