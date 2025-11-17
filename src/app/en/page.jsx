@@ -6,4 +6,3 @@ import LoginPageTemplate from '@/components/auth/LoginPageTemplate';
 export default function EnLoginPage() {
   return <LoginPageTemplate locale="en" />;
 }
-

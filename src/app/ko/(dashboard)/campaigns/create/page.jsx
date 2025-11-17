@@ -2,4 +2,3 @@
 // 기능 요약: 기본 캠페인 생성 페이지를 한국어 경로에서 재사용
 
 export { default } from '@/app/(dashboard)/campaigns/create/page';
-

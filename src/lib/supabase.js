@@ -22,7 +22,6 @@ export const authAPI = {
   signInWithGoogle: (customOptions = {}) => {
     const defaultRedirect =
       typeof window !== 'undefined' ? `${window.location.origin}` : `${supabaseUrl ?? ''}`;
-
     const options = {
       redirectTo: defaultRedirect,
       ...customOptions

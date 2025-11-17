@@ -2,4 +2,3 @@
 // 기능 요약: 기본 AI 콘텐츠 생성기 페이지를 한국어 경로에서 재사용
 
 export { default } from '@/app/(dashboard)/content-generator/page';
-

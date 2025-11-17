@@ -6,4 +6,3 @@ import LoginPageTemplate from '@/components/auth/LoginPageTemplate';
 export default function KoLoginPage() {
   return <LoginPageTemplate locale="ko" />;
 }
-
