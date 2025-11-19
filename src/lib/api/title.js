@@ -3,7 +3,7 @@
  * 키워드들을 조합하여 다양한 페르소나로 제목을 생성하는 API 호출 함수들
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+import { buildApiUrl, jsonHeaders } from './httpClient';
 
 /**
  * 제목 생성 API 호출
@@ -17,11 +17,9 @@ const API_BASE_URL = 'http://localhost:8000';
  */
 export const generateTitle = async (data) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/title/generate`, {
+    const response = await fetch(buildApiUrl('/api/title/generate'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: jsonHeaders(),
       body: JSON.stringify(data)
     });
 
@@ -50,12 +48,7 @@ export const generateTitle = async (data) => {
  */
 export const getPersonas = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/title/personas`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(buildApiUrl('/api/title/personas'), { method: 'GET', headers: jsonHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -83,12 +76,7 @@ export const getPersonas = async () => {
  */
 export const getPersona = async (personaId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/title/personas/${personaId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(buildApiUrl(`/api/title/personas/${personaId}`), { method: 'GET', headers: jsonHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -115,12 +103,7 @@ export const getPersona = async (personaId) => {
  */
 export const getCategories = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/title/categories`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(buildApiUrl('/api/title/categories'), { method: 'GET', headers: jsonHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -147,12 +130,7 @@ export const getCategories = async () => {
  */
 export const checkTitleApiHealth = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/title/health`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(buildApiUrl('/api/title/health'), { method: 'GET', headers: jsonHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json();

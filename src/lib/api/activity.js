@@ -10,8 +10,7 @@
  */
 
 import { logCache } from '../cache/logCache';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { buildApiUrl, jsonHeaders } from './httpClient';
 
 export const activityAPI = {
   /**
@@ -44,12 +43,8 @@ export const activityAPI = {
         params.append('activity_type', activityType);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/activity/recent?${params}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const requestUrl = `${buildApiUrl('/api/activity/recent')}?${params.toString()}`;
+      const response = await fetch(requestUrl, { method: 'GET', headers: jsonHeaders() });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -82,14 +77,11 @@ export const activityAPI = {
         params.append('user_id', userId);
       }
 
-      const url = `${API_BASE_URL}/api/activity/stats${params.toString() ? `?${params}` : ''}`;
+      const url = params.toString()
+        ? `${buildApiUrl('/api/activity/stats')}?${params.toString()}`
+        : buildApiUrl('/api/activity/stats');
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(url, { method: 'GET', headers: jsonHeaders() });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -111,12 +103,7 @@ export const activityAPI = {
    */
   async getActivityTypes() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/activity/types`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(buildApiUrl('/api/activity/types'), { method: 'GET', headers: jsonHeaders() });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -139,11 +126,9 @@ export const activityAPI = {
    */
   async cleanupOldActivities(days = 90) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/activity/cleanup?days=${days}`, {
+      const response = await fetch(`${buildApiUrl('/api/activity/cleanup')}?days=${days}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: jsonHeaders()
       });
 
       if (!response.ok) {
@@ -166,12 +151,7 @@ export const activityAPI = {
    */
   async healthCheck() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/activity/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(buildApiUrl('/api/activity/health'), { method: 'GET', headers: jsonHeaders() });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

@@ -11,6 +11,7 @@ import { useMemo, useState, useEffect } from 'react';
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
 import { campaignsAPI } from '@/lib/api/campaigns';
+import { buildApiUrl } from '@/lib/api/httpClient';
 
 // 간단한 도넛(원형 진행) 컴포넌트 - 외부 라이브러리 없이 SVG로 구현
 function Donut({ value = 0, size = 96, stroke = 10, color = '#3B82F6' }) {
@@ -211,7 +212,7 @@ export default function StatisticsPageEn() {
         // 사용자 ID 가져오기 (실제로는 Auth에서)
         const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
 
-        const response = await fetch(`http://localhost:8000/api/credits/summary/${userId}`);
+        const response = await fetch(buildApiUrl(`/api/credits/summary/${userId}`));
         if (response.ok) {
           const data = await response.json();
 

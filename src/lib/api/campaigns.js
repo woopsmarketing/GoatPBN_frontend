@@ -3,6 +3,7 @@
 // 목적: 캠페인 CRUD 및 통계 기능 제공
 
 import { supabase } from '../supabase';
+import { buildApiUrl, jsonHeaders } from './httpClient';
 
 export const campaignsAPI = {
   // 모든 캠페인 가져오기
@@ -201,16 +202,9 @@ export const campaignsAPI = {
 
       console.log('API 요청 본문:', requestBody);
 
-      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-      if (!apiBaseUrl) {
-        throw new Error('API 기본 URL이 설정되지 않았습니다. NEXT_PUBLIC_API_URL 환경 변수를 확인하세요.');
-      }
-
-      const response = await fetch(`${apiBaseUrl}/api/campaigns/initialize-schedule`, {
+      const response = await fetch(buildApiUrl('/api/campaigns/initialize-schedule'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: jsonHeaders(),
         body: JSON.stringify(requestBody)
       });
 

@@ -6,8 +6,6 @@
 import { supabase } from '../supabase';
 import { logCache } from '../cache/logCache';
 
-const API_BASE_URL = 'http://localhost:8000';
-
 export const logsAPI = {
   /**
    * 최근 활동 로그 가져오기 (대시보드용) - 캐시 적용

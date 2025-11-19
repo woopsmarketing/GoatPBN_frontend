@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { sitesAPI } from '@/lib/api/sites';
 import { campaignsAPI } from '@/lib/api/campaigns';
 import { supabase } from '@/lib/supabase';
+import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
 
 /**
  * 콘텐츠 생성기 페이지
@@ -138,11 +139,9 @@ export default function ContentGeneratorPage() {
       console.log('콘텐츠 생성 요청:', requestData);
 
       // 백엔드 API 호출
-      const response = await fetch('http://localhost:8000/api/content/generate', {
+      const response = await fetch(buildApiUrl('/api/content/generate'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: jsonHeaders(),
         body: JSON.stringify(requestData)
       });
 

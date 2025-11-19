@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { sitesAPI } from '@/lib/api/sites';
 import { campaignsAPI } from '@/lib/api/campaigns';
 import { supabase } from '@/lib/supabase';
+import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
 
 /**
  * 🚀 Content Generator Page (English)
@@ -132,11 +133,9 @@ export default function ContentGeneratorPageEn() {
 
       console.log('🚧 Content generation request payload:', requestData);
 
-      const response = await fetch('http://localhost:8000/api/content/generate', {
+      const response = await fetch(buildApiUrl('/api/content/generate'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: jsonHeaders(),
         body: JSON.stringify(requestData)
       });
 

@@ -3,7 +3,7 @@
  * 각 섹션의 제목을 기반으로 상세한 콘텐츠를 생성하는 API
  */
 
-const API_BASE_URL = 'http://localhost:8000'; // 하드코딩된 API URL
+import { buildApiUrl, jsonHeaders } from './httpClient';
 
 /**
  * 섹션별 콘텐츠 생성 API 호출
@@ -25,11 +25,9 @@ export const sectionContentAPI = {
     try {
       console.log('섹션별 콘텐츠 생성 요청:', requestData);
 
-      const response = await fetch(`${API_BASE_URL}/api/section-content/generate`, {
+      const response = await fetch(buildApiUrl('/api/section-content/generate'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: jsonHeaders(),
         body: JSON.stringify(requestData)
       });
 
@@ -62,12 +60,7 @@ export const sectionContentAPI = {
    */
   async healthCheck() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/section-content/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(buildApiUrl('/api/section-content/health'), { method: 'GET', headers: jsonHeaders() });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

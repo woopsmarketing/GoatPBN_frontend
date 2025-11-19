@@ -12,6 +12,7 @@ import TailwindButton from '@/components/ui/TailwindButton';
 import CreditCalculator from '@/components/CreditCalculator';
 import { sitesAPI } from '@/lib/api/sites';
 import { campaignsAPI } from '@/lib/api/campaigns';
+import { buildApiUrl } from '@/lib/api/httpClient';
 
 export default function CampaignCreatePageEn() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function CampaignCreatePageEn() {
   const loadUserCredits = async () => {
     try {
       const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
-      const response = await fetch(`http://localhost:8000/api/credits/summary/${userId}`);
+      const response = await fetch(buildApiUrl(`/api/credits/summary/${userId}`));
       if (response.ok) {
         const data = await response.json();
         setUserCredits(data.credits_remaining || 100);

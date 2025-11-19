@@ -274,16 +274,20 @@ activityLogger.logAction(userId, 'campaign_created', {
 ### 1. API 함수 파일 생성/수정
 ```javascript
 // lib/api/my_feature.js
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8000/api';
+import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
 
 export async function getMyData(userId) {
   try {
-    const response = await axios.get(`${API_BASE_URL}/my-feature`, {
-      params: { user_id: userId }
+    const response = await fetch(`${buildApiUrl('/api/my-feature')}?user_id=${userId}`, {
+      method: 'GET',
+      headers: jsonHeaders()
     });
-    return response.data;
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('API 오류:', error);
     throw error;
@@ -330,11 +334,9 @@ const MyPage = () => {
 
 ### API Base URL
 ```javascript
-// 개발 환경
-const API_BASE_URL = 'http://localhost:8000/api';
+import { getApiBaseUrl } from '@/lib/api/httpClient';
 
-// 프로덕션 환경
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.your-domain.com';
+const API_BASE_URL = `${getApiBaseUrl()}/api`;
 ```
 
 ### Error Handling
@@ -358,7 +360,7 @@ try {
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJ...
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=https://api.your-domain.com
 ```
 
 ---

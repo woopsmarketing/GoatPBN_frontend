@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { SearchNormal, TickCircle, Warning2, Clock, DocumentText, Tag, Refresh } from '@wandersonalwes/iconsax-react';
+import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
 
 const KeywordGeneratorPage = () => {
   // 상태 관리
@@ -29,11 +30,9 @@ const KeywordGeneratorPage = () => {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/keywords/generate', {
+      const response = await fetch(buildApiUrl('/api/keywords/generate'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: jsonHeaders(),
         body: JSON.stringify({
           main_keyword: mainKeyword.trim(),
           lsi_count: lsiCount,

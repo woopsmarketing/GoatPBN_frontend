@@ -3,7 +3,7 @@
  * 메인 키워드로부터 LSI 키워드와 롱테일 키워드를 생성하는 API 호출 함수들
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+import { buildApiUrl, jsonHeaders } from './httpClient';
 
 /**
  * 키워드 생성 API 호출
@@ -16,11 +16,9 @@ const API_BASE_URL = 'http://localhost:8000';
  */
 export const generateKeywords = async (data) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/keyword/generate`, {
+    const response = await fetch(buildApiUrl('/api/keyword/generate'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: jsonHeaders(),
       body: JSON.stringify(data)
     });
 
@@ -49,12 +47,7 @@ export const generateKeywords = async (data) => {
  */
 export const checkKeywordApiHealth = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/keyword/health`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(buildApiUrl('/api/keyword/health'), { method: 'GET', headers: jsonHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json();

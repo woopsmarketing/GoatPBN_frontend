@@ -3,7 +3,7 @@
  * 제목과 키워드들을 기반으로 콘텐츠의 구조(목차)를 생성하는 API 호출 함수들
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+import { buildApiUrl, jsonHeaders } from './httpClient';
 
 /**
  * 콘텐츠 구조 생성 API 호출
@@ -19,11 +19,9 @@ const API_BASE_URL = 'http://localhost:8000';
  */
 export const generateContentStructure = async (data) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/content-structure/generate`, {
+    const response = await fetch(buildApiUrl('/api/content-structure/generate'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: jsonHeaders(),
       body: JSON.stringify(data)
     });
 
@@ -52,12 +50,7 @@ export const generateContentStructure = async (data) => {
  */
 export const checkContentStructureApiHealth = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/content-structure/health`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(buildApiUrl('/api/content-structure/health'), { method: 'GET', headers: jsonHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json();

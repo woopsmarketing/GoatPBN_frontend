@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
@@ -35,11 +36,9 @@ const KeywordGenerator = () => {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/keywords/generate', {
+      const response = await fetch(buildApiUrl('/api/keywords/generate'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: jsonHeaders(),
         body: JSON.stringify({
           main_keyword: mainKeyword.trim()
         })
