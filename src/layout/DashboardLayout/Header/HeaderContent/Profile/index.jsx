@@ -1,98 +1,59 @@
-import PropTypes from 'prop-types';
+// v1.2 - 프로필 메뉴 Supabase 로그아웃 및 단순화 (2025.11.19)
+// 용도 요약: 헤더 프로필 버튼에서 간단한 사용자 정보와 로그아웃 기능 제공
 import { useRef, useState } from 'react';
 
 // next
-import { useRouter } from 'next/navigation';
-import { signOut, useSession } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
 
 // material-ui
-import { useTheme } from '@mui/material/styles';
 import ButtonBase from '@mui/material/ButtonBase';
 import CardContent from '@mui/material/CardContent';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
 import Paper from '@mui/material/Paper';
 import Popper from '@mui/material/Popper';
 import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 
 // project-imports
-import ProfileTab from './ProfileTab';
-import SettingTab from './SettingTab';
 import Avatar from 'components/@extended/Avatar';
 import IconButton from 'components/@extended/IconButton';
 import Transitions from 'components/@extended/Transitions';
 import MainCard from 'components/MainCard';
-
 import useUser from 'hooks/useUser';
 
-// assets
+// assets & icons
 const avatar1 = '/assets/images/users/avatar-6.png';
-import { Setting2, Profile, Logout } from '@wandersonalwes/iconsax-react';
+import { Logout, Profile } from '@wandersonalwes/iconsax-react';
 
-// tab panel wrapper
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      id={`profile-tabpanel-${index}`}
-      aria-labelledby={`profile-tab-${index}`}
-      {...other}
-      sx={{ p: 1 }}
-    >
-      {value === index && children}
-    </Box>
-  );
-}
+// libs
+import { authAPI } from '@/lib/supabase';
 
-function a11yProps(index) {
-  return {
-    id: `profile-tab-${index}`,
-    'aria-controls': `profile-tabpanel-${index}`
-  };
-}
-
-const tabStyle = {
-  display: 'flex',
-  flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
-  textTransform: 'capitalize',
-  gap: 1.25
+// 한글 주석: 현재 경로를 기반으로 로그인 페이지 베이스 경로 계산
+const resolveLoginBasePath = (pathname) => {
+  if (!pathname) return '/en';
+  if (pathname.startsWith('/ko')) return '/ko';
+  if (pathname.startsWith('/en')) return '/en';
+  return '/en';
 };
 
-// ==============================|| HEADER CONTENT - PROFILE ||============================== //
-
 export default function ProfilePage() {
-  const theme = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const user = useUser();
-
-  const { data: session } = useSession();
-  const provider = session?.provider;
-
-  const handleLogout = () => {
-    switch (provider) {
-      case 'auth0':
-        signOut({ callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/logout/auth0` });
-        break;
-      case 'cognito':
-        signOut({ callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/logout/cognito` });
-        break;
-      default:
-        signOut({ redirect: false });
-    }
-
-    router.push('/login');
-  };
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
+
   const handleToggle = () => {
     setOpen((prevOpen) => !prevOpen);
   };
@@ -104,10 +65,19 @@ export default function ProfilePage() {
     setOpen(false);
   };
 
-  const [value, setValue] = useState(0);
-
-  const handleChange = (event, newValue) => {
-    setValue(newValue);
+  const handleLogout = async () => {
+    const loginBasePath = resolveLoginBasePath(pathname);
+    try {
+      // 한글 주석: Supabase 세션을 먼저 종료
+      await authAPI.signOut();
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+      alert('로그아웃 처리 중 문제가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      // 한글 주석: 세션 종료 후 locale 기반 로그인 페이지로 이동
+      router.replace(loginBasePath);
+      setOpen(false);
+    }
   };
 
   return (
@@ -144,16 +114,16 @@ export default function ProfilePage() {
             <Paper
               sx={(theme) => ({
                 boxShadow: theme.customShadows.z1,
-                width: 290,
+                width: 280,
                 minWidth: 240,
-                maxWidth: 290,
-                [theme.breakpoints.down('md')]: { maxWidth: 250 },
+                maxWidth: 280,
+                [theme.breakpoints.down('md')]: { maxWidth: 240 },
                 borderRadius: 1.5
               })}
             >
               <ClickAwayListener onClickAway={handleClose}>
                 <MainCard border={false} content={false}>
-                  <CardContent sx={{ px: 2.5, pt: 3 }}>
+                  <CardContent sx={{ px: 2.5, pt: 3, pb: 2 }}>
                     <Grid container sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                       <Grid>
                         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center' }}>
@@ -161,7 +131,7 @@ export default function ProfilePage() {
                           <Stack>
                             <Typography variant="subtitle1">{user ? user?.name : ''}</Typography>
                             <Typography variant="body2" color="secondary">
-                              UI/UX Designer
+                              {user?.email ?? '멤버'}
                             </Typography>
                           </Stack>
                         </Stack>
@@ -175,19 +145,24 @@ export default function ProfilePage() {
                       </Grid>
                     </Grid>
                   </CardContent>
-
-                  <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Tabs variant="fullWidth" value={value} onChange={handleChange} aria-label="profile tabs">
-                      <Tab sx={tabStyle} icon={<Profile size={18} style={{ marginBottom: 0 }} />} label="Profile" {...a11yProps(0)} />
-                      <Tab sx={tabStyle} icon={<Setting2 size={18} style={{ marginBottom: 0 }} />} label="Setting" {...a11yProps(1)} />
-                    </Tabs>
-                  </Box>
-                  <TabPanel value={value} index={0} dir={theme.direction}>
-                    <ProfileTab handleLogout={handleLogout} />
-                  </TabPanel>
-                  <TabPanel value={value} index={1} dir={theme.direction}>
-                    <SettingTab />
-                  </TabPanel>
+                  <Divider />
+                  <List disablePadding>
+                    <ListItem>
+                      <ListItemIcon>
+                        <Profile variant="Bulk" />
+                      </ListItemIcon>
+                      <ListItemText primary="프로필 관리 (준비중)" secondary="곧 업데이트될 예정입니다." />
+                    </ListItem>
+                    <Divider component="li" />
+                    <ListItem disablePadding>
+                      <ListItemButton onClick={handleLogout}>
+                        <ListItemIcon>
+                          <Logout variant="Bulk" />
+                        </ListItemIcon>
+                        <ListItemText primary="로그아웃" />
+                      </ListItemButton>
+                    </ListItem>
+                  </List>
                 </MainCard>
               </ClickAwayListener>
             </Paper>
@@ -197,5 +172,3 @@ export default function ProfilePage() {
     </Box>
   );
 }
-
-TabPanel.propTypes = { children: PropTypes.node, value: PropTypes.number, index: PropTypes.number, other: PropTypes.any };

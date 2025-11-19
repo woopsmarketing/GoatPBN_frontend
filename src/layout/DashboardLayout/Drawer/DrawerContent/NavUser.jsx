@@ -1,9 +1,9 @@
+// v1.2 - 사이드바 사용자 메뉴 Supabase 로그아웃 연동 (2025.11.19)
+// 용도 요약: 드로어 하단 사용자 영역에서 단순한 로그아웃 메뉴 제공
 import { useState } from 'react';
 
 // next
-import { useRouter } from 'next/navigation';
-import { signOut, useSession } from 'next-auth/react';
-import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 
 // material-ui
 import { styled } from '@mui/material/styles';
@@ -21,8 +21,9 @@ import { useGetMenuMaster } from 'api/menu';
 import Avatar from 'components/@extended/Avatar';
 import useUser from 'hooks/useUser';
 
-// assets
-import { ArrowRight2 } from '@wandersonalwes/iconsax-react';
+// assets & icons
+import { ArrowRight2, Logout } from '@wandersonalwes/iconsax-react';
+import { authAPI } from '@/lib/supabase';
 
 const avatar1 = '/assets/images/users/avatar-6.png';
 
@@ -38,31 +39,35 @@ const ExpandMore = styled(IconButton, {
   ...(!drawerOpen && { opacity: 0, width: 50, height: 50 })
 }));
 
+// 한글 주석: 현재 경로에서 locale 정보를 확인해 로그인 페이지 경로를 계산
+const resolveLoginBasePath = (pathname) => {
+  if (!pathname) return '/en';
+  if (pathname.startsWith('/ko')) return '/ko';
+  if (pathname.startsWith('/en')) return '/en';
+  return '/en';
+};
+
 // ==============================|| LIST - USER ||============================== //
 
 export default function UserList() {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useUser();
 
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
-  const { data: session } = useSession();
-  const provider = session?.provider;
-
-  const handleLogout = () => {
-    switch (provider) {
-      case 'auth0':
-        signOut({ callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/logout/auth0` });
-        break;
-      case 'cognito':
-        signOut({ callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/logout/cognito` });
-        break;
-      default:
-        signOut({ redirect: false });
+  const handleLogout = async () => {
+    const loginBasePath = resolveLoginBasePath(pathname);
+    try {
+      // 한글 주석: Supabase 세션을 안전하게 종료
+      await authAPI.signOut();
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+      alert('로그아웃 처리 중 문제가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      router.replace(loginBasePath);
     }
-
-    router.push('/login');
   };
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -103,7 +108,11 @@ export default function UserList() {
           <ListItemAvatar>
             <Avatar alt="Avatar" src={avatar1} sx={{ ...(drawerOpen && { width: 46, height: 46 }) }} />
           </ListItemAvatar>
-          <ListItemText primary={user ? user?.name : ''} sx={{ ...(!drawerOpen && { display: 'none' }) }} secondary="UI/UX Designer" />
+          <ListItemText
+            primary={user ? user?.name : ''}
+            sx={{ ...(!drawerOpen && { display: 'none' }) }}
+            secondary={user?.email ?? '멤버'}
+          />
         </ListItem>
       </List>
       <Menu
@@ -115,12 +124,12 @@ export default function UserList() {
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <MenuItem onClick={handleLogout}>Logout</MenuItem>
-        <MenuItem component={Link} href="#!" onClick={handleClose}>
-          Profile
+        <MenuItem onClick={handleLogout}>
+          <Logout size={18} style={{ marginRight: 8 }} />
+          로그아웃
         </MenuItem>
-        <MenuItem component={Link} href="#!" onClick={handleClose}>
-          My account
+        <MenuItem disabled onClick={handleClose}>
+          준비중
         </MenuItem>
       </Menu>
     </Box>
