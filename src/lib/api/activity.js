@@ -77,9 +77,10 @@ export const activityAPI = {
         params.append('user_id', userId);
       }
 
-      const url = params.toString()
-        ? `${buildApiUrl('/api/activity/stats')}?${params.toString()}`
-        : buildApiUrl('/api/activity/stats');
+      let url = buildApiUrl('/api/activity/stats');
+      if (params.toString()) {
+        url = `${url}?${params.toString()}`;
+      }
 
       const response = await fetch(url, { method: 'GET', headers: jsonHeaders() });
 

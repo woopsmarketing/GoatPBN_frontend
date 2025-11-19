@@ -5,7 +5,7 @@
 'use client';
 
 import PropTypes from 'prop-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authAPI } from '../../lib/supabase';
 import Loader from 'components/Loader';
@@ -27,28 +27,7 @@ export default function AuthGuard({ children }) {
   const pathname = usePathname();
   const loginBasePath = useMemo(() => resolveLoginBasePath(pathname), [pathname]);
 
-  useEffect(() => {
-    checkAuth();
-
-    // 인증 상태 변화 감지
-    const {
-      data: { subscription }
-    } = authAPI.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
-        setIsAuthenticated(true);
-        setIsLoading(false);
-      } else if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        router.replace(loginBasePath);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, loginBasePath]);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const {
         data: { session }
@@ -65,7 +44,26 @@ export default function AuthGuard({ children }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loginBasePath, router]);
+
+  useEffect(() => {
+    checkAuth();
+
+    const {
+      data: { subscription }
+    } = authAPI.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        setIsAuthenticated(true);
+        setIsLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        router.replace(loginBasePath);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [checkAuth, loginBasePath, router]);
 
   if (isLoading) {
     return (

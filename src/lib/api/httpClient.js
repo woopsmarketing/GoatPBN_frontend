@@ -17,8 +17,4 @@ export const buildApiUrl = (path = '/') => {
 };
 
 // 한글 주석: JSON 요청에 필요한 기본 헤더를 반환
-export const jsonHeaders = (customHeaders = {}) => ({
-  'Content-Type': 'application/json',
-  ...customHeaders
-});
-
+export const jsonHeaders = (customHeaders = {}) => ({ 'Content-Type': 'application/json', ...customHeaders });
