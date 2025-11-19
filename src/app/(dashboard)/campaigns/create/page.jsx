@@ -13,6 +13,7 @@ import CreditCalculator from '../../../../components/CreditCalculator';
 import { sitesAPI } from '../../../../lib/api/sites';
 import { campaignsAPI } from '../../../../lib/api/campaigns';
 import { buildApiUrl } from '../../../../lib/api/httpClient';
+import { authAPI } from '../../../../lib/supabase';
 
 export default function CampaignCreatePage() {
   const router = useRouter();
@@ -81,7 +82,15 @@ export default function CampaignCreatePage() {
   const loadUserCredits = async () => {
     try {
       // 사용자 ID 가져오기 (실제로는 Auth에서)
-      const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
+      const {
+        data: { session }
+      } = await authAPI.getSession();
+
+      const userId = session?.user?.id;
+      if (!userId) {
+        console.warn('크레딧 정보를 불러올 수 있는 로그인 세션이 없습니다.');
+        return;
+      }
 
       const response = await fetch(buildApiUrl(`/api/credits/summary/${userId}`));
       if (response.ok) {

@@ -13,6 +13,7 @@ import CreditCalculator from '@/components/CreditCalculator';
 import { sitesAPI } from '@/lib/api/sites';
 import { campaignsAPI } from '@/lib/api/campaigns';
 import { buildApiUrl } from '@/lib/api/httpClient';
+import { authAPI } from '@/lib/supabase';
 
 export default function CampaignCreatePageEn() {
   const router = useRouter();
@@ -80,7 +81,16 @@ export default function CampaignCreatePageEn() {
   // 사용자 크레딧 로드
   const loadUserCredits = async () => {
     try {
-      const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
+      const {
+        data: { session }
+      } = await authAPI.getSession();
+
+      const userId = session?.user?.id;
+      if (!userId) {
+        console.warn('No active user session detected while loading credits.');
+        return;
+      }
+
       const response = await fetch(buildApiUrl(`/api/credits/summary/${userId}`));
       if (response.ok) {
         const data = await response.json();

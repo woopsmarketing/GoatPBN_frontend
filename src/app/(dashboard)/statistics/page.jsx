@@ -11,6 +11,7 @@ import MainCard from '../../../components/MainCard';
 import TailwindButton from '../../../components/ui/TailwindButton';
 import { campaignsAPI } from '../../../lib/api/campaigns';
 import { buildApiUrl } from '../../../lib/api/httpClient';
+import { authAPI } from '../../../lib/supabase';
 
 // 간단한 도넛(원형 진행) 컴포넌트 - 외부 라이브러리 없이 SVG로 구현
 function Donut({ value = 0, size = 96, stroke = 10, color = '#3B82F6' }) {
@@ -221,8 +222,15 @@ export default function StatisticsPage() {
   useEffect(() => {
     const loadCreditInfo = async () => {
       try {
-        // 사용자 ID 가져오기 (실제로는 Auth에서)
-        const userId = localStorage.getItem('user_id') || '0b133620-eb0d-4552-82fb-672d64bc9163';
+        const {
+          data: { session }
+        } = await authAPI.getSession();
+
+        const userId = session?.user?.id;
+        if (!userId) {
+          console.warn('크레딧 정보를 불러올 사용자 세션이 없습니다.');
+          return;
+        }
 
         const response = await fetch(buildApiUrl(`/api/credits/summary/${userId}`));
         if (response.ok) {
