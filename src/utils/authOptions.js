@@ -89,9 +89,7 @@ export const authOptions = {
     },
     async signIn(params) {
       // Prevent JWT token issuance on registration
-      if (params.account?.provider === 'register') {
-        return `${process.env.NEXTAUTH_URL}login`;
-      }
+      if (params.account?.provider === 'register') return '/';
       return true;
     }
   },
@@ -103,7 +101,7 @@ export const authOptions = {
     secret: process.env.NEXT_APP_JWT_SECRET
   },
   pages: {
-    signIn: '/login',
+    signIn: '/',
     newUser: '/register'
   }
 };
