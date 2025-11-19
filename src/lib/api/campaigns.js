@@ -201,7 +201,12 @@ export const campaignsAPI = {
 
       console.log('API 요청 본문:', requestBody);
 
-      const response = await fetch('http://localhost:8000/api/campaigns/initialize-schedule', {
+      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+      if (!apiBaseUrl) {
+        throw new Error('API 기본 URL이 설정되지 않았습니다. NEXT_PUBLIC_API_URL 환경 변수를 확인하세요.');
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/campaigns/initialize-schedule`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
