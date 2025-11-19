@@ -1,7 +1,16 @@
+// v1.1 - Supabase 로컬 로그인 경로 리다이렉트 대응 (2025.11.19)
+// 목적: Axios 요청 실패 시 locale에 맞는 로그인 화면으로 이동
 import axios from 'axios';
-import { getSession, signOut } from 'next-auth/react';
+import { authAPI } from '@/lib/supabase';
 
 const axiosServices = axios.create({ baseURL: process.env.NEXT_APP_API_URL });
+
+const resolveLoginBasePath = (pathname) => {
+  if (!pathname) return '/en';
+  if (pathname.startsWith('/ko')) return '/ko';
+  if (pathname.startsWith('/en')) return '/en';
+  return '/en';
+};
 
 // ==============================|| AXIOS - FOR MOCK SERVICES ||============================== //
 
@@ -10,10 +19,6 @@ const axiosServices = axios.create({ baseURL: process.env.NEXT_APP_API_URL });
  */
 axiosServices.interceptors.request.use(
   async (config) => {
-    const session = await getSession();
-    if (session?.token.accessToken) {
-      config.headers['Authorization'] = `Bearer ${session?.token.accessToken}`;
-    }
     return config;
   },
   (error) => {
@@ -25,9 +30,15 @@ if (typeof window !== 'undefined') {
   axiosServices.interceptors.response.use(
     (response) => response,
     async (error) => {
-      if (error.response.status === 401 && !window.location.href.includes('/login')) {
-        await signOut();
-        window.location.pathname = '/login';
+      if (error.response?.status === 401) {
+        try {
+          await authAPI.signOut();
+        } catch (logoutError) {
+          console.error('Supabase 로그아웃 실패:', logoutError);
+        } finally {
+          const loginBasePath = resolveLoginBasePath(window.location.pathname);
+          window.location.href = loginBasePath;
+        }
       }
       return Promise.reject((error.response && error.response.data) || 'Wrong Services');
     }

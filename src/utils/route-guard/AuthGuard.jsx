@@ -5,10 +5,18 @@
 'use client';
 
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase, authAPI } from '../../lib/supabase';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { authAPI } from '../../lib/supabase';
 import Loader from 'components/Loader';
+
+// 한글 주석: 현재 경로를 기반으로 locale별 로그인 경로를 계산
+const resolveLoginBasePath = (pathname) => {
+  if (!pathname) return '/en';
+  if (pathname.startsWith('/ko')) return '/ko';
+  if (pathname.startsWith('/en')) return '/en';
+  return '/en';
+};
 
 // ==============================|| AUTH GUARD ||============================== //
 
@@ -16,6 +24,8 @@ export default function AuthGuard({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+  const loginBasePath = useMemo(() => resolveLoginBasePath(pathname), [pathname]);
 
   useEffect(() => {
     checkAuth();
@@ -30,12 +40,13 @@ export default function AuthGuard({ children }) {
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
         setIsLoading(false);
-        router.push('/auth/login');
+        router.replace(loginBasePath);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, loginBasePath]);
 
   const checkAuth = async () => {
     try {
@@ -46,11 +57,11 @@ export default function AuthGuard({ children }) {
       if (session) {
         setIsAuthenticated(true);
       } else {
-        router.push('/auth/login');
+        router.replace(loginBasePath);
       }
     } catch (error) {
       console.error('인증 확인 오류:', error);
-      router.push('/auth/login');
+      router.replace(loginBasePath);
     } finally {
       setIsLoading(false);
     }
