@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
 // v1.0 - 계정 설정 페이지 (2025.11.20)
 // 기능 요약: 시간대/국가 설정 및 자동 감지 토글 제공
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
 
-import MainCard from '@/components/MainCard'
+import MainCard from '@/components/MainCard';
 import {
   TIMEZONE_OPTIONS,
   userTimeZone,
@@ -13,52 +13,52 @@ import {
   toggleAutoDetect,
   getUserTimeZoneInfo,
   formatToUserTimeZone
-} from '@/lib/utils/userTimeZone'
+} from '@/lib/utils/userTimeZone';
 
 export default function SettingsPage() {
-  const [autoDetect, setAutoDetect] = useState(() => userTimeZone.getAutoDetectSetting())
-  const [selectedTimeZone, setSelectedTimeZone] = useState(() => userTimeZone.getUserTimeZone())
-  const [timeZoneInfo, setTimeZoneInfo] = useState(() => getUserTimeZoneInfo())
+  const [autoDetect, setAutoDetect] = useState(() => userTimeZone.getAutoDetectSetting());
+  const [selectedTimeZone, setSelectedTimeZone] = useState(() => userTimeZone.getUserTimeZone());
+  const [timeZoneInfo, setTimeZoneInfo] = useState(() => getUserTimeZoneInfo());
   const [currentTime, setCurrentTime] = useState(() =>
     formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  )
+  );
 
   useEffect(() => {
     const updateClock = () => {
-      setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-    }
+      setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
     const syncState = () => {
-      setAutoDetect(userTimeZone.getAutoDetectSetting())
-      setSelectedTimeZone(userTimeZone.getUserTimeZone())
-      setTimeZoneInfo(getUserTimeZoneInfo())
-      updateClock()
-    }
+      setAutoDetect(userTimeZone.getAutoDetectSetting());
+      setSelectedTimeZone(userTimeZone.getUserTimeZone());
+      setTimeZoneInfo(getUserTimeZoneInfo());
+      updateClock();
+    };
 
-    syncState()
-    const timer = setInterval(updateClock, 1000 * 30)
-    return () => clearInterval(timer)
-  }, [])
+    syncState();
+    const timer = setInterval(updateClock, 1000 * 30);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleAutoDetectToggle = () => {
-    const next = toggleAutoDetect()
-    setAutoDetect(next)
-    setSelectedTimeZone(userTimeZone.getUserTimeZone())
-    setTimeZoneInfo(getUserTimeZoneInfo())
-  }
+    const next = toggleAutoDetect();
+    setAutoDetect(next);
+    setSelectedTimeZone(userTimeZone.getUserTimeZone());
+    setTimeZoneInfo(getUserTimeZoneInfo());
+  };
 
   const handleTimeZoneChange = (event) => {
-    const value = event.target.value
-    setUserTimeZone(value)
-    setAutoDetect(false)
-    setSelectedTimeZone(value)
-    setTimeZoneInfo(getUserTimeZoneInfo())
-    setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-  }
+    const value = event.target.value;
+    setUserTimeZone(value);
+    setAutoDetect(false);
+    setSelectedTimeZone(value);
+    setTimeZoneInfo(getUserTimeZoneInfo());
+    setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+  };
 
   const detectedLabel = useMemo(() => {
-    const detectedOption = TIMEZONE_OPTIONS.find((tz) => tz.value === timeZoneInfo.detected)
-    return detectedOption ? detectedOption.label : timeZoneInfo.detected
-  }, [timeZoneInfo])
+    const detectedOption = TIMEZONE_OPTIONS.find((tz) => tz.value === timeZoneInfo.detected);
+    return detectedOption ? detectedOption.label : timeZoneInfo.detected;
+  }, [timeZoneInfo]);
 
   return (
     <div className="space-y-6">
@@ -125,5 +125,5 @@ export default function SettingsPage() {
         </div>
       </MainCard>
     </div>
-  )
+  );
 }

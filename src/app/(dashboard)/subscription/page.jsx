@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
 // v1.0 - 구독 관리 페이지 (2025.11.20)
 // 기능 요약: Supabase subscriptions 테이블과 연동하여 현재 플랜/크레딧 잔여량을 표시
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
 
-import MainCard from '@/components/MainCard'
-import TailwindButton from '@/components/ui/TailwindButton'
-import { authAPI, supabase } from '@/lib/supabase'
-import { formatToUserTimeZone } from '@/lib/utils/userTimeZone'
+import MainCard from '@/components/MainCard';
+import TailwindButton from '@/components/ui/TailwindButton';
+import { authAPI, supabase } from '@/lib/supabase';
+import { formatToUserTimeZone } from '@/lib/utils/userTimeZone';
 
 const PLAN_LABELS = {
   free: '무료 플랜',
@@ -17,72 +17,72 @@ const PLAN_LABELS = {
   pro: 'Pro',
   enterprise: 'Enterprise',
   custom: '맞춤 플랜'
-}
+};
 
 export default function SubscriptionPage() {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [subscription, setSubscription] = useState(null)
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [subscription, setSubscription] = useState(null);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     const loadSubscription = async () => {
       try {
-        const { data: authData, error: authError } = await authAPI.getCurrentUser()
-        if (authError) throw authError
-        const user = authData?.user
+        const { data: authData, error: authError } = await authAPI.getCurrentUser();
+        if (authError) throw authError;
+        const user = authData?.user;
         if (!user) {
-          setError('로그인 정보를 찾을 수 없습니다.')
-          return
+          setError('로그인 정보를 찾을 수 없습니다.');
+          return;
         }
 
-        const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle()
+        const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
 
-        if (subError) throw subError
+        if (subError) throw subError;
         if (active) {
-          setSubscription(data)
+          setSubscription(data);
         }
       } catch (err) {
-        console.error('구독 정보 로드 실패:', err)
+        console.error('구독 정보 로드 실패:', err);
         if (active) {
-          setError('구독 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
+          setError('구독 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
         }
       } finally {
         if (active) {
-          setLoading(false)
+          setLoading(false);
         }
       }
-    }
+    };
 
-    loadSubscription()
+    loadSubscription();
     return () => {
-      active = false
-    }
-  }, [])
+      active = false;
+    };
+  }, []);
 
   const planLabel = useMemo(() => {
-    if (!subscription?.plan) return '플랜 없음'
-    return PLAN_LABELS[subscription.plan] || subscription.plan
-  }, [subscription])
+    if (!subscription?.plan) return '플랜 없음';
+    return PLAN_LABELS[subscription.plan] || subscription.plan;
+  }, [subscription]);
 
   const expiryLabel = useMemo(() => {
-    if (!subscription?.expiry_date) return '무제한'
-    return formatToUserTimeZone(subscription.expiry_date, { year: 'numeric', month: 'long', day: 'numeric' })
-  }, [subscription])
+    if (!subscription?.expiry_date) return '무제한';
+    return formatToUserTimeZone(subscription.expiry_date, { year: 'numeric', month: 'long', day: 'numeric' });
+  }, [subscription]);
 
   const daysRemaining = useMemo(() => {
-    if (!subscription?.expiry_date) return null
-    const end = new Date(subscription.expiry_date).getTime()
-    const now = Date.now()
-    return Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)))
-  }, [subscription])
+    if (!subscription?.expiry_date) return null;
+    const end = new Date(subscription.expiry_date).getTime();
+    const now = Date.now();
+    return Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
+  }, [subscription]);
 
   const credits = {
     total: subscription?.credits_total ?? 0,
     used: subscription?.credits_used ?? 0,
     remaining: subscription?.credits_remaining ?? 0
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -158,5 +158,5 @@ export default function SubscriptionPage() {
         </div>
       </MainCard>
     </div>
-  )
+  );
 }
