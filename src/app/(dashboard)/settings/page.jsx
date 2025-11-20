@@ -1,11 +1,11 @@
-'use client';
+'use client'
 
 // v1.0 - 계정 설정 페이지 (2025.11.20)
 // 기능 요약: 시간대/국가 설정 및 자동 감지 토글 제공
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react'
 
-import MainCard from '@/components/MainCard';
+import MainCard from '@/components/MainCard'
 import {
   TIMEZONE_OPTIONS,
   userTimeZone,
@@ -13,52 +13,52 @@ import {
   toggleAutoDetect,
   getUserTimeZoneInfo,
   formatToUserTimeZone
-} from '@/lib/utils/userTimeZone';
+} from '@/lib/utils/userTimeZone'
 
 export default function SettingsPage() {
-  const [autoDetect, setAutoDetect] = useState(() => userTimeZone.getAutoDetectSetting());
-  const [selectedTimeZone, setSelectedTimeZone] = useState(() => userTimeZone.getUserTimeZone());
-  const [timeZoneInfo, setTimeZoneInfo] = useState(() => getUserTimeZoneInfo());
+  const [autoDetect, setAutoDetect] = useState(() => userTimeZone.getAutoDetectSetting())
+  const [selectedTimeZone, setSelectedTimeZone] = useState(() => userTimeZone.getUserTimeZone())
+  const [timeZoneInfo, setTimeZoneInfo] = useState(() => getUserTimeZoneInfo())
   const [currentTime, setCurrentTime] = useState(() =>
     formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  );
+  )
 
   useEffect(() => {
     const updateClock = () => {
-      setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    };
+      setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+    }
     const syncState = () => {
-      setAutoDetect(userTimeZone.getAutoDetectSetting());
-      setSelectedTimeZone(userTimeZone.getUserTimeZone());
-      setTimeZoneInfo(getUserTimeZoneInfo());
-      updateClock();
-    };
+      setAutoDetect(userTimeZone.getAutoDetectSetting())
+      setSelectedTimeZone(userTimeZone.getUserTimeZone())
+      setTimeZoneInfo(getUserTimeZoneInfo())
+      updateClock()
+    }
 
-    syncState();
-    const timer = setInterval(updateClock, 1000 * 30);
-    return () => clearInterval(timer);
-  }, []);
+    syncState()
+    const timer = setInterval(updateClock, 1000 * 30)
+    return () => clearInterval(timer)
+  }, [])
 
   const handleAutoDetectToggle = () => {
-    const next = toggleAutoDetect();
-    setAutoDetect(next);
-    setSelectedTimeZone(userTimeZone.getUserTimeZone());
-    setTimeZoneInfo(getUserTimeZoneInfo());
-  };
+    const next = toggleAutoDetect()
+    setAutoDetect(next)
+    setSelectedTimeZone(userTimeZone.getUserTimeZone())
+    setTimeZoneInfo(getUserTimeZoneInfo())
+  }
 
   const handleTimeZoneChange = (event) => {
-    const value = event.target.value;
-    setUserTimeZone(value);
-    setAutoDetect(false);
-    setSelectedTimeZone(value);
-    setTimeZoneInfo(getUserTimeZoneInfo());
-    setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-  };
+    const value = event.target.value
+    setUserTimeZone(value)
+    setAutoDetect(false)
+    setSelectedTimeZone(value)
+    setTimeZoneInfo(getUserTimeZoneInfo())
+    setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+  }
 
   const detectedLabel = useMemo(() => {
-    const detectedOption = TIMEZONE_OPTIONS.find((tz) => tz.value === timeZoneInfo.detected);
-    return detectedOption ? detectedOption.label : timeZoneInfo.detected;
-  }, [timeZoneInfo]);
+    const detectedOption = TIMEZONE_OPTIONS.find((tz) => tz.value === timeZoneInfo.detected)
+    return detectedOption ? detectedOption.label : timeZoneInfo.detected
+  }, [timeZoneInfo])
 
   return (
     <div className="space-y-6">
@@ -67,8 +67,7 @@ export default function SettingsPage() {
           <section className="space-y-3">
             <h3 className="text-lg font-semibold text-gray-900">🌍 시간대 설정</h3>
             <p className="text-sm text-gray-600">
-              캠페인 스케줄과 리포트 시간은 선택한 시간대를 기준으로 표시됩니다. 해외 사이트를 운영 중이라면 현지 시간대에 맞춰
-              설정하세요.
+              캠페인 스케줄과 리포트 시간은 선택한 시간대를 기준으로 표시됩니다. 해외 사이트를 운영 중이라면 현지 시간대에 맞춰 설정하세요.
             </p>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <input type="checkbox" checked={autoDetect} onChange={handleAutoDetectToggle} />
@@ -126,5 +125,5 @@ export default function SettingsPage() {
         </div>
       </MainCard>
     </div>
-  );
+  )
 }
