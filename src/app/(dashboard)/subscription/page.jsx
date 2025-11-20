@@ -116,7 +116,6 @@ export default function SubscriptionPage() {
                 플랜 변경 문의
               </TailwindButton>
             </div>
-
             <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-3">
               <div className="space-y-1 rounded-lg bg-blue-50 p-4 text-center">
                 <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">전체 크레딧</p>
@@ -144,7 +143,6 @@ export default function SubscriptionPage() {
           </div>
         )}
       </MainCard>
-
       <MainCard title="플랜 안내">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
@@ -163,4 +161,3 @@ export default function SubscriptionPage() {
     </div>
   );
 }
-

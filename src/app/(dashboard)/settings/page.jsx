@@ -70,7 +70,6 @@ export default function SettingsPage() {
               캠페인 스케줄과 리포트 시간은 선택한 시간대를 기준으로 표시됩니다. 해외 사이트를 운영 중이라면 현지 시간대에 맞춰
               설정하세요.
             </p>
-
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <input type="checkbox" checked={autoDetect} onChange={handleAutoDetectToggle} />
               브라우저에서 자동 감지
@@ -111,8 +110,8 @@ export default function SettingsPage() {
           <section className="space-y-3">
             <h3 className="text-lg font-semibold text-gray-900">🗓️ 예약 캠페인 기준</h3>
             <p className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
-              캠페인 예약, 크레딧 리포트, 알림 메일은 위에서 설정한 시간대를 기준으로 계산됩니다. 해외 타겟 캠페인을 운영한다면
-              현지 시간대와 맞춰 두는 것이 안전합니다.
+              캠페인 예약, 크레딧 리포트, 알림 메일은 위에서 설정한 시간대를 기준으로 계산됩니다. 해외 타겟 캠페인을 운영한다면 현지
+              시간대와 맞춰 두는 것이 안전합니다.
             </p>
           </section>
         </div>
@@ -130,4 +129,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
