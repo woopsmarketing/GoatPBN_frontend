@@ -377,48 +377,54 @@ export default function LogsPageEn() {
                     <th className="py-2 pr-4 w-36">Target site</th>
                     <th className="py-2 pr-4 w-32">Keyword</th>
                     <th className="py-2 pr-4 w-24">Status</th>
-                    <th className="py-2 pr-4 w-24">Action</th>
+                    <th className="py-2 pr-4 w-40">Submission URL</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {visibleLogs.map((log) => (
-                    <tr key={log.id} className="border-t hover:bg-gray-50">
-                      <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
-                      <td className="py-2 pr-4 truncate" title={log.campaigns?.name || '-'}>
-                        {log.campaigns?.name || '-'}
-                      </td>
-                      <td className="py-2 pr-4 truncate" title={log.content_title}>
-                        {log.published_url ? (
-                          <a href={log.published_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            {log.content_title}
-                          </a>
-                        ) : (
-                          log.content_title
-                        )}
-                      </td>
-                      <td className="py-2 pr-4 truncate" title={log.target_site}>
-                        {log.target_site}
-                      </td>
-                      <td className="py-2 pr-4 truncate" title={log.keyword}>
-                        {log.keyword}
-                      </td>
-                      <td className="py-2 pr-4">
-                        <StatusBadge status={log.status} errorMessage={log.error_message} />
-                      </td>
-                      <td className="py-2 pr-4 text-gray-600">
-                        {log.published_url && (
-                          <a
-                            href={log.published_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-xs"
-                          >
-                            View
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {visibleLogs.map((log) => {
+                    // 한글 주석: uploaded_url이 기본 경로이며, 호환성을 위해 과거 published_url 키도 함께 확인
+                    const submissionUrl = log.uploaded_url || log.published_url || log.publishedUrl || '';
+                    return (
+                      <tr key={log.id} className="border-t hover:bg-gray-50">
+                        <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
+                        <td className="py-2 pr-4 truncate" title={log.campaigns?.name || '-'}>
+                          {log.campaigns?.name || '-'}
+                        </td>
+                        <td className="py-2 pr-4 truncate" title={log.content_title}>
+                          {submissionUrl ? (
+                            <a href={submissionUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              {log.content_title}
+                            </a>
+                          ) : (
+                            log.content_title
+                          )}
+                        </td>
+                        <td className="py-2 pr-4 truncate" title={log.target_site}>
+                          {log.target_site}
+                        </td>
+                        <td className="py-2 pr-4 truncate" title={log.keyword}>
+                          {log.keyword}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <StatusBadge status={log.status} errorMessage={log.error_message} />
+                        </td>
+                        <td className="py-2 pr-4 text-gray-600">
+                          {submissionUrl ? (
+                            <a
+                              href={submissionUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs break-all"
+                            >
+                              {submissionUrl}
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

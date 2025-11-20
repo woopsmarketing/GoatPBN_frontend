@@ -345,11 +345,13 @@ export default function LogsPage() {
                     <th className="py-2 pr-4 w-32">타겟</th>
                     <th className="py-2 pr-4 w-28">키워드</th>
                     <th className="py-2 pr-4 w-20">상태</th>
-                    <th className="py-2 pr-4 w-24">액션</th>
+                    <th className="py-2 pr-4 w-40">제출 URL</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
                   {visibleLogs.map((log) => {
+                    // 한글 주석: Supabase logs 테이블의 uploaded_url(구 published_url)을 우선적으로 사용
+                    const submissionUrl = log.uploaded_url || log.published_url || log.publishedUrl || '';
                     return (
                       <tr key={log.id} className="border-t hover:bg-gray-50">
                         <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
@@ -357,8 +359,8 @@ export default function LogsPage() {
                           {log.campaigns?.name || '-'}
                         </td>
                         <td className="py-2 pr-4 truncate" title={log.content_title}>
-                          {log.published_url ? (
-                            <a href={log.published_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {submissionUrl ? (
+                            <a href={submissionUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                               {log.content_title}
                             </a>
                           ) : (
@@ -375,15 +377,17 @@ export default function LogsPage() {
                           <StatusBadge status={log.status} errorMessage={log.error_message} />
                         </td>
                         <td className="py-2 pr-4 text-gray-600">
-                          {log.published_url && (
+                          {submissionUrl ? (
                             <a
-                              href={log.published_url}
+                              href={submissionUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-xs"
+                              className="text-blue-600 hover:underline text-xs break-all"
                             >
-                              보기
+                              {submissionUrl}
                             </a>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
                           )}
                         </td>
                       </tr>
