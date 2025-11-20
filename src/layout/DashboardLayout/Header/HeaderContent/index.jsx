@@ -4,14 +4,12 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import Box from '@mui/material/Box';
 
 // project-imports
-import FullScreen from './FullScreen';
-import Localization from './Localization';
 import MegaMenuSection from './MegaMenuSection';
-import Message from './Message';
 import MobileSection from './MobileSection';
 import Notification from './Notification';
 import Profile from './Profile';
 import Search from './Search';
+import Support from './Support';
 
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -24,8 +22,6 @@ export default function HeaderContent() {
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
-  const localization = useMemo(() => <Localization />, []);
-
   const megaMenu = useMemo(() => <MegaMenuSection />, []);
 
   return (
@@ -33,12 +29,10 @@ export default function HeaderContent() {
       {menuOrientation === MenuOrientation.HORIZONTAL && !downLG && <DrawerHeader open={true} />}
       {!downLG && <Search />}
       {!downLG && megaMenu}
-      {!downLG && localization}
       {downLG && <Box sx={{ width: 1, ml: 1 }} />}
 
       <Notification />
-      {!downLG && <FullScreen />}
-      <Message />
+      {!downLG && <Support />}
       {!downLG && <Profile />}
       {downLG && <MobileSection />}
     </>

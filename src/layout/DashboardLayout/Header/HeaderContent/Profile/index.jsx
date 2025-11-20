@@ -1,6 +1,6 @@
-// v1.2 - 프로필 메뉴 Supabase 로그아웃 및 단순화 (2025.11.19)
-// 용도 요약: 헤더 프로필 버튼에서 간단한 사용자 정보와 로그아웃 기능 제공
-import { useRef, useState } from 'react';
+// v1.3 - 프로필 메뉴 확장: 설정/구독/사용량 진입점 및 가입일 노출 (2025.11.20)
+// 용도 요약: 헤더 프로필 버튼에서 사용자 환경설정, 구독 관리, 사용량 대시보드로 빠르게 이동
+import { useEffect, useRef, useState } from 'react';
 
 // next
 import { usePathname, useRouter } from 'next/navigation';
@@ -32,19 +32,13 @@ import MainCard from 'components/MainCard';
 import useUser from 'hooks/useUser';
 
 // assets & icons
-const avatar1 = '/assets/images/users/avatar-6.png';
-import { Logout, Profile } from '@wandersonalwes/iconsax-react';
+const FALLBACK_AVATAR = '/assets/images/users/avatar-6.png';
+import { Logout, Setting2, Card, Activity } from '@wandersonalwes/iconsax-react';
 
 // libs
 import { authAPI } from '@/lib/supabase';
-
-// 한글 주석: 현재 경로를 기반으로 로그인 페이지 베이스 경로 계산
-const resolveLoginBasePath = (pathname) => {
-  if (!pathname) return '/en';
-  if (pathname.startsWith('/ko')) return '/ko';
-  if (pathname.startsWith('/en')) return '/en';
-  return '/en';
-};
+import { formatToUserTimeZone } from '@/lib/utils/userTimeZone';
+import { getLocaleBasePath } from '@/utils/getLocaleBasePath';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -53,6 +47,39 @@ export default function ProfilePage() {
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const [joinDate, setJoinDate] = useState(null);
+  const [supabaseEmail, setSupabaseEmail] = useState('');
+  const [supabaseAvatar, setSupabaseAvatar] = useState('');
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    authAPI
+      .getCurrentUser()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          console.error('프로필 정보 로드 실패:', error);
+          return;
+        }
+        if (data?.user) {
+          setJoinDate(data.user.created_at ?? null);
+          setSupabaseEmail(data.user.email ?? '');
+          const meta = data.user.user_metadata || {};
+          setSupabaseAvatar(meta.avatar_url || meta.picture || '');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingProfile(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleToggle = () => {
     setOpen((prevOpen) => !prevOpen);
@@ -66,7 +93,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    const loginBasePath = resolveLoginBasePath(pathname);
+    const loginBasePath = getLocaleBasePath(pathname);
     try {
       // 한글 주석: Supabase 세션을 먼저 종료
       await authAPI.signOut();
@@ -79,6 +106,43 @@ export default function ProfilePage() {
       setOpen(false);
     }
   };
+
+  const localeBasePath = getLocaleBasePath(pathname);
+
+  const handleNavigate = (url) => {
+    setOpen(false);
+    router.push(url);
+  };
+
+  const profileMenuItems = [
+    {
+      key: 'settings',
+      icon: <Setting2 variant="Bulk" />,
+      primary: '설정',
+      secondary: '시간대 및 지역 설정',
+      href: `${localeBasePath}/settings`
+    },
+    {
+      key: 'subscription',
+      icon: <Card variant="Bulk" />,
+      primary: '구독 관리',
+      secondary: '현재 플랜 및 결제 내역',
+      href: `${localeBasePath}/subscription`
+    },
+    {
+      key: 'usage',
+      icon: <Activity variant="Bulk" />,
+      primary: '사용량 대시보드',
+      secondary: '크레딧 사용 현황 확인',
+      href: `${localeBasePath}/usage`
+    }
+  ];
+
+  const joinedAtLabel =
+    joinDate && !loadingProfile ? formatToUserTimeZone(joinDate, { year: 'numeric', month: 'long', day: 'numeric' }) : '정보 준비 중';
+
+  const displayEmail = user?.email || supabaseEmail || '멤버';
+  const displayAvatar = user?.avatar || supabaseAvatar || FALLBACK_AVATAR;
 
   return (
     <Box sx={{ flexShrink: 0, ml: 0.75 }}>
@@ -98,7 +162,7 @@ export default function ProfilePage() {
         aria-haspopup="true"
         onClick={handleToggle}
       >
-        <Avatar alt="profile user" src={avatar1} />
+        <Avatar alt="profile user" src={displayAvatar} />
       </ButtonBase>
       <Popper
         placement="bottom-end"
@@ -127,17 +191,17 @@ export default function ProfilePage() {
                     <Grid container sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                       <Grid>
                         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center' }}>
-                          <Avatar alt="profile user" src={avatar1} />
+                          <Avatar alt="profile user" src={displayAvatar} />
                           <Stack>
                             <Typography variant="subtitle1">{user ? user?.name : ''}</Typography>
                             <Typography variant="body2" color="secondary">
-                              {user?.email ?? '멤버'}
+                              {displayEmail}
                             </Typography>
                           </Stack>
                         </Stack>
                       </Grid>
                       <Grid>
-                        <Tooltip title="Logout">
+                        <Tooltip title="로그아웃">
                           <IconButton size="large" color="error" sx={{ p: 1 }} onClick={handleLogout}>
                             <Logout variant="Bulk" />
                           </IconButton>
@@ -146,13 +210,32 @@ export default function ProfilePage() {
                     </Grid>
                   </CardContent>
                   <Divider />
+                  <Box sx={{ px: 2.5, py: 2 }}>
+                    <Typography variant="caption" color="secondary">
+                      가입일
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {joinedAtLabel}
+                    </Typography>
+                  </Box>
+                  <Divider />
                   <List disablePadding>
-                    <ListItem>
-                      <ListItemIcon>
-                        <Profile variant="Bulk" />
-                      </ListItemIcon>
-                      <ListItemText primary="프로필 관리 (준비중)" secondary="곧 업데이트될 예정입니다." />
-                    </ListItem>
+                    {profileMenuItems.map((item) => (
+                      <ListItem disablePadding key={item.key}>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.href)}
+                          sx={{ gap: 1.5, alignItems: 'flex-start', py: 1.25 }}
+                        >
+                          <ListItemIcon sx={{ mt: 0.25, minWidth: 36, color: 'secondary.main' }}>{item.icon}</ListItemIcon>
+                          <ListItemText
+                            primary={item.primary}
+                            secondary={item.secondary}
+                            primaryTypographyProps={{ variant: 'body1', fontWeight: 600 }}
+                            secondaryTypographyProps={{ variant: 'caption', color: 'secondary' }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
                     <Divider component="li" />
                     <ListItem disablePadding>
                       <ListItemButton onClick={handleLogout}>

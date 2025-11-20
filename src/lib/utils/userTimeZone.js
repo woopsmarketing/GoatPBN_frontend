@@ -9,6 +9,8 @@
  * - 국가별 시간대 목록 제공
  */
 
+const isBrowser = typeof window !== 'undefined';
+
 // 주요 국가별 시간대 목록
 export const TIMEZONE_OPTIONS = [
   // 아시아
@@ -82,7 +84,10 @@ export class UserTimeZoneManager {
    * 자동 감지 설정 가져오기
    */
   getAutoDetectSetting() {
-    const stored = localStorage.getItem(STORAGE_KEYS.AUTO_DETECT);
+    if (!isBrowser) {
+      return true;
+    }
+    const stored = window.localStorage.getItem(STORAGE_KEYS.AUTO_DETECT);
     return stored !== null ? JSON.parse(stored) : true; // 기본값: 자동 감지
   }
 
@@ -91,7 +96,9 @@ export class UserTimeZoneManager {
    */
   setAutoDetectSetting(autoDetect) {
     this.autoDetect = autoDetect;
-    localStorage.setItem(STORAGE_KEYS.AUTO_DETECT, JSON.stringify(autoDetect));
+    if (isBrowser) {
+      window.localStorage.setItem(STORAGE_KEYS.AUTO_DETECT, JSON.stringify(autoDetect));
+    }
 
     if (autoDetect) {
       // 자동 감지 활성화 시 현재 감지된 시간대로 설정
@@ -103,11 +110,14 @@ export class UserTimeZoneManager {
    * 사용자 시간대 가져오기
    */
   getUserTimeZone() {
+    if (!isBrowser) {
+      return 'UTC';
+    }
     if (this.autoDetect) {
       return this.getDetectedTimeZone();
     }
 
-    const stored = localStorage.getItem(STORAGE_KEYS.USER_TIMEZONE);
+    const stored = window.localStorage.getItem(STORAGE_KEYS.USER_TIMEZONE);
     return stored || this.getDetectedTimeZone();
   }
 
@@ -116,7 +126,9 @@ export class UserTimeZoneManager {
    */
   setUserTimeZone(timeZone) {
     this.userTimeZone = timeZone;
-    localStorage.setItem(STORAGE_KEYS.USER_TIMEZONE, timeZone);
+    if (isBrowser) {
+      window.localStorage.setItem(STORAGE_KEYS.USER_TIMEZONE, timeZone);
+    }
 
     // 수동 설정 시 자동 감지 비활성화
     if (timeZone !== this.getDetectedTimeZone()) {
