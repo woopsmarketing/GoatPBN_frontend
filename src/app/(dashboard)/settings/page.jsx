@@ -74,7 +74,6 @@ export default function SettingsPage() {
               <input type="checkbox" checked={autoDetect} onChange={handleAutoDetectToggle} />
               브라우저에서 자동 감지
             </label>
-
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <span className="text-sm font-medium text-gray-700">선택된 시간대</span>
