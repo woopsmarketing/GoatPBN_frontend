@@ -222,10 +222,7 @@ export default function ProfilePage() {
                   <List disablePadding>
                     {profileMenuItems.map((item) => (
                       <ListItem disablePadding key={item.key}>
-                        <ListItemButton
-                          onClick={() => handleNavigate(item.href)}
-                          sx={{ gap: 1.5, alignItems: 'flex-start', py: 1.25 }}
-                        >
+                        <ListItemButton onClick={() => handleNavigate(item.href)} sx={{ gap: 1.5, alignItems: 'flex-start', py: 1.25 }}>
                           <ListItemIcon sx={{ mt: 0.25, minWidth: 36, color: 'secondary.main' }}>{item.icon}</ListItemIcon>
                           <ListItemText
                             primary={item.primary}

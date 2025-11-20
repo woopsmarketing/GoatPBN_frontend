@@ -93,9 +93,7 @@ export default function UsagePage() {
             <div className="rounded-lg border border-gray-200 p-4">
               <h3 className="text-sm font-semibold text-gray-900">📆 일자별 사용량</h3>
               <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {Object.keys(dailyUsage).length === 0 && (
-                  <p className="text-sm text-gray-500">아직 생성된 콘텐츠가 없습니다.</p>
-                )}
+                {Object.keys(dailyUsage).length === 0 && <p className="text-sm text-gray-500">아직 생성된 콘텐츠가 없습니다.</p>}
                 {Object.entries(dailyUsage)
                   .sort((a, b) => new Date(b[0]) - new Date(a[0]))
                   .slice(0, 9)
@@ -147,12 +145,7 @@ export default function UsagePage() {
                     </td>
                     <td className="px-4 py-2 text-gray-600">
                       {log.uploaded_url ? (
-                        <a
-                          href={log.uploaded_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline"
-                        >
+                        <a href={log.uploaded_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
                           보기
                         </a>
                       ) : (

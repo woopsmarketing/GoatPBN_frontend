@@ -8,4 +8,3 @@ export function getLocaleBasePath(pathname) {
   if (pathname.startsWith('/en')) return '/en';
   return '/en';
 }
-

@@ -52,9 +52,7 @@ export default function SettingsPage() {
     setAutoDetect(false);
     setSelectedTimeZone(value);
     setTimeZoneInfo(getUserTimeZoneInfo());
-    setCurrentTime(
-      formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    );
+    setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   };
 
   const detectedLabel = useMemo(() => {
@@ -110,7 +108,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-  <section className="space-y-3">
+          <section className="space-y-3">
             <h3 className="text-lg font-semibold text-gray-900">🗓️ 예약 캠페인 기준</h3>
             <p className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
               캠페인 예약, 크레딧 리포트, 알림 메일은 위에서 설정한 시간대를 기준으로 계산됩니다. 해외 타겟 캠페인을 운영한다면

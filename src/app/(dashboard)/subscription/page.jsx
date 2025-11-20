@@ -37,11 +37,7 @@ export default function SubscriptionPage() {
           return;
         }
 
-        const { data, error: subError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
 
         if (subError) throw subError;
         if (active) {
@@ -116,11 +112,7 @@ export default function SubscriptionPage() {
                   </p>
                 )}
               </div>
-              <TailwindButton
-                size="lg"
-                variant="secondary"
-                onClick={() => window.open('https://totoggong.com/contact', '_blank')}
-              >
+              <TailwindButton size="lg" variant="secondary" onClick={() => window.open('https://totoggong.com/contact', '_blank')}>
                 플랜 변경 문의
               </TailwindButton>
             </div>
@@ -146,10 +138,7 @@ export default function SubscriptionPage() {
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
             <p className="font-medium text-gray-900">아직 구독 정보가 없습니다.</p>
             <p className="mt-2">무료 플랜으로 시작하는 중이며, 크레딧이 부족하면 언제든지 업그레이드할 수 있습니다.</p>
-            <TailwindButton
-              className="mt-4"
-              onClick={() => window.open('https://totoggong.com/contact', '_blank')}
-            >
+            <TailwindButton className="mt-4" onClick={() => window.open('https://totoggong.com/contact', '_blank')}>
               상담 예약하기
             </TailwindButton>
           </div>
