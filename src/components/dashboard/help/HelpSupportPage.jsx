@@ -9,6 +9,9 @@ import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
 
 const CONTACT_LINK = 'https://totoggong.com/contact-us/';
+// 한글 주석: 페이지 상단 소개 문구를 상수로 분리하여 포맷 충돌을 방지
+const helpIntroductionMessage =
+  '캠페인 시작에 필요한 기본 단계를 안내하고, 문제 발생 시 바로 연락할 수 있는 채널을 정리했습니다. 필요한 항목을 선택하여 빠르게 진행해 보세요.';
 
 const onboardingSteps = [
   {
@@ -66,10 +69,7 @@ export default function HelpSupportPage() {
     <div className="space-y-6">
       <MainCard title="도움말 & 문의하기">
         <div className="space-y-4 text-sm text-gray-600">
-          <p>
-            캠페인 시작에 필요한 기본 단계를 안내하고, 문제 발생 시 바로 연락할 수 있는 채널을 정리했습니다. 필요한 항목을
-            선택하여 빠르게 진행해 보세요.
-          </p>
+          <p>{helpIntroductionMessage}</p>
           <TailwindButton asChild size="lg" variant="primary">
             <Link href={CONTACT_LINK} target="_blank" rel="noopener noreferrer">
               상담 폼 바로가기

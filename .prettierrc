@@ -5,6 +5,6 @@
   "trailingComma": "none",
   "tabWidth": 2,
   "useTabs": false,
-  "semi": false,
+  "semi": true,
   "endOfLine": "auto"
 }
