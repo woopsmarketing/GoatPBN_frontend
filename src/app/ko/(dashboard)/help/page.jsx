@@ -8,4 +8,3 @@ import HelpSupportPage from '@/components/dashboard/help/HelpSupportPage';
 export default function HelpPage() {
   return <HelpSupportPage />;
 }
-
