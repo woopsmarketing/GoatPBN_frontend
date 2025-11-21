@@ -1,46 +1,34 @@
 'use client';
 
-// v1.0 - 상단 헤더 지원 센터 버튼 (2025.11.20)
-// 목적: 사용자가 빠르게 지원 채널(이메일/가이드)로 이동할 수 있도록 돕는 아이콘 버튼
+// v1.1 - 상단 헤더 지원 센터 버튼 구조 정리 및 내부 도움말 페이지 연결 (2025.11.21)
+// 목적: 중복 아이콘을 제거하고 신규 도움말 & 문의하기 페이지로 이동할 수 있는 단일 진입점 제공
 
 import Tooltip from '@mui/material/Tooltip';
 import Box from '@mui/material/Box';
 
 import IconButton from 'components/@extended/IconButton';
 
+import NextLink from 'next/link';
+import { usePathname } from 'next/navigation';
+
 import { I24Support } from '@wandersonalwes/iconsax-react';
 
-const SUPPORT_MAIL = 'mailto:support@pbnsaas.com';
-const SUPPORT_DOCS = 'https://totoggong.com/contact'; // TODO: 정식 지원 페이지로 교체 예정
+import { getLocaleBasePath } from '@/utils/getLocaleBasePath';
 
 export default function Support() {
+  // 한글 주석: 현재 경로의 locale prefix를 추출하여 다국어 라우팅과 연동
+  const pathname = usePathname();
+  const localeBasePath = getLocaleBasePath(pathname);
+  const helpHref = `${localeBasePath}/help`;
+
   return (
     <Box sx={{ flexShrink: 0, ml: 0.75, display: 'flex', gap: 0.75 }}>
-      <Tooltip title="지원센터 문의하기 (이메일)" arrow>
-        <IconButton
-          color="secondary"
-          variant="light"
-          component="a"
-          href={SUPPORT_MAIL}
-          size="large"
-          sx={(theme) => ({
-            p: 1,
-            color: 'secondary.main',
-            bgcolor: 'secondary.100',
-            ...theme.applyStyles('dark', { bgcolor: 'background.default' })
-          })}
-        >
-          <I24Support />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="도움말 & 온보딩 가이드" arrow>
+      <Tooltip title="도움말 & 문의하기" arrow>
         <IconButton
           color="secondary"
           variant="outlined"
-          component="a"
-          href={SUPPORT_DOCS}
-          target="_blank"
-          rel="noopener noreferrer"
+          component={NextLink}
+          href={helpHref}
           size="large"
           sx={(theme) => ({
             p: 1,
