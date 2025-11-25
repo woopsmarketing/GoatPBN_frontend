@@ -295,7 +295,7 @@ export default function DashboardPage() {
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-gray-900">{isEnglish ? '⚡ Quick Actions' : '⚡ 빠른 액션'}</h2>
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <TailwindButton
             variant="primary"
             onClick={() => router.push(localizePath('/campaigns/create'))}
@@ -327,6 +327,14 @@ export default function DashboardPage() {
           >
             <span className="text-2xl mb-1">📊</span>
             <span className="text-sm font-medium">{isEnglish ? 'Reports' : '보고서'}</span>
+          </TailwindButton>
+          <TailwindButton
+            variant="secondary"
+            onClick={() => router.push(localizePath('/guide/getting-started'))}
+            className="h-16 flex flex-col items-center justify-center"
+          >
+            <span className="text-2xl mb-1">📘</span>
+            <span className="text-sm font-medium">{isEnglish ? 'Getting Started' : '사용 가이드'}</span>
           </TailwindButton>
         </div>
       </MainCard>
