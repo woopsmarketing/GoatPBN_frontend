@@ -178,7 +178,9 @@ export default function NotificationPage() {
     if (!item.readAt) {
       try {
         await notificationAPI.markAsRead(item.id);
-        setNotifications((prev) => prev.map((notification) => (notification.id === item.id ? { ...notification, readAt: new Date().toISOString() } : notification)));
+        setNotifications((prev) =>
+          prev.map((notification) => (notification.id === item.id ? { ...notification, readAt: new Date().toISOString() } : notification))
+        );
       } catch (e) {
         setError(e.message ?? '알림을 읽음 처리하지 못했습니다.');
       }
@@ -204,11 +206,7 @@ export default function NotificationPage() {
           ...theme.applyStyles('dark', { bgcolor: open ? 'background.paper' : 'background.default' })
         })}
       >
-        <Badge
-          color="success"
-          slotProps={{ badge: { sx: { top: 2, right: 4 } } }}
-          badgeContent={unreadCount > 0 ? unreadCount : null}
-        >
+        <Badge color="success" slotProps={{ badge: { sx: { top: 2, right: 4 } } }} badgeContent={unreadCount > 0 ? unreadCount : null}>
           <NotificationIcon variant="Bold" />
         </Badge>
       </IconButton>
