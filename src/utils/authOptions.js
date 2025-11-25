@@ -91,6 +91,36 @@ export const authOptions = {
       // Prevent JWT token issuance on registration
       if (params.account?.provider === 'register') return '/';
       return true;
+    },
+    redirect: async ({ url, baseUrl }) => {
+      // v1.1 - 커스텀 도메인 리다이렉트 강제 (2025.11.24)
+      // 한글 주석: app.goatpbn.com과 같은 커스텀 도메인을 항상 사용하도록 리다이렉트 URL을 재구성
+      const appBaseUrl = process.env.NEXTAUTH_URL || baseUrl;
+      const normalizedBase = (() => {
+        try {
+          return new URL(appBaseUrl).origin;
+        } catch (error) {
+          console.error('커스텀 도메인 파싱 실패, 기본 baseUrl 사용:', error);
+          return baseUrl;
+        }
+      })();
+
+      try {
+        // 내부 경로(`/dashboard`) 형태면 커스텀 도메인으로 보정
+        if (url.startsWith('/')) {
+          return `${normalizedBase}${url}`;
+        }
+
+        // 절대 경로일 경우, 다른 도메인이면 커스텀 도메인으로 대체
+        const parsedUrl = new URL(url);
+        if (parsedUrl.origin !== normalizedBase) {
+          return `${normalizedBase}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+        }
+        return url;
+      } catch (error) {
+        console.error('리다이렉트 URL 파싱 중 오류 발생:', error);
+        return normalizedBase;
+      }
     }
   },
   session: {
