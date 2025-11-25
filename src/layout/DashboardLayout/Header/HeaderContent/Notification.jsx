@@ -109,7 +109,7 @@ export default function NotificationPage() {
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const pathname = usePathname();
   const locale = pathname?.startsWith('/ko') ? 'ko' : 'en';
-  const localeTexts = TEXT[locale];
+  const localeTexts = NOTIFICATION_LOCALE_TEXT[locale];
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
