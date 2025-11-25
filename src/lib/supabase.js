@@ -121,3 +121,52 @@ export const realtimeAPI = {
       .subscribe();
   }
 };
+
+// 알림 관리 유틸리티
+export const notificationAPI = {
+  // v1.0 - 사용자 알림 목록 조회 (2025.11.24)
+  // 한글 주석: 지정된 사용자 ID에 대한 최신 알림을 가져옴
+  fetchNotifications: async (userId, limit = 20) => {
+    return supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+  },
+
+  // v1.0 - 알림 개별 읽음 처리
+  markAsRead: async (notificationId) => {
+    return supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', notificationId);
+  },
+
+  // v1.0 - 사용자 전체 알림 읽음 처리
+  markAllAsRead: async (userId) => {
+    return supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('read_at', null);
+  },
+
+  // v1.0 - 실시간 알림 구독
+  // 한글 주석: 새로운 알림 insert/update 이벤트를 수신해 콜백으로 전달
+  subscribeToUserNotifications: (userId, callback) => {
+    return supabase
+      .channel(`notifications-user-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        callback
+      )
+      .subscribe();
+  }
+};

@@ -1,42 +1,70 @@
-import { useRef, useState } from 'react';
+// v1.1 - GOATPBN 맞춤 빠른 메뉴로 리브랜딩 (2025.11.24)
+// 기능 요약: 컴포넌트 데모 대신 대시보드 핵심 흐름으로 이동하는 심플한 퀵 메뉴 제공
+import { useMemo, useRef, useState } from 'react';
 
 // next
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 // material-ui
-import Button from '@mui/material/Button';
-import CardMedia from '@mui/material/CardMedia';
+import Box from '@mui/material/Box';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import Grid from '@mui/material/Grid';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import ListSubheader from '@mui/material/ListSubheader';
 import Paper from '@mui/material/Paper';
 import Popper from '@mui/material/Popper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
 
 // project-imports
-import Dot from 'components/@extended/Dot';
 import IconButton from 'components/@extended/IconButton';
 import Transitions from 'components/@extended/Transitions';
-import AnimateButton from 'components/@extended/AnimateButton';
 import MainCard from 'components/MainCard';
-import { DRAWER_WIDTH } from 'config';
+import { getLocaleBasePath } from '@/utils/getLocaleBasePath';
 
 // assets
-import { Windows, ArrowRight3 } from '@wandersonalwes/iconsax-react';
-const cardBack = '/assets/images/widget/img-dropbox-bg.svg';
-const imageChart = '/assets/images/mega-menu/chart.svg';
+import { Category2, PlayCircle, Graph, DocumentText, ShieldTick } from '@wandersonalwes/iconsax-react';
 
 // ==============================|| HEADER CONTENT - MEGA MENU SECTION ||============================== //
 
 export default function MegaMenuSection() {
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const localeBasePath = useMemo(() => getLocaleBasePath(pathname), [pathname]);
+
+  const quickLinks = useMemo(
+    () => [
+      {
+        icon: <PlayCircle size={20} />,
+        label: '캠페인 시작',
+        description: '새 캠페인을 생성하고 자동 게시 일정을 잡아요.',
+        href: `${localeBasePath}/campaigns/create`
+      },
+      {
+        icon: <Graph size={20} />,
+        label: '성과 통계',
+        description: '캠페인별 진행률과 성공률을 한눈에 확인해요.',
+        href: `${localeBasePath}/statistics`
+      },
+      {
+        icon: <DocumentText size={20} />,
+        label: '보고서 센터',
+        description: '완료된 캠페인의 리포트를 다운로드하거나 공유해요.',
+        href: `${localeBasePath}/reports`
+      },
+      {
+        icon: <ShieldTick size={20} />,
+        label: '사이트 관리',
+        description: '워드프레스 사이트 연결 상태와 권한을 점검해요.',
+        href: `${localeBasePath}/sites/add`
+      }
+    ],
+    [localeBasePath]
+  );
+
   const handleToggle = () => {
     setOpen((prevOpen) => !prevOpen);
   };
@@ -53,9 +81,9 @@ export default function MegaMenuSection() {
       <IconButton
         color="secondary"
         variant="light"
-        aria-label="open profile"
+        aria-label="open quick navigation"
         ref={anchorRef}
-        aria-controls={open ? 'profile-grow' : undefined}
+        aria-controls={open ? 'goatpbn-quick-menu' : undefined}
         aria-haspopup="true"
         onClick={handleToggle}
         size="large"
@@ -67,10 +95,11 @@ export default function MegaMenuSection() {
           ...theme.applyStyles('dark', { bgcolor: open ? 'background.paper' : 'background.default' })
         })}
       >
-        <Windows variant="Bulk" />
+        <Category2 variant="Bulk" />
       </IconButton>
       <Popper
         placement="bottom"
+        id="goatpbn-quick-menu"
         open={open}
         anchorEl={anchorRef.current}
         role={undefined}
@@ -81,7 +110,7 @@ export default function MegaMenuSection() {
             {
               name: 'offset',
               options: {
-                offset: [-180, 9]
+                offset: [-20, 12]
               }
             }
           ]
@@ -89,212 +118,57 @@ export default function MegaMenuSection() {
       >
         {({ TransitionProps }) => (
           <Transitions type="grow" position="top" in={open} {...TransitionProps}>
-            <Paper
-              sx={(theme) => ({
-                boxShadow: theme.customShadows.z1,
-                minWidth: 750,
-                width: {
-                  md: `calc(100vw - 100px)`,
-                  lg: `calc(100vw - ${DRAWER_WIDTH + 100}px)`,
-                  xl: `calc(100vw - ${DRAWER_WIDTH + 140}px)`
-                },
-                maxWidth: 1024,
-                borderRadius: 1.5
-              })}
-            >
+            <Paper sx={(theme) => ({ boxShadow: theme.customShadows.z1, borderRadius: 1.5, minWidth: 360, maxWidth: 420 })}>
               <ClickAwayListener onClickAway={handleClose}>
                 <MainCard elevation={0} border={false} content={false}>
-                  <Grid container>
-                    <Grid
-                      size={4}
-                      sx={(theme) => ({
-                        bgcolor: 'primary.darker',
-                        ...theme.applyStyles('dark', { bgcolor: 'primary.400' }),
-                        position: 'relative',
-                        '&:after': {
-                          content: '""',
-                          background: `url("${cardBack}") 100% / cover no-repeat`,
-                          position: 'absolute',
-                          top: '41%',
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          zIndex: 1,
-                          opacity: 0.5
-                        }
-                      })}
-                    >
-                      <Box sx={{ p: 4.5, pb: 3, position: 'inherit', zIndex: 2 }}>
-                        <Stack sx={(theme) => ({ color: 'background.paper', ...theme.applyStyles('dark', { color: 'text.primary' }) })}>
-                          <Typography variant="h2" sx={{ fontSize: '1.875rem', mb: 1 }}>
-                            Explore Components
-                          </Typography>
-                          <Typography variant="h6">
-                            Try Able Pro&apos;s component pages to check how it feels and suits as per your need.
-                          </Typography>
-                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-end', mt: -1 }}>
-                            <AnimateButton>
-                              <Button
-                                variant="contained"
-                                color="secondary"
-                                sx={{
-                                  zIndex: 2,
-                                  color: 'text.primary',
-                                  bgcolor: 'background.paper',
-                                  '&:hover': { bgcolor: 'background.paper', color: 'text.primary' },
-                                  '& svg': { color: 'primary.main' }
-                                }}
-                                endIcon={<ArrowRight3 variant="Bulk" />}
-                                component={Link}
-                                href="/components-overview/buttons"
-                                target="_blank"
-                              >
-                                View All
-                              </Button>
-                            </AnimateButton>
-                            <CardMedia component="img" src={imageChart} alt="Chart" sx={{ mr: -2.5, mb: -2.5, width: 124 }} />
-                          </Stack>
-                        </Stack>
-                      </Box>
-                    </Grid>
-                    <Grid size={8}>
-                      <Box
-                        sx={{
-                          p: 4,
-                          '& .MuiList-root': { pb: 0 },
-                          '& .MuiListSubheader-root': { p: 0, pb: 1.5 },
-                          '& .MuiListItemButton-root': {
-                            p: 0.5,
-                            '&:hover': { bgcolor: 'transparent', '& .MuiTypography-root': { color: 'primary.main' } }
-                          },
-                          '& .MuiListItemIcon-root': { minWidth: 16 }
-                        }}
-                      >
-                        <Grid container spacing={6}>
-                          <Grid size={4}>
-                            <List
-                              component="nav"
-                              aria-labelledby="nested-list-user"
-                              subheader={
-                                <ListSubheader id="nested-list-user">
-                                  <Typography variant="subtitle1" sx={{ color: 'text.primary' }}>
-                                    Authentication
-                                  </Typography>
-                                </ListSubheader>
-                              }
-                            >
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Login" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Register" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Reset Password" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Forgot Password" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Verification Code" />
-                              </ListItemButton>
-                            </List>
-                          </Grid>
-                          <Grid size={4}>
-                            <List
-                              component="nav"
-                              aria-labelledby="nested-list-user"
-                              subheader={
-                                <ListSubheader id="nested-list-user">
-                                  <Typography variant="subtitle1" sx={{ color: 'text.primary' }}>
-                                    Other Pages
-                                  </Typography>
-                                </ListSubheader>
-                              }
-                            >
-                              <ListItemButton disableRipple component={Link} href="#">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="About us" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="/contact-us" target="_blank">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Contact us" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Pricing" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="#!">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Payment" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="/maintenance/under-construction">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Construction" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} href="/maintenance/coming-soon">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Coming Soon" />
-                              </ListItemButton>
-                            </List>
-                          </Grid>
-                          <Grid size={4}>
-                            <List
-                              component="nav"
-                              aria-labelledby="nested-list-user"
-                              subheader={
-                                <ListSubheader id="nested-list-user">
-                                  <Typography variant="subtitle1" sx={{ color: 'text.primary' }}>
-                                    SAAS Pages
-                                  </Typography>
-                                </ListSubheader>
-                              }
-                            >
-                              <ListItemButton disableRipple component={Link} target="_blank" href="/maintenance/404">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="404 Error" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} target="_blank" href="">
-                                <ListItemIcon>
-                                  <Dot size={6} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Landing" />
-                              </ListItemButton>
-                            </List>
-                          </Grid>
-                        </Grid>
-                      </Box>
-                    </Grid>
-                  </Grid>
+                  <Stack sx={{ p: 3, gap: 2 }}>
+                    <Box>
+                      <Typography variant="h5">빠른 이동</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        자주 사용하는 기능으로 바로 이동해 캠페인을 더 빠르게 관리하세요.
+                      </Typography>
+                    </Box>
+                    <List disablePadding>
+                      {quickLinks.map((item) => (
+                        <ListItemButton
+                          key={item.href}
+                          component={Link}
+                          href={item.href}
+                          onClick={handleClose}
+                          sx={(theme) => ({
+                            mb: 1.5,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 1.5,
+                            alignItems: 'flex-start',
+                            '&:hover': { bgcolor: 'primary.lighter', borderColor: 'primary.light' }
+                          })}
+                        >
+                          <ListItemIcon
+                            sx={(theme) => ({
+                              mt: 0.5,
+                              minWidth: 40,
+                              color: 'primary.main',
+                              ...theme.applyStyles('dark', { color: 'primary.light' })
+                            })}
+                          >
+                            {item.icon}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                {item.label}
+                              </Typography>
+                            }
+                            secondary={
+                              <Typography variant="body2" color="text.secondary">
+                                {item.description}
+                              </Typography>
+                            }
+                          />
+                        </ListItemButton>
+                      ))}
+                    </List>
+                  </Stack>
                 </MainCard>
               </ClickAwayListener>
             </Paper>
