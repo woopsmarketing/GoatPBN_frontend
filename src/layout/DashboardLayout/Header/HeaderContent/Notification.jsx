@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 // next
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 // material-ui
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -38,29 +39,64 @@ import { Notification as NotificationIcon } from '@wandersonalwes/iconsax-react'
 
 const MAX_NOTIFICATIONS = 30;
 
-// 한글 주석: 상대 시간을 한국어로 간단히 포맷팅
-const formatRelativeTime = (timestamp) => {
+const TEXT = {
+  ko: {
+    title: '알림',
+    markAll: '모두 읽음 처리',
+    noNotifications: '새로운 알림이 없습니다.',
+    defaultTitle: '새 알림',
+    fetchError: '알림을 불러오는 중 문제가 발생했습니다.',
+    markAllError: '알림을 읽음 처리하지 못했습니다.',
+    markOneError: '알림을 읽음 처리하지 못했습니다.',
+    tableMissing: "알림 테이블이 아직 생성되지 않았습니다. Supabase에서 'notifications' 테이블을 먼저 만들어주세요.",
+    relative: {
+      justNow: '방금 전',
+      minutes: '분 전',
+      hours: '시간 전',
+      days: '일 전'
+    }
+  },
+  en: {
+    title: 'Notifications',
+    markAll: 'Mark all read',
+    noNotifications: 'You have no new notifications.',
+    defaultTitle: 'New notification',
+    fetchError: 'Failed to load notifications.',
+    markAllError: 'Could not mark notifications as read.',
+    markOneError: 'Could not mark notification as read.',
+    tableMissing: "The notifications table doesn't exist yet. Please create a 'notifications' table in Supabase.",
+    relative: {
+      justNow: 'Just now',
+      minutes: ' minutes ago',
+      hours: ' hours ago',
+      days: ' days ago'
+    }
+  }
+};
+
+// 한글 주석: 상대 시간을 locale에 맞춰 포맷팅
+const formatRelativeTime = (timestamp, localeTexts) => {
   if (!timestamp) return '';
   const target = new Date(timestamp);
   const diffMs = Date.now() - target.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
 
-  if (diffMinutes < 1) return '방금 전';
-  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+  if (diffMinutes < 1) return localeTexts.relative.justNow;
+  if (diffMinutes < 60) return `${diffMinutes}${localeTexts.relative.minutes}`;
 
   const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}시간 전`;
+  if (diffHours < 24) return `${diffHours}${localeTexts.relative.hours}`;
 
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 30) return `${diffDays}일 전`;
+  if (diffDays < 30) return `${diffDays}${localeTexts.relative.days}`;
 
   return target.toLocaleDateString();
 };
 
 // 한글 주석: Supabase 알림 레코드를 프론트엔드에서 사용하기 편한 구조로 변환
-const mapNotification = (record) => ({
+const mapNotification = (record, defaultTitle) => ({
   id: record.id,
-  title: record.title ?? '새 알림',
+  title: record.title ?? defaultTitle,
   message: record.message ?? '',
   actionUrl: record.action_url ?? '',
   createdAt: record.created_at,
@@ -71,6 +107,9 @@ const mapNotification = (record) => ({
 
 export default function NotificationPage() {
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
+  const pathname = usePathname();
+  const locale = pathname?.startsWith('/ko') ? 'ko' : 'en';
+  const localeTexts = TEXT[locale];
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -85,6 +124,12 @@ export default function NotificationPage() {
   useEffect(() => {
     let isMounted = true;
     let subscription;
+
+    const resolveErrorMessage = (rawMessage) => {
+      if (!rawMessage) return localeTexts.fetchError;
+      if (rawMessage.includes("Could not find the table 'public.notifications'")) return localeTexts.tableMissing;
+      return rawMessage;
+    };
 
     const initialize = async () => {
       try {
@@ -113,11 +158,11 @@ export default function NotificationPage() {
         }
 
         if (isMounted && data) {
-          setNotifications(data.map(mapNotification));
+          setNotifications(data.map((item) => mapNotification(item, localeTexts.defaultTitle)));
         }
 
         subscription = notificationAPI.subscribeToUserNotifications(currentUserId, (payload) => {
-          const incoming = mapNotification(payload.new);
+          const incoming = mapNotification(payload.new, localeTexts.defaultTitle);
 
           setNotifications((prev) => {
             if (payload.eventType === 'INSERT') {
@@ -134,7 +179,7 @@ export default function NotificationPage() {
         });
       } catch (e) {
         if (isMounted) {
-          setError(e.message ?? '알림을 불러오는 중 문제가 발생했습니다.');
+          setError(resolveErrorMessage(e.message));
         }
       } finally {
         if (isMounted) {
@@ -151,7 +196,7 @@ export default function NotificationPage() {
         subscription.unsubscribe();
       }
     };
-  }, []);
+  }, [localeTexts]);
 
   const handleToggle = () => {
     setOpen((prevOpen) => !prevOpen);
@@ -170,7 +215,7 @@ export default function NotificationPage() {
       await notificationAPI.markAllAsRead(userId);
       setNotifications((prev) => prev.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
     } catch (e) {
-      setError(e.message ?? '알림을 읽음 처리하지 못했습니다.');
+      setError(e.message ?? localeTexts.markAllError);
     }
   };
 
@@ -182,7 +227,7 @@ export default function NotificationPage() {
           prev.map((notification) => (notification.id === item.id ? { ...notification, readAt: new Date().toISOString() } : notification))
         );
       } catch (e) {
-        setError(e.message ?? '알림을 읽음 처리하지 못했습니다.');
+        setError(e.message ?? localeTexts.markOneError);
       }
     }
     setOpen(false);
@@ -228,14 +273,14 @@ export default function NotificationPage() {
                   <CardContent sx={{ p: 0 }}>
                     <Stack sx={{ p: 3, pb: 0, gap: 1.5 }}>
                       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography variant="h5">알림</Typography>
+                        <Typography variant="h5">{localeTexts.title}</Typography>
                         <Typography
                           variant="body2"
                           color={unreadCount === 0 ? 'text.disabled' : 'primary'}
                           sx={{ cursor: unreadCount === 0 ? 'default' : 'pointer' }}
                           onClick={handleMarkAllRead}
                         >
-                          모두 읽음 처리
+                          {localeTexts.markAll}
                         </Typography>
                       </Stack>
                       {error && <Alert severity="error">{error}</Alert>}
@@ -264,7 +309,7 @@ export default function NotificationPage() {
                         {!loading && notifications.length === 0 && (
                           <Stack sx={{ py: 4, alignItems: 'center', color: 'text.secondary', gap: 0.5 }}>
                             <NotificationIcon size={28} />
-                            <Typography variant="body2">새로운 알림이 없습니다.</Typography>
+                            <Typography variant="body2">{localeTexts.noNotifications}</Typography>
                           </Stack>
                         )}
                         {!loading &&
@@ -307,7 +352,7 @@ export default function NotificationPage() {
                                         </Typography>
                                       )}
                                       <Typography variant="caption" color="text.disabled">
-                                        {formatRelativeTime(item.createdAt)}
+                                        {formatRelativeTime(item.createdAt, localeTexts)}
                                       </Typography>
                                     </Stack>
                                   }
