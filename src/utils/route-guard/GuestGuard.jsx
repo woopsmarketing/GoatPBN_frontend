@@ -26,7 +26,7 @@ export default function GuestGuard({ children }) {
     fetchData();
 
     // eslint-disable-next-line
-  }, [session])
+  }, [session]);
 
   if (status === 'loading' || session?.user) return <Loader />;
 

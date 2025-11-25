@@ -1,6 +1,7 @@
 # 📁 src/themes/ Directory
 
 ## 🎯 Purpose
+
 Material-UI 테마 설정 및 커스터마이징 파일입니다.
 색상, 타이포그래피, 컴포넌트 스타일을 정의합니다.
 
@@ -33,6 +34,7 @@ themes/
 ## 🎨 **Core Theme Files**
 
 ### `index.jsx` ⭐ **메인 테마 Provider**
+
 **전체 앱에 테마 적용**
 
 ```jsx
@@ -59,39 +61,40 @@ export default function ThemeCustomization({ children }) {
 ---
 
 ### `palette.js` 🎨 **색상 팔레트**
+
 **전체 색상 시스템 정의**
 
 ```javascript
 export default function Palette() {
   return {
-    mode: 'light',  // 'light' | 'dark'
-    
+    mode: 'light', // 'light' | 'dark'
+
     // Primary Color
     primary: {
-      main: '#3B82F6',      // Blue
+      main: '#3B82F6', // Blue
       light: '#60A5FA',
       dark: '#2563EB',
       contrastText: '#fff'
     },
-    
+
     // Secondary Color
     secondary: {
-      main: '#8B5CF6',      // Purple
+      main: '#8B5CF6', // Purple
       light: '#A78BFA',
       dark: '#7C3AED'
     },
-    
+
     // Success, Error, Warning, Info
-    success: { main: '#10B981' },   // Green
-    error: { main: '#EF4444' },     // Red
-    warning: { main: '#F59E0B' },   // Yellow
-    info: { main: '#3B82F6' },      // Blue
-    
+    success: { main: '#10B981' }, // Green
+    error: { main: '#EF4444' }, // Red
+    warning: { main: '#F59E0B' }, // Yellow
+    info: { main: '#3B82F6' }, // Blue
+
     // Gray Scale
     grey: {
       50: '#F9FAFB',
       100: '#F3F4F6',
-      200: '#E5E7EB',
+      200: '#E5E7EB'
       // ... 900까지
     }
   };
@@ -99,23 +102,25 @@ export default function Palette() {
 ```
 
 **사용 예시**:
+
 ```jsx
 import { useTheme } from '@mui/material/styles';
 
 const theme = useTheme();
-const primaryColor = theme.palette.primary.main;  // '#3B82F6'
+const primaryColor = theme.palette.primary.main; // '#3B82F6'
 ```
 
 ---
 
 ### `typography.js` 📝 **타이포그래피**
+
 **폰트 및 텍스트 스타일 정의**
 
 ```javascript
 export default function Typography() {
   return {
     fontFamily: "'Public Sans', sans-serif",
-    
+
     h1: {
       fontSize: '2.5rem',
       fontWeight: 700,
@@ -124,7 +129,7 @@ export default function Typography() {
     h2: {
       fontSize: '2rem',
       fontWeight: 700
-    },
+    }
     // h3 ~ h6, body1, body2, caption 등
   };
 }
@@ -133,14 +138,15 @@ export default function Typography() {
 ---
 
 ### `shadows.jsx` 🌑 **그림자 효과**
+
 **카드, 버튼 등의 그림자 정의**
 
 ```javascript
 export default function Shadows(theme) {
   return [
     'none',
-    '0px 2px 4px rgba(0,0,0,0.1)',   // shadow[1]
-    '0px 4px 8px rgba(0,0,0,0.1)',   // shadow[2]
+    '0px 2px 4px rgba(0,0,0,0.1)', // shadow[1]
+    '0px 4px 8px rgba(0,0,0,0.1)' // shadow[2]
     // ... 24단계까지
   ];
 }
@@ -152,26 +158,27 @@ export default function Shadows(theme) {
 
 ### 8가지 테마 프리셋 제공
 
-| 테마 | 파일 | 주요 색상 |
-|-----|------|----------|
-| **Default** | `default.js` | Blue |
-| **Theme 1** | `theme1.js` | Purple |
-| **Theme 2** | `theme2.js` | Green |
-| **Theme 3** | `theme3.js` | Orange |
-| **Theme 4** | `theme4.js` | Red |
-| **Theme 5** | `theme5.js` | Cyan |
-| **Theme 6** | `theme6.js` | Pink |
-| **Theme 7** | `theme7.js` | Indigo |
-| **Theme 8** | `theme8.js` | Teal |
+| 테마        | 파일         | 주요 색상 |
+| ----------- | ------------ | --------- |
+| **Default** | `default.js` | Blue      |
+| **Theme 1** | `theme1.js`  | Purple    |
+| **Theme 2** | `theme2.js`  | Green     |
+| **Theme 3** | `theme3.js`  | Orange    |
+| **Theme 4** | `theme4.js`  | Red       |
+| **Theme 5** | `theme5.js`  | Cyan      |
+| **Theme 6** | `theme6.js`  | Pink      |
+| **Theme 7** | `theme7.js`  | Indigo    |
+| **Theme 8** | `theme8.js`  | Teal      |
 
 **테마 전환**:
+
 ```jsx
 import { useConfig } from '@/hooks/useConfig';
 
 const { onChangePresetColor } = useConfig();
 
 // 테마 변경
-onChangePresetColor('theme1');  // Purple 테마로 변경
+onChangePresetColor('theme1'); // Purple 테마로 변경
 ```
 
 ---
@@ -183,6 +190,7 @@ onChangePresetColor('theme1');  // Purple 테마로 변경
 **주요 오버라이드**:
 
 #### `Button.js`
+
 ```javascript
 export default function Button(theme) {
   return {
@@ -193,7 +201,7 @@ export default function Button(theme) {
       styleOverrides: {
         root: {
           borderRadius: 8,
-          textTransform: 'none',  // 대문자 변환 비활성화
+          textTransform: 'none', // 대문자 변환 비활성화
           fontWeight: 600
         },
         contained: {
@@ -206,18 +214,22 @@ export default function Button(theme) {
 ```
 
 #### `Chip.js`
+
 - 칩 스타일 커스터마이징
 - 색상별 variant
 
 #### `Tab.js`
+
 - 탭 스타일
 - 활성 탭 하이라이트
 
 #### `TableCell.js`
+
 - 테이블 셀 패딩
 - 경계선 스타일
 
 **전체 오버라이드 목록**:
+
 - Accordion, Alert, Autocomplete, Badge, Button, Checkbox, Chip, Dialog, Drawer, Fab, Input, Link, Pagination, Popover, Radio, Slider, Switch, Tab, Table, Tooltip, Typography 등 50+
 
 ---
@@ -225,6 +237,7 @@ export default function Button(theme) {
 ## 🔧 How to Customize
 
 ### 1. 색상 변경
+
 ```javascript
 // palette.js 수정
 primary: {
@@ -233,15 +246,18 @@ primary: {
 ```
 
 ### 2. 폰트 변경
+
 ```javascript
 // typography.js 수정
-fontFamily: "'Noto Sans KR', sans-serif",
-
-// public/index.html에 폰트 추가 필요
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR" />
+fontFamily: ("'Noto Sans KR', sans-serif",
+  (
+    // public/index.html에 폰트 추가 필요
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR" />
+  ));
 ```
 
 ### 3. 버튼 스타일 변경
+
 ```javascript
 // overrides/Button.js 수정
 styleOverrides: {
@@ -253,6 +269,7 @@ styleOverrides: {
 ```
 
 ### 4. 다크모드 토글
+
 ```jsx
 import { useConfig } from '@/hooks/useConfig';
 
@@ -267,15 +284,16 @@ onChangeMode(mode === 'light' ? 'dark' : 'light');
 ## 🎨 **Theme Context**
 
 ### ConfigContext 사용
+
 ```jsx
 import { useConfig } from '@/hooks/useConfig';
 
 const {
-  mode,              // 'light' | 'dark'
-  presetColor,       // 'default' | 'theme1' | ...
-  fontFamily,        // 폰트 패밀리
-  borderRadius,      // 기본 border radius
-  onChangeMode,      // 모드 변경 함수
+  mode, // 'light' | 'dark'
+  presetColor, // 'default' | 'theme1' | ...
+  fontFamily, // 폰트 패밀리
+  borderRadius, // 기본 border radius
+  onChangeMode, // 모드 변경 함수
   onChangePresetColor // 프리셋 변경 함수
 } = useConfig();
 ```
@@ -284,21 +302,22 @@ const {
 
 ## 🔍 Quick Reference
 
-| 수정하고 싶은 내용 | 파일 |
-|------------------|------|
-| **색상 변경** | `palette.js` |
-| **폰트 변경** | `typography.js` |
-| **그림자 효과** | `shadows.jsx` |
-| **버튼 스타일** | `overrides/Button.js` |
-| **테이블 스타일** | `overrides/TableCell.js` |
-| **테마 전체** | `theme/default.js` |
-| **새 테마 추가** | `theme/theme9.js` (생성) |
+| 수정하고 싶은 내용 | 파일                     |
+| ------------------ | ------------------------ |
+| **색상 변경**      | `palette.js`             |
+| **폰트 변경**      | `typography.js`          |
+| **그림자 효과**    | `shadows.jsx`            |
+| **버튼 스타일**    | `overrides/Button.js`    |
+| **테이블 스타일**  | `overrides/TableCell.js` |
+| **테마 전체**      | `theme/default.js`       |
+| **새 테마 추가**   | `theme/theme9.js` (생성) |
 
 ---
 
 ## 🎯 **Tailwind CSS Integration**
 
 ### Tailwind + MUI 동시 사용
+
 ```jsx
 // ✅ MUI 컴포넌트에 Tailwind 클래스 적용 가능
 <Button className="mt-4 px-6">버튼</Button>
@@ -314,6 +333,7 @@ const {
 ## ⚠️ Important Notes
 
 ### Theme Override 우선순위
+
 ```
 1. Inline sx prop (최우선)
 2. Component overrides (themes/overrides/)
@@ -322,6 +342,7 @@ const {
 ```
 
 ### 성능 최적화
+
 - `React.useMemo`로 테마 메모이제이션
 - 불필요한 재렌더링 방지
 
@@ -337,4 +358,3 @@ const {
 
 **최종 업데이트**: 2025-11-03  
 **작성자**: Frontend Team
-

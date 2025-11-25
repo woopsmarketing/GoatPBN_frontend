@@ -57,7 +57,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
   useEffect(() => {
     if (pathname === item.url) handlerActiveItem(item.id);
     // eslint-disable-next-line
-  }, [pathname])
+  }, [pathname]);
 
   const iconSelectedColor = 'primary.main';
 
