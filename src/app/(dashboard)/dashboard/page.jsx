@@ -188,6 +188,26 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <MainCard>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold text-gray-900">{isEnglish ? 'New to GOATPBN?' : 'GOATPBN 사용이 처음이신가요?'}</h2>
+            <p className="text-gray-600">
+              {isEnglish
+                ? 'Follow the step-by-step onboarding guide to connect your sites, create campaigns, and monitor results right away.'
+                : '사이트 연동부터 캠페인 실행, 모니터링까지 한 번에 끝내는 온보딩 가이드를 확인해 보세요.'}
+            </p>
+          </div>
+          <TailwindButton
+            variant="primary"
+            className="px-6 py-3 text-lg self-start"
+            onClick={() => router.push(localizePath('/guide/getting-started'))}
+          >
+            {isEnglish ? 'Open Getting Started Guide' : '사용 가이드 열기'}
+          </TailwindButton>
+        </div>
+      </MainCard>
+
       {/* 🔴 NEW: 서버 유지보수 공지 배너 */}
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
         <div className="flex items-start">
