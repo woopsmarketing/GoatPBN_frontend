@@ -160,12 +160,12 @@ export default function GettingStartedGuidePage() {
         <div className="flex flex-col gap-3">
           <h1 className="text-3xl font-bold text-gray-900">{content.heroTitle}</h1>
           <p className="text-gray-600 text-lg">{content.heroDescription}</p>
-          <div className="flex gap-3 flex-wrap">
-            <TailwindButton variant="primary" onClick={() => router.push(localizePath('/dashboard'))}>
-              {content.primaryCta}
+          <div className="flex gap-3 flex-wrap mt-2">
+            <TailwindButton variant="primary" className="px-8 py-3 text-lg" onClick={() => router.push(localizePath('/campaigns/create'))}>
+              {isEnglish ? 'Start with a new campaign' : '새 캠페인으로 시작하기'}
             </TailwindButton>
-            <TailwindButton variant="secondary" onClick={() => router.push(localizePath('/campaigns/create'))}>
-              {isEnglish ? 'Create a campaign now' : '지금 캠페인 만들기'}
+            <TailwindButton variant="secondary" className="px-6 py-3 text-lg" onClick={() => router.push(localizePath('/dashboard'))}>
+              {content.primaryCta}
             </TailwindButton>
           </div>
         </div>
@@ -224,16 +224,24 @@ export default function GettingStartedGuidePage() {
                 Need more help? Email{' '}
                 <Link href="mailto:support@goatpbn.com" className="text-primary-500 underline">
                   support@goatpbn.com
+                </Link>
+                , message us on Telegram&nbsp;
+                <Link href="https://t.me/goat82" target="_blank" className="text-primary-500 underline">
+                  @goat82
                 </Link>{' '}
-                or contact the admin team via Slack.
+                or reach the admin team via Slack.
               </>
             ) : (
               <>
                 추가 도움이 필요하시면{' '}
                 <Link href="mailto:support@goatpbn.com" className="text-primary-500 underline">
                   support@goatpbn.com
-                </Link>{' '}
-                혹은 Slack 관리자 채널로 문의해 주세요.
+                </Link>
+                으로 메일을 보내거나 텔레그램&nbsp;
+                <Link href="https://t.me/goat82" target="_blank" className="text-primary-500 underline">
+                  @goat82
+                </Link>
+                로 문의해 주세요. Slack 관리자 채널로도 연락 가능합니다.
               </>
             )}
           </div>
