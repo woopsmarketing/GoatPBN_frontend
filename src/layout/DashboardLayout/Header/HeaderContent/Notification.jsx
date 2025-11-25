@@ -39,7 +39,7 @@ import { Notification as NotificationIcon } from '@wandersonalwes/iconsax-react'
 
 const MAX_NOTIFICATIONS = 30;
 
-const TEXT = {
+export const NOTIFICATION_LOCALE_TEXT = {
   ko: {
     title: '알림',
     markAll: '모두 읽음 처리',
@@ -75,7 +75,7 @@ const TEXT = {
 };
 
 // 한글 주석: 상대 시간을 locale에 맞춰 포맷팅
-const formatRelativeTime = (timestamp, localeTexts) => {
+export const formatNotificationRelativeTime = (timestamp, localeTexts) => {
   if (!timestamp) return '';
   const target = new Date(timestamp);
   const diffMs = Date.now() - target.getTime();
@@ -94,7 +94,7 @@ const formatRelativeTime = (timestamp, localeTexts) => {
 };
 
 // 한글 주석: Supabase 알림 레코드를 프론트엔드에서 사용하기 편한 구조로 변환
-const mapNotification = (record, defaultTitle) => ({
+export const mapNotificationRecord = (record, defaultTitle) => ({
   id: record.id,
   title: record.title ?? defaultTitle,
   message: record.message ?? '',
@@ -158,11 +158,11 @@ export default function NotificationPage() {
         }
 
         if (isMounted && data) {
-          setNotifications(data.map((item) => mapNotification(item, localeTexts.defaultTitle)));
+          setNotifications(data.map((item) => mapNotificationRecord(item, localeTexts.defaultTitle)));
         }
 
         subscription = notificationAPI.subscribeToUserNotifications(currentUserId, (payload) => {
-          const incoming = mapNotification(payload.new, localeTexts.defaultTitle);
+          const incoming = mapNotificationRecord(payload.new, localeTexts.defaultTitle);
 
           setNotifications((prev) => {
             if (payload.eventType === 'INSERT') {
@@ -352,7 +352,7 @@ export default function NotificationPage() {
                                         </Typography>
                                       )}
                                       <Typography variant="caption" color="text.disabled">
-                                        {formatRelativeTime(item.createdAt, localeTexts)}
+                                        {formatNotificationRelativeTime(item.createdAt, localeTexts)}
                                       </Typography>
                                     </Stack>
                                   }
