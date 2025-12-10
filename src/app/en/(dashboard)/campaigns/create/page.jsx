@@ -49,7 +49,8 @@ export default function CampaignCreatePageEn() {
     sectionImageCount: 0,
     includeToc: false,
     includeBacklinks: false,
-    includeInternalLinks: false
+    includeInternalLinks: false,
+    contentLanguage: 'en'
   });
 
   // 사용 가능한 옵션들
@@ -266,6 +267,7 @@ export default function CampaignCreatePageEn() {
         includeToc: formData.includeToc,
         includeBacklinks: formData.includeBacklinks,
         includeInternalLinks: formData.includeInternalLinks,
+        contentLanguage: formData.contentLanguage,
 
         // 💳 크레딧 계산
         creditsPerContent: calculateCreditsPerContent(formData),

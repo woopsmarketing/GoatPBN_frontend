@@ -96,6 +96,7 @@ export const campaignsAPI = {
 
         // 💳 크레딧 계산 결과 저장
         credits_per_content: parseInt(campaignData.creditsPerContent) || 10,
+        content_language: campaignData.contentLanguage || 'ko',
 
         // 시작 시간 설정
         start_type: campaignData.start_type || 'immediate',
