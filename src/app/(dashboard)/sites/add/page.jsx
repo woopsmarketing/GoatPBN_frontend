@@ -653,7 +653,7 @@ export default function SiteAddPage() {
           <div className="text-sm text-gray-600">
             <p>CSV 파일을 업로드하여 여러 개의 워드프레스 사이트를 한 번에 등록할 수 있습니다.</p>
             <p className="mt-1">
-              필수 컬럼:{' '}
+              필수 컬럼:
               <code className="bg-gray-100 px-1 py-0.5 rounded">name</code>,{' '}
               <code className="bg-gray-100 px-1 py-0.5 rounded">url</code>,{' '}
               <code className="bg-gray-100 px-1 py-0.5 rounded">username</code>,{' '}
@@ -682,9 +682,7 @@ export default function SiteAddPage() {
           )}
 
           {bulkUploadState.parseError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-              {bulkUploadState.parseError}
-            </div>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">{bulkUploadState.parseError}</div>
           )}
 
           {bulkUploadState.successMessage && (
