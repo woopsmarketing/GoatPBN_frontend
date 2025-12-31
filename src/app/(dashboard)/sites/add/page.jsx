@@ -18,6 +18,9 @@ import TailwindButton from '../../../../components/ui/TailwindButton';
 import { sitesAPI } from '../../../../lib/api/sites';
 import { buildSiteCsvTemplate, parseSitesCsvContent } from '../../../../lib/utils/siteCsvParser';
 
+// CSV 업로드 필수 헤더 목록
+const BULK_REQUIRED_HEADERS = ['name', 'url', 'username', 'password', 'app_password'];
+
 export default function SiteAddPage() {
   // 폼 데이터 상태
   const [formData, setFormData] = useState({
@@ -653,12 +656,13 @@ export default function SiteAddPage() {
           <div className="text-sm text-gray-600">
             <p>CSV 파일을 업로드하여 여러 개의 워드프레스 사이트를 한 번에 등록할 수 있습니다.</p>
             <p className="mt-1">
-              필수 컬럼:
-              <code className="bg-gray-100 px-1 py-0.5 rounded">name</code>,{' '}
-              <code className="bg-gray-100 px-1 py-0.5 rounded">url</code>,{' '}
-              <code className="bg-gray-100 px-1 py-0.5 rounded">username</code>,{' '}
-              <code className="bg-gray-100 px-1 py-0.5 rounded">password</code>,{' '}
-              <code className="bg-gray-100 px-1 py-0.5 rounded">app_password</code>
+              필수 컬럼:{' '}
+              {BULK_REQUIRED_HEADERS.map((header, index) => (
+                <span key={header}>
+                  <code className="bg-gray-100 px-1 py-0.5 rounded">{header}</code>
+                  {index < BULK_REQUIRED_HEADERS.length - 1 ? ', ' : ''}
+                </span>
+              ))}
             </p>
           </div>
 
