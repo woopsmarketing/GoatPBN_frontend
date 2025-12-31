@@ -175,6 +175,7 @@ export default function SiteListPage() {
     setTestAbortController(abortController);
 
     try {
+      const results = [];
       // 각 사이트를 순차적으로 테스트
       for (let i = 0; i < sites.length; i++) {
         // 중단 요청 확인
@@ -188,7 +189,10 @@ export default function SiteListPage() {
         setTestProgress({ current: i + 1, total: sites.length });
 
         try {
-          await sitesAPI.refreshConnection(site.id);
+          const { data } = await sitesAPI.refreshConnection(site.id);
+          if (data) {
+            results.push({ siteId: site.id, status: data.status });
+          }
           console.log(`✅ ${site.name} 연결 테스트 완료`);
         } catch (error) {
           console.error(`❌ 사이트 ${site.name} 연결 테스트 오류:`, error);
@@ -200,11 +204,9 @@ export default function SiteListPage() {
 
       // 모든 테스트 완료 후 사이트 목록 새로고침
       if (!abortController.signal.aborted) {
-        const updatedSites = await loadSites();
+        await loadSites();
         console.log('✅ 모든 사이트 연결 테스트 완료');
-        alert(
-          `✅ 전체 연결 테스트 완료!\n\n테스트된 사이트: ${updatedSites.length}개\n연결 성공: ${updatedSites.filter((s) => s.status === 'connected').length}개\n연결 실패: ${updatedSites.filter((s) => s.status === 'disconnected').length}개`
-        );
+        alert('✅ 전체 연결 테스트 완료! 결과는 페이지에서 확인해주세요.');
       }
     } catch (error) {
       console.error('❌ 연결 테스트 오류:', error);
@@ -246,6 +248,7 @@ export default function SiteListPage() {
 
     try {
       const selectedSitesArray = Array.from(selectedSites);
+      const results = [];
 
       // 선택된 사이트들을 순차적으로 테스트
       for (let i = 0; i < selectedSitesArray.length; i++) {
@@ -263,7 +266,10 @@ export default function SiteListPage() {
           setTestProgress({ current: i + 1, total: selectedSitesArray.length });
 
           try {
-            await sitesAPI.refreshConnection(siteId);
+            const { data } = await sitesAPI.refreshConnection(siteId);
+            if (data) {
+              results.push({ siteId, status: data.status });
+            }
             console.log(`✅ ${site.name} 연결 테스트 완료`);
           } catch (error) {
             console.error(`❌ 사이트 ${site.name} 연결 테스트 오류:`, error);
@@ -276,20 +282,11 @@ export default function SiteListPage() {
 
       // 모든 테스트 완료 후 사이트 목록 새로고침
       if (!abortController.signal.aborted) {
-        const updatedSites = await loadSites();
+        await loadSites();
         console.log(`✅ 선택된 ${selectedSites.size}개 사이트 연결 테스트 완료`);
 
         // 선택된 사이트들 테스트 완료 안내
-        const selectedSitesArray = Array.from(selectedSites);
-        const connectedCount = selectedSitesArray.filter((siteId) => {
-          const site = updatedSites.find((s) => s.id === siteId);
-          return site && site.status === 'connected';
-        }).length;
-        const disconnectedCount = selectedSitesArray.length - connectedCount;
-
-        alert(
-          `✅ 선택된 사이트 연결 테스트 완료!\n\n테스트된 사이트: ${selectedSitesArray.length}개\n연결 성공: ${connectedCount}개\n연결 실패: ${disconnectedCount}개`
-        );
+        alert('✅ 선택된 사이트 연결 테스트 완료! 결과는 페이지에서 확인해주세요.');
       }
     } catch (error) {
       console.error('❌ 선택된 사이트 연결 테스트 오류:', error);
