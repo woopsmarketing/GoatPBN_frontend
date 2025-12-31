@@ -94,11 +94,13 @@ export default function SiteListPage() {
         });
 
         setCampaignStats(statsMap);
+        return mappedSites;
       }
     } catch (error) {
       console.error('사이트 로드 오류:', error);
       alert('사이트 목록을 불러오는 중 오류가 발생했습니다.');
     }
+    return [];
   };
 
   // 사이트별 캠페인 수 계산 (실제 API 연동)
@@ -142,12 +144,12 @@ export default function SiteListPage() {
         return;
       }
       // 사이트 목록 새로고침
-      await loadSites();
+      const updatedSites = await loadSites();
 
       // 개별 테스트 완료 안내
-      const site = sites.find((s) => s.id === siteId);
-      if (site) {
-        alert(`✅ ${site.name} 연결 테스트 완료!\n\n상태: ${site.status === 'connected' ? '연결 성공' : '연결 실패'}`);
+      const updatedSite = updatedSites.find((s) => s.id === siteId);
+      if (updatedSite) {
+        alert(`✅ ${updatedSite.name} 연결 테스트 완료!\n\n상태: ${updatedSite.status === 'connected' ? '연결 성공' : '연결 실패'}`);
       }
     } catch (error) {
       console.error('연결 테스트 오류:', error);
@@ -198,10 +200,10 @@ export default function SiteListPage() {
 
       // 모든 테스트 완료 후 사이트 목록 새로고침
       if (!abortController.signal.aborted) {
-        await loadSites();
+        const updatedSites = await loadSites();
         console.log('✅ 모든 사이트 연결 테스트 완료');
         alert(
-          `✅ 전체 연결 테스트 완료!\n\n테스트된 사이트: ${sites.length}개\n연결 성공: ${sites.filter((s) => s.status === 'connected').length}개\n연결 실패: ${sites.filter((s) => s.status === 'disconnected').length}개`
+          `✅ 전체 연결 테스트 완료!\n\n테스트된 사이트: ${updatedSites.length}개\n연결 성공: ${updatedSites.filter((s) => s.status === 'connected').length}개\n연결 실패: ${updatedSites.filter((s) => s.status === 'disconnected').length}개`
         );
       }
     } catch (error) {
@@ -274,13 +276,13 @@ export default function SiteListPage() {
 
       // 모든 테스트 완료 후 사이트 목록 새로고침
       if (!abortController.signal.aborted) {
-        await loadSites();
+        const updatedSites = await loadSites();
         console.log(`✅ 선택된 ${selectedSites.size}개 사이트 연결 테스트 완료`);
 
         // 선택된 사이트들 테스트 완료 안내
         const selectedSitesArray = Array.from(selectedSites);
         const connectedCount = selectedSitesArray.filter((siteId) => {
-          const site = sites.find((s) => s.id === siteId);
+          const site = updatedSites.find((s) => s.id === siteId);
           return site && site.status === 'connected';
         }).length;
         const disconnectedCount = selectedSitesArray.length - connectedCount;
