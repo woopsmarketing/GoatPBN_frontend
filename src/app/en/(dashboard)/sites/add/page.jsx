@@ -5,10 +5,11 @@
  * 워드프레스 사이트 등록 및 관리 로직은 동일하게 유지하되 UI 텍스트를 영어로 구성
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
 import { sitesAPI } from '@/lib/api/sites';
+import { buildSiteCsvTemplate, parseSitesCsvContent } from '@/lib/utils/siteCsvParser';
 
 export default function SiteAddPageEn() {
   // 폼 데이터 상태
@@ -35,6 +36,21 @@ export default function SiteAddPageEn() {
   // 편집 모드 상태
   const [editingId, setEditingId] = useState(null);
 
+  const BULK_REQUIRED_HEADERS = ['name', 'url', 'username', 'password', 'app_password'];
+
+  const initialBulkState = {
+    fileName: '',
+    parsedRows: [],
+    invalidRows: [],
+    skippedRows: [],
+    isParsing: false,
+    parseError: '',
+    successMessage: ''
+  };
+  const [bulkUploadState, setBulkUploadState] = useState(initialBulkState);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     loadSites();
   }, []);
@@ -53,6 +69,13 @@ export default function SiteAddPageEn() {
       alert('Error loading site list.');
     }
   };
+
+  const normalizeSiteUrl = (rawUrl) =>
+    rawUrl
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/+$/, '')
+      .toLowerCase();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -99,8 +122,9 @@ export default function SiteAddPageEn() {
       newErrors.app_password = 'Enter the application password.';
     }
 
+    const formUrl = normalizeSiteUrl(formData.url);
     const existingSite = sites.find(
-      (site) => site.url.toLowerCase() === formData.url.toLowerCase() && (editingId === null || site.id !== editingId)
+      (site) => normalizeSiteUrl(site.url) === formUrl && (editingId === null || site.id !== editingId)
     );
     if (existingSite) {
       newErrors.url = 'This domain is already registered.';
@@ -162,7 +186,7 @@ export default function SiteAddPageEn() {
     try {
       const siteData = {
         ...formData,
-        url: formData.url,
+        url: normalizeSiteUrl(formData.url),
         app_password: formData.app_password.replace(/\s/g, ''),
         status: connectionTest.result === 'success' ? 'connected' : 'disconnected'
       };
@@ -277,6 +301,141 @@ export default function SiteAddPageEn() {
         <p className="text-xs text-gray-500 mt-1">{lastCheckDate}</p>
       </div>
     );
+  };
+
+  const handleDownloadCsvTemplate = () => {
+    try {
+      const template = buildSiteCsvTemplate();
+      const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'site-bulk-template.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('CSV template download error:', error);
+      alert('Failed to download the sample CSV.');
+    }
+  };
+
+  const handleResetBulkUpload = () => {
+    setBulkUploadState({ ...initialBulkState });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCsvFileChange = async (event) => {
+    const input = event.target;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    setBulkUploadState({
+      ...initialBulkState,
+      fileName: file.name,
+      isParsing: true
+    });
+
+    try {
+      const content = await file.text();
+      const parseResult = parseSitesCsvContent(content);
+
+      const existingUrls = new Set(sites.map((site) => normalizeSiteUrl(site.url)));
+      const parsedRows = [];
+      const skippedRows = [];
+
+      parseResult.validRows.forEach((row) => {
+        if (existingUrls.has(row.site.url)) {
+          skippedRows.push({
+            lineNumber: row.lineNumber,
+            reason: 'Already registered domain',
+            preview: row.site
+          });
+        } else {
+          parsedRows.push(row);
+        }
+      });
+
+      setBulkUploadState({
+        fileName: file.name,
+        parsedRows,
+        invalidRows: parseResult.invalidRows,
+        skippedRows,
+        isParsing: false,
+        parseError: '',
+        successMessage: ''
+      });
+    } catch (error) {
+      console.error('CSV parsing error:', error);
+      setBulkUploadState({
+        ...initialBulkState,
+        fileName: file.name,
+        parseError: 'Failed to parse the CSV file.'
+      });
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleBulkRegisterSubmit = async () => {
+    if (bulkUploadState.parsedRows.length === 0) {
+      alert('Upload a valid CSV file first.');
+      return;
+    }
+
+    setIsBulkSaving(true);
+    try {
+      const payload = bulkUploadState.parsedRows.map(({ site }) => ({
+        name: site.name,
+        url: site.url,
+        username: site.username,
+        password: site.password,
+        app_password: site.appPassword.replace(/\s/g, ''),
+        status: site.status
+      }));
+
+      const { data, error } = await sitesAPI.bulkCreateSites(payload);
+      if (error) {
+        console.error('Bulk site creation error:', error);
+        alert(`Bulk registration failed: ${error}`);
+        setBulkUploadState((prev) => ({
+          ...prev,
+          parseError: error,
+          successMessage: ''
+        }));
+        return;
+      }
+
+      const createdCount = data?.length ?? payload.length;
+      alert(`${createdCount} sites registered successfully.`);
+      setBulkUploadState({
+        ...initialBulkState,
+        successMessage: `${createdCount} sites registered successfully.`
+      });
+      await loadSites();
+    } catch (error) {
+      console.error('Bulk registration error:', error);
+      alert('An unexpected error occurred during bulk registration.');
+      setBulkUploadState((prev) => ({
+        ...prev,
+        parseError: 'An unexpected error occurred during bulk registration.',
+        successMessage: ''
+      }));
+    } finally {
+      setIsBulkSaving(false);
+    }
+  };
+
+  const bulkMetrics = {
+    total: bulkUploadState.parsedRows.length + bulkUploadState.invalidRows.length + bulkUploadState.skippedRows.length,
+    ready: bulkUploadState.parsedRows.length,
+    invalid: bulkUploadState.invalidRows.length,
+    skipped: bulkUploadState.skippedRows.length
   };
 
   return (
@@ -439,6 +598,153 @@ export default function SiteAddPageEn() {
             </TailwindButton>
           </div>
         </form>
+      </MainCard>
+
+      <MainCard title="📁 Bulk registration">
+        <div className="space-y-5">
+          <div className="text-sm text-gray-600">
+            <p>Upload a CSV file to register multiple WordPress sites at once.</p>
+            <p className="mt-1">
+              Required headers:{' '}
+              {BULK_REQUIRED_HEADERS.map((header, index) => (
+                <span key={header}>
+                  <code className="bg-gray-100 px-1 py-0.5 rounded">{header}</code>
+                  {index < BULK_REQUIRED_HEADERS.length - 1 ? ', ' : ''}
+                </span>
+              ))}
+            </p>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleCsvFileChange}
+              className="flex-1 cursor-pointer border border-dashed border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <TailwindButton type="button" variant="secondary" onClick={handleDownloadCsvTemplate}>
+              📄 Download sample CSV
+            </TailwindButton>
+          </div>
+
+          {bulkUploadState.isParsing && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">
+              Parsing CSV file. Please wait...
+            </div>
+          )}
+
+          {bulkUploadState.parseError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">{bulkUploadState.parseError}</div>
+          )}
+
+          {bulkUploadState.successMessage && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+              {bulkUploadState.successMessage}
+            </div>
+          )}
+
+          {(bulkMetrics.total > 0 || bulkUploadState.fileName) && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <p className="text-xs text-gray-500 uppercase">File name</p>
+                <p className="text-sm font-medium text-gray-900 break-words">{bulkUploadState.fileName || '-'}</p>
+              </div>
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <p className="text-xs text-gray-500 uppercase">Total rows</p>
+                <p className="text-lg font-semibold text-gray-900">{bulkMetrics.total}</p>
+              </div>
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-xs text-green-600 uppercase">Ready to register</p>
+                <p className="text-lg font-semibold text-green-700">{bulkMetrics.ready}</p>
+              </div>
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-xs text-yellow-600 uppercase">Skipped rows</p>
+                <p className="text-lg font-semibold text-yellow-700">
+                  {bulkMetrics.invalid + bulkMetrics.skipped}
+                  <span className="text-xs text-gray-600 ml-1">
+                    (Invalid {bulkMetrics.invalid} · Duplicated {bulkMetrics.skipped})
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {bulkUploadState.parsedRows.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-800">
+                Sites ready to register ({bulkUploadState.parsedRows.length} total, displaying up to 10)
+              </h3>
+              <div className="overflow-x-auto border border-gray-200 rounded-md">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-gray-600">Line</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-600">Name</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-600">Domain</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-600">Username</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {bulkUploadState.parsedRows.slice(0, 10).map(({ lineNumber, site }) => (
+                      <tr key={`${lineNumber}-${site.url}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-gray-500">{lineNumber}</td>
+                        <td className="px-4 py-2 text-gray-900">{site.name}</td>
+                        <td className="px-4 py-2 text-gray-900">{site.url}</td>
+                        <td className="px-4 py-2 text-gray-700">{site.username}</td>
+                        <td className="px-4 py-2 text-gray-700 capitalize">{site.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {bulkUploadState.invalidRows.length > 0 && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md space-y-2">
+              <h3 className="text-sm font-semibold text-red-700">Invalid rows</h3>
+              <p className="text-xs text-red-600">Invalid rows are excluded automatically. Fix the CSV and retry if needed.</p>
+              <ul className="space-y-2 text-sm text-red-700 list-disc list-inside">
+                {bulkUploadState.invalidRows.map((row) => (
+                  <li key={`invalid-${row.lineNumber}`}>
+                    <span className="font-semibold">Line {row.lineNumber}:</span> {row.issues.join(', ')}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {bulkUploadState.skippedRows.length > 0 && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md space-y-2">
+              <h3 className="text-sm font-semibold text-yellow-800">Duplicated domains skipped</h3>
+              <p className="text-xs text-yellow-700">Domains already registered in your account are skipped automatically.</p>
+              <ul className="space-y-1 text-sm text-yellow-800 list-disc list-inside">
+                {bulkUploadState.skippedRows.map((row) => (
+                  <li key={`skipped-${row.lineNumber}`}>
+                    Line {row.lineNumber}: {row.preview.url}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <TailwindButton
+              type="button"
+              variant="primary"
+              onClick={handleBulkRegisterSubmit}
+              disabled={isBulkSaving || bulkUploadState.parsedRows.length === 0}
+              className="flex-1"
+            >
+              {isBulkSaving ? '⏳ Registering...' : `✅ Register ${bulkUploadState.parsedRows.length} sites`}
+            </TailwindButton>
+            <TailwindButton type="button" variant="secondary" onClick={handleResetBulkUpload} disabled={isBulkSaving} className="flex-1">
+              ♻️ Reset
+            </TailwindButton>
+          </div>
+        </div>
       </MainCard>
 
       {sites.length > 0 ? (
