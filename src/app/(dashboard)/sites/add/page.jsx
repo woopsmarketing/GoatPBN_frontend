@@ -666,14 +666,26 @@ export default function SiteAddPage() {
             </p>
           </div>
 
+          <input
+            id="bulk-upload-input-ko"
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleCsvFileChange}
+            className="hidden"
+          />
           <div className="flex flex-col md:flex-row gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleCsvFileChange}
-              className="flex-1 cursor-pointer border border-dashed border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex flex-1 items-center gap-3">
+              <label
+                htmlFor="bulk-upload-input-ko"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 shadow-sm cursor-pointer hover:bg-gray-50"
+              >
+                📂 파일 선택
+              </label>
+              <span className="text-sm text-gray-600 truncate">
+                {bulkUploadState.fileName || '선택된 파일 없음'}
+              </span>
+            </div>
             <TailwindButton type="button" variant="secondary" onClick={handleDownloadCsvTemplate}>
               📄 샘플 CSV 다운로드
             </TailwindButton>

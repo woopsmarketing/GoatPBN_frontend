@@ -613,14 +613,26 @@ export default function SiteAddPageEn() {
             </p>
           </div>
 
+          <input
+            id="bulk-upload-input-en"
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleCsvFileChange}
+            className="hidden"
+          />
           <div className="flex flex-col md:flex-row gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleCsvFileChange}
-              className="flex-1 cursor-pointer border border-dashed border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex flex-1 items-center gap-3">
+              <label
+                htmlFor="bulk-upload-input-en"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 shadow-sm cursor-pointer hover:bg-gray-50"
+              >
+                📂 Choose file
+              </label>
+              <span className="text-sm text-gray-600 truncate">
+                {bulkUploadState.fileName || 'No file selected'}
+              </span>
+            </div>
             <TailwindButton type="button" variant="secondary" onClick={handleDownloadCsvTemplate}>
               📄 Download sample CSV
             </TailwindButton>
