@@ -123,9 +123,7 @@ export default function SiteAddPageEn() {
     }
 
     const formUrl = normalizeSiteUrl(formData.url);
-    const existingSite = sites.find(
-      (site) => normalizeSiteUrl(site.url) === formUrl && (editingId === null || site.id !== editingId)
-    );
+    const existingSite = sites.find((site) => normalizeSiteUrl(site.url) === formUrl && (editingId === null || site.id !== editingId));
     if (existingSite) {
       newErrors.url = 'This domain is already registered.';
     }
@@ -629,9 +627,7 @@ export default function SiteAddPageEn() {
           </div>
 
           {bulkUploadState.isParsing && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">
-              Parsing CSV file. Please wait...
-            </div>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">Parsing CSV file. Please wait...</div>
           )}
 
           {bulkUploadState.parseError && (
