@@ -27,6 +27,42 @@ export const sitesAPI = {
     }
   },
 
+  // CSV 기반 대량 사이트 등록
+  async bulkCreateSites(siteList) {
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('로그인이 필요합니다.');
+
+      if (!Array.isArray(siteList) || siteList.length === 0) {
+        throw new Error('등록할 사이트 데이터가 필요합니다.');
+      }
+
+      const nowIso = new Date().toISOString();
+      const rows = siteList.map((site) => ({
+        user_id: user.id,
+        name: site.name,
+        url: site.url,
+        username: site.username,
+        password: site.password,
+        app_password: site.app_password,
+        status: site.status || 'disconnected',
+        last_check: nowIso,
+        created_at: nowIso,
+        updated_at: nowIso
+      }));
+
+      const { data, error } = await supabase.from('sites').insert(rows).select();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error('대량 사이트 생성 오류:', error);
+      return { data: null, error: error.message };
+    }
+  },
+
   // 새 사이트 추가
   async createSite(siteData) {
     try {
