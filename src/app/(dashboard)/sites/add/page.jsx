@@ -682,9 +682,7 @@ export default function SiteAddPage() {
               >
                 📂 파일 선택
               </label>
-              <span className="text-sm text-gray-600 truncate">
-                {bulkUploadState.fileName || '선택된 파일 없음'}
-              </span>
+              <span className="text-sm text-gray-600 truncate">{bulkUploadState.fileName || '선택된 파일 없음'}</span>
             </div>
             <TailwindButton type="button" variant="secondary" onClick={handleDownloadCsvTemplate}>
               📄 샘플 CSV 다운로드

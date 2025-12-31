@@ -629,9 +629,7 @@ export default function SiteAddPageEn() {
               >
                 📂 Choose file
               </label>
-              <span className="text-sm text-gray-600 truncate">
-                {bulkUploadState.fileName || 'No file selected'}
-              </span>
+              <span className="text-sm text-gray-600 truncate">{bulkUploadState.fileName || 'No file selected'}</span>
             </div>
             <TailwindButton type="button" variant="secondary" onClick={handleDownloadCsvTemplate}>
               📄 Download sample CSV
