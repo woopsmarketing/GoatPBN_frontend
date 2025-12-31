@@ -144,9 +144,7 @@ export default function SiteAddPage() {
 
     // 중복 URL 검증
     const formUrl = normalizeSiteUrl(formData.url);
-    const existingSite = sites.find(
-      (site) => normalizeSiteUrl(site.url) === formUrl && (editingId === null || site.id !== editingId)
-    );
+    const existingSite = sites.find((site) => normalizeSiteUrl(site.url) === formUrl && (editingId === null || site.id !== editingId));
     if (existingSite) {
       newErrors.url = '이미 등록된 사이트입니다.';
     }
@@ -654,7 +652,14 @@ export default function SiteAddPage() {
         <div className="space-y-5">
           <div className="text-sm text-gray-600">
             <p>CSV 파일을 업로드하여 여러 개의 워드프레스 사이트를 한 번에 등록할 수 있습니다.</p>
-            <p className="mt-1">필수 컬럼: <code className="bg-gray-100 px-1 py-0.5 rounded">name</code>, <code className="bg-gray-100 px-1 py-0.5 rounded">url</code>, <code className="bg-gray-100 px-1 py-0.5 rounded">username</code>, <code className="bg-gray-100 px-1 py-0.5 rounded">password</code>, <code className="bg-gray-100 px-1 py-0.5 rounded">app_password</code></p>
+            <p className="mt-1">
+              필수 컬럼:{' '}
+              <code className="bg-gray-100 px-1 py-0.5 rounded">name</code>,{' '}
+              <code className="bg-gray-100 px-1 py-0.5 rounded">url</code>,{' '}
+              <code className="bg-gray-100 px-1 py-0.5 rounded">username</code>,{' '}
+              <code className="bg-gray-100 px-1 py-0.5 rounded">password</code>,{' '}
+              <code className="bg-gray-100 px-1 py-0.5 rounded">app_password</code>
+            </p>
           </div>
 
           <div className="flex flex-col md:flex-row gap-3">
@@ -671,15 +676,21 @@ export default function SiteAddPage() {
           </div>
 
           {bulkUploadState.isParsing && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">CSV 파일을 분석 중입니다. 잠시만 기다려주세요.</div>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">
+              CSV 파일을 분석 중입니다. 잠시만 기다려주세요.
+            </div>
           )}
 
           {bulkUploadState.parseError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">{bulkUploadState.parseError}</div>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+              {bulkUploadState.parseError}
+            </div>
           )}
 
           {bulkUploadState.successMessage && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">{bulkUploadState.successMessage}</div>
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+              {bulkUploadState.successMessage}
+            </div>
           )}
 
           {(bulkMetrics.total > 0 || bulkUploadState.fileName) && (
@@ -700,7 +711,9 @@ export default function SiteAddPage() {
                 <p className="text-xs text-yellow-600 uppercase">건너뛴 행</p>
                 <p className="text-lg font-semibold text-yellow-700">
                   {bulkMetrics.invalid + bulkMetrics.skipped}
-                  <span className="text-xs text-gray-600 ml-1">(오류 {bulkMetrics.invalid} · 중복 {bulkMetrics.skipped})</span>
+                  <span className="text-xs text-gray-600 ml-1">
+                    (오류 {bulkMetrics.invalid} · 중복 {bulkMetrics.skipped})
+                  </span>
                 </p>
               </div>
             </div>

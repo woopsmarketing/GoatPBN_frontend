@@ -112,9 +112,7 @@ export const parseSitesCsvContent = (csvContent) => {
     };
   }
 
-  const headerIndexMap = Object.fromEntries(
-    normalizedHeaders.map((header, index) => [header, index])
-  );
+  const headerIndexMap = Object.fromEntries(normalizedHeaders.map((header, index) => [header, index]));
 
   const seenUrlMap = new Map(); // 중복 URL 검사
   const validRows = [];
@@ -219,4 +217,3 @@ export const buildSiteCsvTemplate = () => {
 
   return rows.map((row) => row.join(',')).join('\n');
 };
-
