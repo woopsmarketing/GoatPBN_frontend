@@ -1,5 +1,6 @@
 'use client';
 
+// v1.1 - Multi-site distribution parity & validation (2026.01.05)
 /**
  * 🎯 Create Campaign Page (EN Version)
  * 캠페인 생성 로직은 동일하게 유지하되, UI 텍스트만 영어로 구성
@@ -220,6 +221,16 @@ export default function CampaignCreatePageEn() {
       newErrors.selectedSites = 'Select at least one site.';
     }
 
+    if (formData.siteDistribution === 'manual') {
+      if (formData.selectedSites.length === 0) {
+        newErrors.selectedSites = 'Select at least one site.';
+      }
+    } else {
+      if (sites.length === 0) {
+        newErrors.siteDistribution = 'No registered sites found. Please add a site first.';
+      }
+    }
+
     if (formData.startType === 'scheduled') {
       if (!formData.scheduledDate) newErrors.scheduledDate = 'Select a start date.';
       if (!formData.scheduledTime) newErrors.scheduledTime = 'Select a start time.';
@@ -237,6 +248,14 @@ export default function CampaignCreatePageEn() {
 
     setLoading(true);
     try {
+      // Determine target site list (auto = all sites)
+      const targetSiteIds = formData.siteDistribution === 'auto' ? sites.map((site) => site.id) : formData.selectedSites;
+
+      if (targetSiteIds.length === 0) {
+        alert('No sites available to publish this campaign. Please review your selections.');
+        return;
+      }
+
       // 시작 시간 계산
       let scheduledStart = null;
       if (formData.startType === 'delayed') {
@@ -245,12 +264,12 @@ export default function CampaignCreatePageEn() {
         scheduledStart = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
       }
 
-      const campaignData = {
+      // 공통 캠페인 데이터 템플릿
+      const campaignDataTemplate = {
         name: formData.name,
         description: formData.description,
         site_distribution: formData.siteDistribution,
-        selected_sites: formData.selectedSites,
-        site_id: formData.selectedSites.length > 0 ? formData.selectedSites[0] : null,
+        selected_sites: targetSiteIds,
         target_site: formData.targetSite,
         keywords: formData.keywords,
         quantity: parseInt(formData.quantity, 10),
@@ -275,15 +294,50 @@ export default function CampaignCreatePageEn() {
         status: 'pending'
       };
 
-      console.log('Campaign creation payload:', campaignData);
+      // 결과 요약 저장용 변수
+      const successSiteIds = [];
+      const failedSites = [];
+      const siteMap = new Map(sites.map((site) => [site.id, site]));
 
-      const result = await campaignsAPI.createCampaign(campaignData);
+      // 사이트별로 캠페인 생성 (수동 선택 시 선택된 사이트만, 자동 배포 시 전체 사이트)
+      for (const siteId of targetSiteIds) {
+        const payload = { ...campaignDataTemplate, site_id: siteId, delayMinutes: parseInt(formData.delayMinutes, 10) };
 
-      if (result.success) {
-        alert('Campaign created successfully!');
+        console.log('Campaign creation payload:', payload);
+
+        try {
+          const result = await campaignsAPI.createCampaign(payload);
+          if (result.success) {
+            successSiteIds.push(siteId);
+          } else {
+            failedSites.push({
+              siteId,
+              error: result.error || 'Unknown error'
+            });
+          }
+        } catch (error) {
+          failedSites.push({
+            siteId,
+            error: error.message
+          });
+        }
+      }
+
+      if (successSiteIds.length > 0) {
+        const successSiteNames = successSiteIds.map((id) => siteMap.get(id)?.name || 'Unknown site').join(', ');
+
+        let summaryMessage = `Created campaigns for ${successSiteIds.length} out of ${targetSiteIds.length} site(s).\n\n✅ Success: ${successSiteNames}`;
+
+        if (failedSites.length > 0) {
+          const failedNames = failedSites.map((item) => `${siteMap.get(item.siteId)?.name || 'Unknown site'} (${item.error})`).join(', ');
+          summaryMessage += `\n\n⚠️ Failed: ${failedNames}`;
+        }
+
+        alert(summaryMessage);
         router.push('/en/campaigns');
       } else {
-        throw new Error(result.error || 'Failed to create campaign.');
+        const failedNames = failedSites.map((item) => `${siteMap.get(item.siteId)?.name || 'Unknown site'} (${item.error})`).join(', ');
+        throw new Error(`Campaign creation failed for all selected sites.\nDetails: ${failedNames}`);
       }
     } catch (error) {
       console.error('Campaign creation error:', error);
@@ -426,6 +480,7 @@ export default function CampaignCreatePageEn() {
                   <span className="ml-2 text-xs text-gray-500">(Choose specific sites to publish)</span>
                 </label>
               </div>
+              {errors.siteDistribution && <p className="text-red-500 text-sm mt-2">{errors.siteDistribution}</p>}
             </div>
 
             {formData.siteDistribution === 'manual' && (
