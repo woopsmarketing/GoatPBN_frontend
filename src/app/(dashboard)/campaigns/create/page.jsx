@@ -249,8 +249,7 @@ export default function CampaignCreatePage() {
     setLoading(true);
     try {
       // 사이트 배포 대상 계산 (자동 배포인 경우 전체 사이트 활용)
-      const targetSiteIds =
-        formData.siteDistribution === 'auto' ? sites.map((site) => site.id) : formData.selectedSites;
+      const targetSiteIds = formData.siteDistribution === 'auto' ? sites.map((site) => site.id) : formData.selectedSites;
 
       if (targetSiteIds.length === 0) {
         alert('캠페인을 배포할 사이트가 없습니다. 선택 상태를 확인해주세요.');
@@ -325,9 +324,7 @@ export default function CampaignCreatePage() {
       }
 
       if (successSiteIds.length > 0) {
-        const successSiteNames = successSiteIds
-          .map((id) => siteMap.get(id)?.name || '알 수 없는 사이트')
-          .join(', ');
+        const successSiteNames = successSiteIds.map((id) => siteMap.get(id)?.name || '알 수 없는 사이트').join(', ');
 
         let summaryMessage = `총 ${targetSiteIds.length}개 사이트 중 ${successSiteIds.length}곳에 캠페인을 생성했습니다.\n\n✅ 성공: ${successSiteNames}`;
 
