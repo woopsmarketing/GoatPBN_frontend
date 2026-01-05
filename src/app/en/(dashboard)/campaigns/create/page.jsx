@@ -74,6 +74,34 @@ export default function CampaignCreatePageEn() {
     estimatedCompletion: null
   });
 
+  const handleApplyTestPreset = () => {
+    setFormData((prev) => ({
+      ...prev,
+      name: 'content_generate_test',
+      description: '',
+      siteDistribution: 'auto',
+      selectedSites: [],
+      targetSite: 'https://goatpbn.com/',
+      keywords: ['goatpbn', 'autopbn', 'autoblog', 'wordpress auto'],
+      quantity: '1',
+      duration: '1',
+      startType: 'immediate',
+      scheduledDate: '',
+      scheduledTime: '',
+      delayMinutes: 10,
+      persona: 'expert',
+      sectionCount: 5,
+      includeImages: true,
+      sectionImageCount: 1,
+      includeToc: true,
+      includeBacklinks: true,
+      includeInternalLinks: true,
+      contentLanguage: 'en'
+    }));
+
+    setErrors({});
+  };
+
   // 사이트 목록 및 크레딧 로드
   useEffect(() => {
     loadSites();
@@ -323,11 +351,18 @@ export default function CampaignCreatePageEn() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Create New Campaign</h1>
           <p className="text-gray-600">Set up a backlink campaign and automate your content production.</p>
         </div>
+        <button
+          type="button"
+          onClick={handleApplyTestPreset}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Test preset
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
