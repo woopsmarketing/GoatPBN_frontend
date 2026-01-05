@@ -165,11 +165,7 @@ export default function SiteListPageEn() {
 
       if (!abortController.signal.aborted) {
         await loadSites();
-        alert(
-          `✅ Completed connection test for all sites.\n\nTotal: ${sites.length}\nConnected: ${
-            sites.filter((s) => s.status === 'connected').length
-          }\nDisconnected: ${sites.filter((s) => s.status === 'disconnected').length}`
-        );
+        alert('✅ Completed connection test for all sites. Please review the page for details.');
       }
     } catch (error) {
       console.error('Bulk connection test error:', error);
@@ -234,16 +230,7 @@ export default function SiteListPageEn() {
 
       if (!abortController.signal.aborted) {
         await loadSites();
-
-        const connectedCount = selectedSitesArray.filter((siteId) => {
-          const site = sites.find((s) => s.id === siteId);
-          return site && site.status === 'connected';
-        }).length;
-        const disconnectedCount = selectedSitesArray.length - connectedCount;
-
-        alert(
-          `✅ Finished connection test for selected sites.\n\nTotal tested: ${selectedSitesArray.length}\nConnected: ${connectedCount}\nDisconnected: ${disconnectedCount}`
-        );
+        alert('✅ Finished connection test for selected sites. Please review the page for details.');
       }
     } catch (error) {
       console.error('Selected site connection test error:', error);

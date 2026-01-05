@@ -1,3 +1,4 @@
+// v1.1 - 다중 사이트 배포 및 자동 배포 로직 개선 (2026.01.05)
 /**
  * 🎯 캠페인 생성 페이지 (완전 개선 버전)
  * 모든 콘텐츠 생성 옵션을 포함한 캠페인 설정 페이지
@@ -220,8 +221,14 @@ export default function CampaignCreatePage() {
     if (!formData.quantity || formData.quantity < 1) newErrors.quantity = '올바른 수량을 입력하세요';
     if (!formData.duration || formData.duration < 1) newErrors.duration = '올바른 기간을 입력하세요';
 
-    if (formData.siteDistribution === 'manual' && formData.selectedSites.length === 0) {
-      newErrors.selectedSites = '최소 1개의 사이트를 선택하세요';
+    if (formData.siteDistribution === 'manual') {
+      if (formData.selectedSites.length === 0) {
+        newErrors.selectedSites = '최소 1개의 사이트를 선택하세요';
+      }
+    } else {
+      if (sites.length === 0) {
+        newErrors.siteDistribution = '등록된 사이트가 없습니다. 먼저 사이트를 추가해주세요.';
+      }
     }
 
     if (formData.startType === 'scheduled') {
@@ -241,6 +248,15 @@ export default function CampaignCreatePage() {
 
     setLoading(true);
     try {
+      // 사이트 배포 대상 계산 (자동 배포인 경우 전체 사이트 활용)
+      const targetSiteIds =
+        formData.siteDistribution === 'auto' ? sites.map((site) => site.id) : formData.selectedSites;
+
+      if (targetSiteIds.length === 0) {
+        alert('캠페인을 배포할 사이트가 없습니다. 선택 상태를 확인해주세요.');
+        return;
+      }
+
       // 시작 시간 계산
       let scheduledStart = null;
       if (formData.startType === 'delayed') {
@@ -249,12 +265,12 @@ export default function CampaignCreatePage() {
         scheduledStart = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
       }
 
-      const campaignData = {
+      // 공통 캠페인 데이터 템플릿
+      const campaignDataTemplate = {
         name: formData.name,
         description: formData.description,
         site_distribution: formData.siteDistribution,
-        selected_sites: formData.selectedSites,
-        site_id: formData.selectedSites.length > 0 ? formData.selectedSites[0] : null, // 첫 번째 선택된 사이트를 기본 사이트로 설정
+        selected_sites: targetSiteIds,
         target_site: formData.targetSite,
         keywords: formData.keywords,
         quantity: parseInt(formData.quantity),
@@ -279,15 +295,56 @@ export default function CampaignCreatePage() {
         status: 'pending' // 초기 상태
       };
 
-      console.log('캠페인 생성 데이터:', campaignData);
+      // 결과 요약 저장용 변수
+      const successSiteIds = [];
+      const failedSites = [];
+      const siteMap = new Map(sites.map((site) => [site.id, site]));
 
-      const result = await campaignsAPI.createCampaign(campaignData);
+      // 사이트별로 캠페인 생성 (수동 선택 시 선택된 사이트만, 자동 배포 시 전체 사이트)
+      for (const siteId of targetSiteIds) {
+        const payload = { ...campaignDataTemplate, site_id: siteId, delayMinutes: parseInt(formData.delayMinutes) };
 
-      if (result.success) {
-        alert('캠페인이 성공적으로 생성되었습니다!');
+        console.log('캠페인 생성 데이터:', payload);
+
+        try {
+          const result = await campaignsAPI.createCampaign(payload);
+          if (result.success) {
+            successSiteIds.push(siteId);
+          } else {
+            failedSites.push({
+              siteId,
+              error: result.error || '알 수 없는 오류'
+            });
+          }
+        } catch (error) {
+          failedSites.push({
+            siteId,
+            error: error.message
+          });
+        }
+      }
+
+      if (successSiteIds.length > 0) {
+        const successSiteNames = successSiteIds
+          .map((id) => siteMap.get(id)?.name || '알 수 없는 사이트')
+          .join(', ');
+
+        let summaryMessage = `총 ${targetSiteIds.length}개 사이트 중 ${successSiteIds.length}곳에 캠페인을 생성했습니다.\n\n✅ 성공: ${successSiteNames}`;
+
+        if (failedSites.length > 0) {
+          const failedNames = failedSites
+            .map((item) => `${siteMap.get(item.siteId)?.name || '알 수 없는 사이트'} (${item.error})`)
+            .join(', ');
+          summaryMessage += `\n\n⚠️ 실패: ${failedNames}`;
+        }
+
+        alert(summaryMessage);
         router.push('/campaigns');
       } else {
-        throw new Error(result.error || '캠페인 생성에 실패했습니다');
+        const failedNames = failedSites
+          .map((item) => `${siteMap.get(item.siteId)?.name || '알 수 없는 사이트'} (${item.error})`)
+          .join(', ');
+        throw new Error(`선택한 모든 사이트에서 캠페인 생성이 실패했습니다.\n실패 목록: ${failedNames}`);
       }
     } catch (error) {
       console.error('캠페인 생성 오류:', error);
@@ -430,6 +487,7 @@ export default function CampaignCreatePage() {
                   <span className="ml-2 text-xs text-gray-500">(원하는 사이트만 선택)</span>
                 </label>
               </div>
+              {errors.siteDistribution && <p className="text-red-500 text-sm mt-2">{errors.siteDistribution}</p>}
             </div>
 
             {formData.siteDistribution === 'manual' && (
