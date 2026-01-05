@@ -74,6 +74,30 @@ export default function CampaignCreatePage() {
     estimatedCompletion: null
   });
 
+  const handleApplyTestPreset = () => {
+    setFormData((prev) => ({
+      ...prev,
+      name: 'content_generate_test',
+      description: '',
+      siteDistribution: 'auto',
+      selectedSites: [],
+      targetSite: 'https://goatpbn.com/',
+      keywords: ['goatpbn', 'autopbn', 'autoblog', 'wordpress auto'],
+      quantity: '1',
+      duration: '1',
+      startType: 'immediate',
+      sectionCount: 5,
+      includeImages: true,
+      sectionImageCount: 1,
+      includeToc: true,
+      includeBacklinks: true,
+      includeInternalLinks: true,
+      persona: 'expert',
+      contentLanguage: 'ko'
+    }));
+    setErrors({});
+  };
+
   // 사이트 목록 및 크레딧 로드
   useEffect(() => {
     loadSites();
@@ -323,11 +347,18 @@ export default function CampaignCreatePage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">새 캠페인 생성</h1>
           <p className="text-gray-600">백링크 캠페인을 설정하고 자동 콘텐츠 생성을 시작하세요</p>
         </div>
+        <button
+          type="button"
+          onClick={handleApplyTestPreset}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow"
+        >
+          Test preset
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
