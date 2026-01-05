@@ -10,12 +10,14 @@ import { useRouter } from 'next/navigation';
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
 import { campaignsAPI } from '@/lib/api/campaigns';
+import { sitesAPI } from '@/lib/api/sites';
 
 export default function CampaignListPageEn() {
   const router = useRouter();
 
-  // 캠페인 목록 상태
+  // 캠페인/사이트 상태
   const [campaigns, setCampaigns] = useState([]);
+  const [siteMap, setSiteMap] = useState({});
 
   // 필터 상태
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, completed, paused
@@ -32,6 +34,7 @@ export default function CampaignListPageEn() {
 
   useEffect(() => {
     loadCampaigns();
+    loadSites();
   }, []);
 
   const loadCampaigns = async () => {
@@ -67,8 +70,19 @@ export default function CampaignListPageEn() {
     }
   };
 
-  const getSiteInfo = (campaign) => {
-    return campaign.siteInfo || { name: 'Unknown site', url: '' };
+  const loadSites = async () => {
+    try {
+      const { success, data } = await sitesAPI.getSites();
+      if (success && Array.isArray(data)) {
+        const map = {};
+        data.forEach((site) => {
+          map[site.id] = site;
+        });
+        setSiteMap(map);
+      }
+    } catch (error) {
+      console.error('Failed to load sites:', error);
+    }
   };
 
   const filteredCampaigns = campaigns.filter((campaign) => {
@@ -307,6 +321,7 @@ export default function CampaignListPageEn() {
       isEditing,
       isSelectMode,
       isSelected,
+      siteMap,
       onSelect,
       onEditStart,
       onEditSave,
@@ -343,7 +358,18 @@ export default function CampaignListPageEn() {
         }
       }, [isEditing, campaign]);
 
-      const siteInfo = getSiteInfo(campaign);
+      const selectedSiteIds = campaign.selectedSiteIds || [];
+      const selectedSiteNames = selectedSiteIds
+        .map((siteId) => {
+          const site = siteMap?.[siteId];
+          if (!site) return null;
+          return site.name || site.url || siteId;
+        })
+        .filter(Boolean);
+      const uniqueSiteNames = Array.from(new Set(selectedSiteNames));
+      const siteCount = selectedSiteIds.length || (campaign.siteInfo ? 1 : 0);
+      const hasSiteList = siteCount > 0;
+      const [showSiteList, setShowSiteList] = useState(false);
       const progress = calculateProgress(campaign);
       const remainingDays = calculateRemainingDays(campaign);
       const statusStyle = getStatusStyle(campaign.status);
@@ -447,8 +473,37 @@ export default function CampaignListPageEn() {
                   >
                     {statusStyle.badge}
                   </span>
-                  <span className="text-sm text-gray-500">{siteInfo.name}</span>
+                  <span className="text-sm text-gray-500">
+                    {hasSiteList ? `${siteCount} connected site${siteCount > 1 ? 's' : ''}` : 'No connected sites'}
+                  </span>
+                  {hasSiteList && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSiteList((prev) => !prev)}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {showSiteList ? 'Hide' : 'View'}
+                    </button>
+                  )}
                 </div>
+                {showSiteList && hasSiteList && (
+                  <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Connected WordPress sites</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(uniqueSiteNames.length > 0
+                        ? uniqueSiteNames
+                        : [campaign.siteInfo?.name || campaign.siteInfo?.url || 'Unknown site']
+                      )
+                        .slice(0, 12)
+                        .map((name, index) => (
+                          <span key={`${campaign.id}-site-${index}`} className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                            {name}
+                          </span>
+                        ))}
+                    </div>
+                    {uniqueSiteNames.length > 12 && <p className="text-xs text-gray-500 mt-2">+ {uniqueSiteNames.length - 12} more</p>}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -886,6 +941,7 @@ export default function CampaignListPageEn() {
               isEditing={editingId === campaign.id}
               isSelectMode={isSelectMode}
               isSelected={selectedCampaigns.has(campaign.id)}
+              siteMap={siteMap}
               onSelect={handleSelectCampaign}
               onEditStart={() => handleEditStart(campaign.id)}
               onEditSave={handleEditSave}
