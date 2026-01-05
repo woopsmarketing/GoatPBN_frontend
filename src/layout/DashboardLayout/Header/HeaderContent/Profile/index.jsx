@@ -114,26 +114,28 @@ export default function ProfilePage() {
     router.push(url);
   };
 
+  const isEnglishLocale = localeBasePath.startsWith('/en');
+
   const profileMenuItems = [
     {
       key: 'settings',
       icon: <Setting2 variant="Bulk" />,
-      primary: '설정',
-      secondary: '시간대 및 지역 설정',
+      primary: isEnglishLocale ? 'Settings' : '설정',
+      secondary: isEnglishLocale ? 'Timezone and region settings' : '시간대 및 지역 설정',
       href: `${localeBasePath}/settings`
     },
     {
       key: 'subscription',
       icon: <Card variant="Bulk" />,
-      primary: '구독 관리',
-      secondary: '현재 플랜 및 결제 내역',
+      primary: isEnglishLocale ? 'Subscription' : '구독 관리',
+      secondary: isEnglishLocale ? 'View current plan and billing' : '현재 플랜 및 결제 내역',
       href: `${localeBasePath}/subscription`
     },
     {
       key: 'usage',
       icon: <Activity variant="Bulk" />,
-      primary: '사용량 대시보드',
-      secondary: '크레딧 사용 현황 확인',
+      primary: isEnglishLocale ? 'Usage dashboard' : '사용량 대시보드',
+      secondary: isEnglishLocale ? 'Check credit consumption' : '크레딧 사용 현황 확인',
       href: `${localeBasePath}/usage`
     }
   ];
@@ -212,7 +214,7 @@ export default function ProfilePage() {
                   <Divider />
                   <Box sx={{ px: 2.5, py: 2 }}>
                     <Typography variant="caption" color="secondary">
-                      가입일
+                      {isEnglishLocale ? 'Joined' : '가입일'}
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                       {joinedAtLabel}
@@ -239,7 +241,7 @@ export default function ProfilePage() {
                         <ListItemIcon>
                           <Logout variant="Bulk" />
                         </ListItemIcon>
-                        <ListItemText primary="로그아웃" />
+                        <ListItemText primary={isEnglishLocale ? 'Log out' : '로그아웃'} />
                       </ListItemButton>
                     </ListItem>
                   </List>
