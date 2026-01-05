@@ -35,35 +35,35 @@ export default function MegaMenuSection() {
   const pathname = usePathname();
   const localeBasePath = useMemo(() => getLocaleBasePath(pathname), [pathname]);
 
-  const quickLinks = useMemo(
-    () => [
+  const quickLinks = useMemo(() => {
+    const isEnglish = localeBasePath.startsWith('/en');
+    return [
       {
         icon: <PlayCircle size={20} />,
-        label: '캠페인 시작',
-        description: '새 캠페인을 생성하고 자동 게시 일정을 잡아요.',
+        label: isEnglish ? 'Start campaign' : '캠페인 시작',
+        description: isEnglish ? 'Create a campaign and lock in the publishing schedule.' : '새 캠페인을 생성하고 자동 게시 일정을 잡아요.',
         href: `${localeBasePath}/campaigns/create`
       },
       {
         icon: <Graph size={20} />,
-        label: '성과 통계',
-        description: '캠페인별 진행률과 성공률을 한눈에 확인해요.',
+        label: isEnglish ? 'Performance stats' : '성과 통계',
+        description: isEnglish ? 'Review campaign progress and success rates at a glance.' : '캠페인별 진행률과 성공률을 한눈에 확인해요.',
         href: `${localeBasePath}/statistics`
       },
       {
         icon: <DocumentText size={20} />,
-        label: '보고서 센터',
-        description: '완료된 캠페인의 리포트를 다운로드하거나 공유해요.',
+        label: isEnglish ? 'Report center' : '보고서 센터',
+        description: isEnglish ? 'Download or share reports for completed campaigns.' : '완료된 캠페인의 리포트를 다운로드하거나 공유해요.',
         href: `${localeBasePath}/reports`
       },
       {
         icon: <ShieldTick size={20} />,
-        label: '사이트 관리',
-        description: '워드프레스 사이트 연결 상태와 권한을 점검해요.',
+        label: isEnglish ? 'Site management' : '사이트 관리',
+        description: isEnglish ? 'Check WordPress connection health and permissions.' : '워드프레스 사이트 연결 상태와 권한을 점검해요.',
         href: `${localeBasePath}/sites/add`
       }
-    ],
-    [localeBasePath]
-  );
+    ];
+  }, [localeBasePath]);
 
   const handleToggle = () => {
     setOpen((prevOpen) => !prevOpen);
