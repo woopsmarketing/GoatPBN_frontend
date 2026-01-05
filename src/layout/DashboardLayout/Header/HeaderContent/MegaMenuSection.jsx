@@ -123,9 +123,11 @@ export default function MegaMenuSection() {
                 <MainCard elevation={0} border={false} content={false}>
                   <Stack sx={{ p: 3, gap: 2 }}>
                     <Box>
-                      <Typography variant="h5">빠른 이동</Typography>
+                      <Typography variant="h5">{isEnglish ? 'Quick navigation' : '빠른 이동'}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        자주 사용하는 기능으로 바로 이동해 캠페인을 더 빠르게 관리하세요.
+                        {isEnglish
+                          ? 'Jump to frequently used tasks and manage campaigns faster.'
+                          : '자주 사용하는 기능으로 바로 이동해 캠페인을 더 빠르게 관리하세요.'}
                       </Typography>
                     </Box>
                     <List disablePadding>
