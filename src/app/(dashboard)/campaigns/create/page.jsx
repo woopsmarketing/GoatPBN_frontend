@@ -253,6 +253,7 @@ export default function CampaignCreatePage() {
 
       if (targetSiteIds.length === 0) {
         alert('캠페인을 배포할 사이트가 없습니다. 선택 상태를 확인해주세요.');
+        setLoading(false);
         return;
       }
 
@@ -264,8 +265,8 @@ export default function CampaignCreatePage() {
         scheduledStart = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
       }
 
-      // 공통 캠페인 데이터 템플릿
-      const campaignDataTemplate = {
+      // 캠페인 데이터 구성 (선택된 사이트 배열 포함)
+      const campaignData = {
         name: formData.name,
         description: formData.description,
         site_distribution: formData.siteDistribution,
@@ -291,57 +292,25 @@ export default function CampaignCreatePage() {
         // 💳 크레딧 계산 (프론트엔드에서 계산하여 전달)
         creditsPerContent: calculateCreditsPerContent(formData),
 
+        // Supabase 호환 필드 (대표 사이트용, 필요 시 첫 번째 사이트 사용)
+        site_id: targetSiteIds.length > 0 ? targetSiteIds[0] : null,
         status: 'pending' // 초기 상태
       };
 
-      // 결과 요약 저장용 변수
-      const successSiteIds = [];
-      const failedSites = [];
-      const siteMap = new Map(sites.map((site) => [site.id, site]));
+      console.log('캠페인 생성 데이터:', campaignData);
 
-      // 사이트별로 캠페인 생성 (수동 선택 시 선택된 사이트만, 자동 배포 시 전체 사이트)
-      for (const siteId of targetSiteIds) {
-        const payload = { ...campaignDataTemplate, site_id: siteId, delayMinutes: parseInt(formData.delayMinutes) };
+      const result = await campaignsAPI.createCampaign(campaignData);
 
-        console.log('캠페인 생성 데이터:', payload);
+      if (result.success) {
+        const distributionSummary =
+          formData.siteDistribution === 'auto'
+            ? `등록된 ${targetSiteIds.length}개 사이트에 자동 배포합니다.`
+            : `${targetSiteIds.length}개 선택된 사이트에 순차 배포합니다.`;
 
-        try {
-          const result = await campaignsAPI.createCampaign(payload);
-          if (result.success) {
-            successSiteIds.push(siteId);
-          } else {
-            failedSites.push({
-              siteId,
-              error: result.error || '알 수 없는 오류'
-            });
-          }
-        } catch (error) {
-          failedSites.push({
-            siteId,
-            error: error.message
-          });
-        }
-      }
-
-      if (successSiteIds.length > 0) {
-        const successSiteNames = successSiteIds.map((id) => siteMap.get(id)?.name || '알 수 없는 사이트').join(', ');
-
-        let summaryMessage = `총 ${targetSiteIds.length}개 사이트 중 ${successSiteIds.length}곳에 캠페인을 생성했습니다.\n\n✅ 성공: ${successSiteNames}`;
-
-        if (failedSites.length > 0) {
-          const failedNames = failedSites
-            .map((item) => `${siteMap.get(item.siteId)?.name || '알 수 없는 사이트'} (${item.error})`)
-            .join(', ');
-          summaryMessage += `\n\n⚠️ 실패: ${failedNames}`;
-        }
-
-        alert(summaryMessage);
+        alert(`캠페인이 성공적으로 생성되었습니다!\n\n${distributionSummary}`);
         router.push('/campaigns');
       } else {
-        const failedNames = failedSites
-          .map((item) => `${siteMap.get(item.siteId)?.name || '알 수 없는 사이트'} (${item.error})`)
-          .join(', ');
-        throw new Error(`선택한 모든 사이트에서 캠페인 생성이 실패했습니다.\n실패 목록: ${failedNames}`);
+        throw new Error(result.error || '캠페인 생성에 실패했습니다');
       }
     } catch (error) {
       console.error('캠페인 생성 오류:', error);

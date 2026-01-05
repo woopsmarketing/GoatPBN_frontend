@@ -253,6 +253,7 @@ export default function CampaignCreatePageEn() {
 
       if (targetSiteIds.length === 0) {
         alert('No sites available to publish this campaign. Please review your selections.');
+        setLoading(false);
         return;
       }
 
@@ -264,8 +265,8 @@ export default function CampaignCreatePageEn() {
         scheduledStart = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
       }
 
-      // 공통 캠페인 데이터 템플릿
-      const campaignDataTemplate = {
+      // Assemble campaign payload with selected site list
+      const campaignData = {
         name: formData.name,
         description: formData.description,
         site_distribution: formData.siteDistribution,
@@ -291,53 +292,25 @@ export default function CampaignCreatePageEn() {
         // 💳 크레딧 계산
         creditsPerContent: calculateCreditsPerContent(formData),
 
+        // Supabase compatibility (store representative site_id for legacy joins)
+        site_id: targetSiteIds.length > 0 ? targetSiteIds[0] : null,
         status: 'pending'
       };
 
-      // 결과 요약 저장용 변수
-      const successSiteIds = [];
-      const failedSites = [];
-      const siteMap = new Map(sites.map((site) => [site.id, site]));
+      console.log('Campaign creation payload:', campaignData);
 
-      // 사이트별로 캠페인 생성 (수동 선택 시 선택된 사이트만, 자동 배포 시 전체 사이트)
-      for (const siteId of targetSiteIds) {
-        const payload = { ...campaignDataTemplate, site_id: siteId, delayMinutes: parseInt(formData.delayMinutes, 10) };
+      const result = await campaignsAPI.createCampaign(campaignData);
 
-        console.log('Campaign creation payload:', payload);
+      if (result.success) {
+        const distributionSummary =
+          formData.siteDistribution === 'auto'
+            ? `Automatically distributing across ${targetSiteIds.length} registered site(s).`
+            : `Sequentially distributing across ${targetSiteIds.length} selected site(s).`;
 
-        try {
-          const result = await campaignsAPI.createCampaign(payload);
-          if (result.success) {
-            successSiteIds.push(siteId);
-          } else {
-            failedSites.push({
-              siteId,
-              error: result.error || 'Unknown error'
-            });
-          }
-        } catch (error) {
-          failedSites.push({
-            siteId,
-            error: error.message
-          });
-        }
-      }
-
-      if (successSiteIds.length > 0) {
-        const successSiteNames = successSiteIds.map((id) => siteMap.get(id)?.name || 'Unknown site').join(', ');
-
-        let summaryMessage = `Created campaigns for ${successSiteIds.length} out of ${targetSiteIds.length} site(s).\n\n✅ Success: ${successSiteNames}`;
-
-        if (failedSites.length > 0) {
-          const failedNames = failedSites.map((item) => `${siteMap.get(item.siteId)?.name || 'Unknown site'} (${item.error})`).join(', ');
-          summaryMessage += `\n\n⚠️ Failed: ${failedNames}`;
-        }
-
-        alert(summaryMessage);
+        alert(`Campaign created successfully!\n\n${distributionSummary}`);
         router.push('/en/campaigns');
       } else {
-        const failedNames = failedSites.map((item) => `${siteMap.get(item.siteId)?.name || 'Unknown site'} (${item.error})`).join(', ');
-        throw new Error(`Campaign creation failed for all selected sites.\nDetails: ${failedNames}`);
+        throw new Error(result.error || 'Failed to create campaign.');
       }
     } catch (error) {
       console.error('Campaign creation error:', error);

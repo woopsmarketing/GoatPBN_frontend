@@ -58,6 +58,7 @@ export default function CampaignListPage() {
       const mappedCampaigns = (data || []).map((campaign) => ({
         ...campaign,
         siteId: campaign.site_id,
+        selectedSiteIds: campaign.selected_site_ids || [],
         targetSite: campaign.target_site,
         completedCount: campaign.completed_count,
         dailyTarget: campaign.daily_target,

@@ -74,12 +74,17 @@ export const campaignsAPI = {
       const kstNowIso = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString();
       const todayKst = kstNowIso.split('T')[0];
 
+      const selectedSiteIds = Array.isArray(campaignData.selected_sites)
+        ? Array.from(new Set(campaignData.selected_sites.filter(Boolean)))
+        : [];
+
       // 캠페인 데이터 준비 (모든 콘텐츠 생성 옵션 포함)
       const newCampaign = {
         user_id: user.id,
         name: campaignData.name,
         description: campaignData.description || '',
-        site_id: campaignData.site_id, // 선택된 사이트 ID 추가
+        site_id: campaignData.site_id, // 대표 사이트 ID (선택된 첫 번째 사이트)
+        selected_site_ids: selectedSiteIds,
         target_site: campaignData.target_site,
         keywords: Array.isArray(campaignData.keywords) ? campaignData.keywords : [campaignData.keywords],
         quantity,
