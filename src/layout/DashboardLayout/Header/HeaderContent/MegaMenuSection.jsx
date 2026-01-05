@@ -35,8 +35,9 @@ export default function MegaMenuSection() {
   const pathname = usePathname();
   const localeBasePath = useMemo(() => getLocaleBasePath(pathname), [pathname]);
 
+  const isEnglish = localeBasePath.startsWith('/en');
+
   const quickLinks = useMemo(() => {
-    const isEnglish = localeBasePath.startsWith('/en');
     return [
       {
         icon: <PlayCircle size={20} />,
