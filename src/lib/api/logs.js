@@ -61,7 +61,12 @@ export const logsAPI = {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('로그인이 필요합니다.');
 
-      const cacheKey = { ...filters, userId: user.id };
+      const cacheKey = {
+        ...filters,
+        page: filters.page || 1,
+        pageSize: filters.pageSize || 20,
+        userId: user.id
+      };
 
       // 캐시 확인
       const cached = logCache.get('all_logs', cacheKey);
@@ -72,7 +77,7 @@ export const logsAPI = {
       // 현재 사용자의 로그만 조회 (사용자별 필터링 추가)
       let query = supabase
         .from('logs')
-        .select('*, campaigns(name, site_id)')
+        .select('*, campaigns(name, site_id)', { count: 'exact' })
         .eq('user_id', user.id) // 사용자별 필터링 추가
         .order('created_at', { ascending: false });
 
@@ -94,11 +99,19 @@ export const logsAPI = {
         query = query.eq('campaign_id', filters.campaignId);
       }
 
-      const { data, error } = await query;
+      if (filters.pageSize && filters.page) {
+        const limit = parseInt(filters.pageSize, 10) || 20;
+        const page = parseInt(filters.page, 10) || 1;
+        const from = (page - 1) * limit;
+        const to = page * limit - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
-      const result = { data, error: null };
+      const result = { data, error: null, count: count ?? data?.length ?? 0 };
 
       // 캐시 저장 (3분 TTL)
       logCache.set('all_logs', cacheKey, result, 3 * 60 * 1000);

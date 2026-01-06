@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import MainCard from '../../../components/MainCard';
 import TailwindButton from '../../../components/ui/TailwindButton';
 import { logsAPI } from '../../../lib/api/logs';
@@ -46,21 +46,29 @@ export default function LogsPage() {
   const [campaignFilter, setCampaignFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
-  // 무한 스크롤을 위한 가시 항목 수
-  const [visibleCount, setVisibleCount] = useState(20);
-  const loadMoreRef = useRef(null);
-
   // 실제 데이터 상태
   const [logs, setLogs] = useState([]);
   const [campaigns, setCampaigns] = useState([{ id: 'all', name: '전체' }]);
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('content'); // 'content' 또는 'activity'
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalLogs, setTotalLogs] = useState(0);
+
+  // 필터 변경 시 페이지 초기화
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, campaignFilter, dateRange.from, dateRange.to]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   // 데이터 로드
   useEffect(() => {
     loadLogsData();
-  }, []);
+  }, [statusFilter, campaignFilter, dateRange.from, dateRange.to, page, pageSize]);
 
   // 실시간 활동 로그 업데이트
   useEffect(() => {
@@ -82,10 +90,21 @@ export default function LogsPage() {
       setIsLoading(true);
 
       // 로그, 캠페인 데이터 로드 (활동은 인메모리에서 가져옴)
-      const [logsResult, campaignsResult] = await Promise.all([logsAPI.getAllLogs(), campaignsAPI.getCampaignsWithSites()]);
+      const [logsResult, campaignsResult] = await Promise.all([
+        logsAPI.getAllLogs({
+          status: statusFilter,
+          campaignId: campaignFilter !== 'all' ? campaignFilter : null,
+          startDate: dateRange.from || null,
+          endDate: dateRange.to || null,
+          page,
+          pageSize
+        }),
+        campaignsAPI.getCampaignsWithSites()
+      ]);
 
       if (!logsResult.error) {
         setLogs(logsResult.data || []);
+        setTotalLogs(logsResult.count ?? (logsResult.data?.length || 0));
       }
 
       if (!campaignsResult.error) {
@@ -151,43 +170,7 @@ export default function LogsPage() {
     }
   };
 
-  const filteredLogs = useMemo(() => {
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60); // 60일로 변경
-
-    return logs
-      .filter((l) => {
-        // 60일 이전 로그는 자동 제외 (자동 삭제 시뮬레이션)
-        const logDate = new Date(l.created_at);
-        if (logDate < sixtyDaysAgo) return false;
-
-        // 진행중/대기 상태 제외, 성공/실패만 표시
-        if (l.status === 'processing' || l.status === 'pending') return false;
-        if (statusFilter !== 'all' && l.status !== statusFilter) return false;
-        if (campaignFilter !== 'all' && String(l.campaign_id) !== String(campaignFilter)) return false;
-        if (!dateRange.from && !dateRange.to) return true;
-        const ts = new Date(l.created_at).getTime();
-        const fromTs = dateRange.from ? new Date(dateRange.from).getTime() : -Infinity;
-        const toTs = dateRange.to ? new Date(dateRange.to).getTime() + 24 * 60 * 60 * 1000 : Infinity;
-        return ts >= fromTs && ts < toTs;
-      })
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [logs, statusFilter, campaignFilter, dateRange]);
-
-  // 무한 스크롤: IntersectionObserver
-  useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        setVisibleCount((prev) => prev + 20);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMoreRef]);
-
-  const visibleLogs = filteredLogs.slice(0, visibleCount);
+  const pageCount = Math.max(1, Math.ceil(totalLogs / pageSize));
 
   // handleRetry 함수는 현재 사용하지 않음 (액션 컬럼 제거로 인해)
   // const handleRetry = (log) => {
@@ -329,7 +312,7 @@ export default function LogsPage() {
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="text-center py-12 text-gray-500">⏳ 로그를 불러오는 중...</div>
-            ) : filteredLogs.length === 0 ? (
+            ) : logs.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 📝 표시할 로그가 없습니다.
                 <br />
@@ -349,7 +332,7 @@ export default function LogsPage() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {visibleLogs.map((log) => {
+                  {logs.map((log) => {
                     // 한글 주석: Supabase logs 테이블의 uploaded_url(구 published_url)을 우선적으로 사용
                     const submissionUrl = log.uploaded_url || log.published_url || log.publishedUrl || '';
                     return (
@@ -398,12 +381,43 @@ export default function LogsPage() {
             )}
           </div>
 
-          {/* 로드 영역 (IntersectionObserver 타겟) */}
-          {!isLoading && filteredLogs.length > 0 && (
-            <>
-              <div ref={loadMoreRef} className="h-8"></div>
-              {visibleCount < filteredLogs.length && <div className="text-center text-sm text-gray-500">불러오는 중...</div>}
-            </>
+          {/* 페이징 컨트롤 */}
+          {!isLoading && logs.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+              <div>
+                총 {totalLogs}개 · 페이지 {page} / {pageCount}
+              </div>
+              <div className="flex items-center gap-2">
+                <span>페이지 크기</span>
+                <select
+                  className="border rounded px-2 py-1"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(parseInt(e.target.value, 10));
+                  }}
+                >
+                  {[10, 20, 30, 50].map((size) => (
+                    <option key={size} value={size}>
+                      {size}개
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="px-3 py-1 rounded border bg-white"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                >
+                  이전
+                </button>
+                <button
+                  className="px-3 py-1 rounded border bg-white"
+                  onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
+                  disabled={page >= pageCount}
+                >
+                  다음
+                </button>
+              </div>
+            </div>
           )}
         </MainCard>
       )}
