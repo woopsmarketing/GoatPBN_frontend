@@ -383,11 +383,11 @@ export default function LogsPage() {
 
           {/* 페이징 컨트롤 */}
           {!isLoading && logs.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
-              <div>
-                총 {totalLogs}개 · 페이지 {page} / {pageCount}
-              </div>
-              <div className="flex items-center gap-2">
+            <div className="mt-4 flex flex-col gap-2 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-3">
+                <span>
+                  총 {totalLogs}개 · 페이지 {page} / {pageCount}
+                </span>
                 <span>페이지 크기</span>
                 <select
                   className="border rounded px-2 py-1"
@@ -416,6 +416,30 @@ export default function LogsPage() {
                 >
                   다음
                 </button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNum) => {
+                  if (pageNum <= 2 || pageNum > pageCount - 2 || Math.abs(pageNum - page) <= 1) {
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`px-2 py-1 rounded border ${
+                          pageNum === page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700'
+                        }`}
+                        onClick={() => setPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                  if (pageNum === 3 && page > 4) {
+                    return <span key="start-ellipsis">…</span>;
+                  }
+                  if (pageNum === pageCount - 2 && page < pageCount - 3) {
+                    return <span key="end-ellipsis">…</span>;
+                  }
+                  return null;
+                })}
               </div>
             </div>
           )}
