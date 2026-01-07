@@ -9,6 +9,7 @@ import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
 import { authAPI, supabase } from '@/lib/supabase';
 import { formatToUserTimeZone } from '@/lib/utils/userTimeZone';
+import { usePaypalPlans } from '@/hooks/usePaypalPlans';
 
 const PLAN_LABELS = {
   free: 'Free plan',
@@ -23,6 +24,7 @@ export default function SubscriptionPageEn() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [subscription, setSubscription] = useState(null);
+  const [planError, setPlanError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -84,6 +86,21 @@ export default function SubscriptionPageEn() {
     remaining: subscription?.credits_remaining ?? 0
   };
 
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const returnUrl = `${origin}/en/subscription?paypal_status=success`;
+  const cancelUrl = `${origin}/en/subscription?paypal_status=cancel`;
+  const { plans, loading: plansLoading, error: plansFetchError, subscribing, subscribeToPlan } = usePaypalPlans(returnUrl, cancelUrl);
+
+  const handleSubscribe = async (planSlug) => {
+    setPlanError('');
+    try {
+      await subscribeToPlan(planSlug);
+    } catch (err) {
+      console.error(err);
+      setPlanError(err?.message || 'Unable to start PayPal checkout.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <MainCard title="Subscription overview">
@@ -143,18 +160,64 @@ export default function SubscriptionPageEn() {
         )}
       </MainCard>
       <MainCard title="Plan overview">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { title: 'Starter', description: 'Small-scale automation for testing, covering 5-10 campaigns monthly.' },
-            { title: 'Growth', description: 'Traffic expansion plan with auto reports and backlinking.' },
-            { title: 'Pro', description: 'Agency-tier with team collaboration, API access, and workflow automation.' },
-            { title: 'Enterprise', description: 'Custom SLA, dedicated support, and integrations for enterprise teams.' }
-          ].map((plan) => (
-            <div key={plan.title} className="rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h4 className="text-lg font-semibold text-gray-900">{plan.title}</h4>
-              <p className="mt-2 text-sm text-gray-600">{plan.description}</p>
+        {plansFetchError && (
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
+        )}
+        {planError && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{planError}</div>}
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {plansLoading
+            ? Array.from({ length: 2 }).map((_, index) => (
+                <div
+                  key={`skeleton-${index}`}
+                  className="animate-pulse rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                  aria-hidden
+                >
+                  <div className="h-6 w-1/3 rounded bg-gray-200" />
+                  <div className="mt-3 h-3 w-2/3 rounded bg-gray-200" />
+                  <div className="mt-6 h-8 w-full rounded bg-gray-200" />
+                </div>
+              ))
+            : plans.map((plan) => (
+                <div key={plan.slug} className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xl font-semibold text-gray-900">{plan.name}</h4>
+                      <p className="mt-1 text-sm font-medium text-gray-500">{plan.description}</p>
+                    </div>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                      {plan.interval || 'month'}
+                    </span>
+                  </div>
+                  <div className="mt-5 flex items-baseline gap-1">
+                    <p className="text-3xl font-bold text-gray-900">
+                      {plan.currency} {plan.price?.toLocaleString() ?? 'TBD'}
+                    </p>
+                    <span className="text-sm text-gray-500">/ {plan.interval || 'month'}</span>
+                  </div>
+                  <ul className="mt-4 space-y-2 text-sm text-gray-600">
+                    {(plan.features || []).map((feature) => (
+                      <li key={`${plan.slug}-${feature}`} className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <TailwindButton
+                    size="lg"
+                    variant="primary"
+                    className="mt-auto"
+                    onClick={() => handleSubscribe(plan.slug)}
+                    disabled={subscribing === plan.slug}
+                  >
+                    {subscribing === plan.slug ? 'Redirecting to PayPal...' : 'Subscribe with PayPal'}
+                  </TailwindButton>
+                </div>
+              ))}
+          {!plansLoading && plans.length === 0 && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">
+              No PayPal plans are configured yet.
             </div>
-          ))}
+          )}
         </div>
       </MainCard>
     </div>
