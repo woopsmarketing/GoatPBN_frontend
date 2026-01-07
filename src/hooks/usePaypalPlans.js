@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
+import { jsonHeaders } from '@/lib/api/httpClient';
 
 // v1.1 - PayPal 구독 훅 개선 (2026.01.07)
 // - 한글 주석: 백엔드가 x-user-id 헤더를 요구하므로 userId를 받아 헤더에 포함합니다.
@@ -16,7 +16,8 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
 
     const loadPlans = async () => {
       try {
-        const response = await fetch(buildApiUrl('/api/payments/paypal/plans'));
+        // 한글 주석: 동일 오리진(Next API Route) 호출로 백엔드 주소 노출을 줄입니다.
+        const response = await fetch('/api/payments/paypal/plans');
         if (!response.ok) {
           throw new Error('Failed to load payment plans');
         }
@@ -53,7 +54,7 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
 
       setSubmitting(planSlug);
       try {
-        const response = await fetch(buildApiUrl('/api/payments/paypal/create-subscription'), {
+        const response = await fetch('/api/payments/paypal/create-subscription', {
           method: 'POST',
           headers: jsonHeaders({ 'x-user-id': userId }),
           body: JSON.stringify({
@@ -90,7 +91,7 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
         throw new Error('User context missing (userId)');
       }
 
-      const response = await fetch(buildApiUrl('/api/payments/paypal/confirm'), {
+      const response = await fetch('/api/payments/paypal/confirm', {
         method: 'POST',
         headers: jsonHeaders({ 'x-user-id': userId }),
         body: JSON.stringify({ subscription_id: subscriptionId })
