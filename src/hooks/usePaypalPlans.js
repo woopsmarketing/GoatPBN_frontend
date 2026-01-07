@@ -10,6 +10,7 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState('');
+  const [processing, setProcessing] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -111,7 +112,48 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
     loading,
     error,
     subscribing: submitting,
+    processing,
     subscribeToPlan,
-    confirmSubscription
+    confirmSubscription,
+    upgradeSubscription: useCallback(
+      async (subscriptionId, targetPlanSlug) => {
+        if (!subscriptionId || !targetPlanSlug) throw new Error('subscription_id/target_plan_slug required');
+        if (!userId) throw new Error('User context missing (userId)');
+        setProcessing('upgrade');
+        try {
+          const response = await fetch('/api/payments/paypal/upgrade', {
+            method: 'PATCH',
+            headers: jsonHeaders({ 'x-user-id': userId }),
+            body: JSON.stringify({ subscription_id: subscriptionId, target_plan_slug: targetPlanSlug })
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || 'Upgrade failed');
+          return payload;
+        } finally {
+          setProcessing('');
+        }
+      },
+      [userId]
+    ),
+    downgradeSubscription: useCallback(
+      async (subscriptionId, targetPlanSlug) => {
+        if (!subscriptionId || !targetPlanSlug) throw new Error('subscription_id/target_plan_slug required');
+        if (!userId) throw new Error('User context missing (userId)');
+        setProcessing('downgrade');
+        try {
+          const response = await fetch('/api/payments/paypal/downgrade', {
+            method: 'POST',
+            headers: jsonHeaders({ 'x-user-id': userId }),
+            body: JSON.stringify({ subscription_id: subscriptionId, target_plan_slug: targetPlanSlug })
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || 'Downgrade failed');
+          return payload;
+        } finally {
+          setProcessing('');
+        }
+      },
+      [userId]
+    )
   };
 }

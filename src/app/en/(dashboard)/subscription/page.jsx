@@ -106,7 +106,10 @@ export default function SubscriptionPageEn() {
     error: plansFetchError,
     subscribing,
     subscribeToPlan,
-    confirmSubscription
+    confirmSubscription,
+    upgradeSubscription,
+    downgradeSubscription,
+    processing
   } = usePaypalPlans({
     returnUrl,
     cancelUrl,
@@ -268,19 +271,68 @@ export default function SubscriptionPageEn() {
                       </li>
                     ))}
                   </ul>
-                  <TailwindButton
-                    size="lg"
-                    variant={plan.slug === currentPlanSlug ? 'secondary' : 'primary'}
-                    className="mt-auto"
-                    onClick={() => handleSubscribe(plan.slug)}
-                    disabled={subscribing === plan.slug || plan.slug === currentPlanSlug}
-                  >
-                    {plan.slug === currentPlanSlug
-                      ? 'Current plan'
-                      : subscribing === plan.slug
-                        ? 'Redirecting to PayPal...'
-                        : 'Subscribe with PayPal'}
-                  </TailwindButton>
+                  {plan.slug === currentPlanSlug ? (
+                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+                      Current plan
+                    </TailwindButton>
+                  ) : currentPlanSlug && currentPlanSlug !== 'free' && plan.slug === 'pro' ? (
+                    <TailwindButton
+                      size="lg"
+                      variant="primary"
+                      className="mt-auto"
+                      onClick={async () => {
+                        try {
+                          const subId = subscription?.provider_subscription_id;
+                          if (!subId) throw new Error('No provider subscription id');
+                          setPlanError('');
+                          setPaymentStatus('Upgrading (prorated) via PayPal...');
+                          await upgradeSubscription(subId, plan.slug);
+                          setPaymentStatus('Upgrade requested. PayPal will prorate the difference.');
+                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                          if (data) setSubscription(data);
+                        } catch (e) {
+                          setPlanError(e.message || 'Upgrade failed');
+                          setPaymentStatus('');
+                        }
+                      }}
+                      disabled={processing === 'upgrade'}
+                    >
+                      {processing === 'upgrade' ? 'Upgrading...' : 'Upgrade (pro-rated)'}
+                    </TailwindButton>
+                  ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
+                    <TailwindButton
+                      size="lg"
+                      variant="secondary"
+                      className="mt-auto"
+                      onClick={async () => {
+                        try {
+                          const subId = subscription?.provider_subscription_id;
+                          if (!subId) throw new Error('No provider subscription id');
+                          setPlanError('');
+                          setPaymentStatus('Downgrade will apply next cycle.');
+                          await downgradeSubscription(subId, plan.slug);
+                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                          if (data) setSubscription(data);
+                        } catch (e) {
+                          setPlanError(e.message || 'Downgrade failed');
+                          setPaymentStatus('');
+                        }
+                      }}
+                      disabled={processing === 'downgrade'}
+                    >
+                      {processing === 'downgrade' ? 'Processing...' : 'Downgrade next cycle'}
+                    </TailwindButton>
+                  ) : (
+                    <TailwindButton
+                      size="lg"
+                      variant="primary"
+                      className="mt-auto"
+                      onClick={() => handleSubscribe(plan.slug)}
+                      disabled={subscribing === plan.slug}
+                    >
+                      {subscribing === plan.slug ? 'Redirecting to PayPal...' : 'Subscribe with PayPal'}
+                    </TailwindButton>
+                  )}
                 </div>
               ))}
           {!plansLoading && plans.length === 0 && (

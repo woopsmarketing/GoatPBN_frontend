@@ -66,7 +66,10 @@ export default function SubscriptionPageKo() {
     error: plansFetchError,
     subscribing,
     subscribeToPlan,
-    confirmSubscription
+    confirmSubscription,
+    upgradeSubscription,
+    downgradeSubscription,
+    processing
   } = usePaypalPlans({ returnUrl, cancelUrl, userId });
 
   const planLabel = useMemo(() => {
@@ -239,15 +242,68 @@ export default function SubscriptionPageKo() {
                       </li>
                     ))}
                   </ul>
-                  <TailwindButton
-                    size="lg"
-                    variant={plan.slug === currentPlanSlug ? 'secondary' : 'primary'}
-                    className="mt-auto"
-                    onClick={() => handleSubscribe(plan.slug)}
-                    disabled={subscribing === plan.slug || plan.slug === currentPlanSlug}
-                  >
-                    {plan.slug === currentPlanSlug ? '현재 플랜' : subscribing === plan.slug ? 'PayPal로 이동 중...' : 'PayPal로 구독하기'}
-                  </TailwindButton>
+                  {plan.slug === currentPlanSlug ? (
+                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+                      현재 플랜
+                    </TailwindButton>
+                  ) : currentPlanSlug && currentPlanSlug !== 'free' && plan.slug === 'pro' ? (
+                    <TailwindButton
+                      size="lg"
+                      variant="primary"
+                      className="mt-auto"
+                      onClick={async () => {
+                        try {
+                          const subId = subscription?.provider_subscription_id;
+                          if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
+                          setPlanError('');
+                          setPaymentStatus('PayPal에서 업그레이드(일할) 진행 중...');
+                          await upgradeSubscription(subId, plan.slug);
+                          setPaymentStatus('업그레이드 요청 완료. PayPal이 차액을 자동 정산합니다.');
+                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                          if (data) setSubscription(data);
+                        } catch (e) {
+                          setPlanError(e.message || '업그레이드 실패');
+                          setPaymentStatus('');
+                        }
+                      }}
+                      disabled={processing === 'upgrade'}
+                    >
+                      {processing === 'upgrade' ? '업그레이드 중...' : '업그레이드 (일할청구)'}
+                    </TailwindButton>
+                  ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
+                    <TailwindButton
+                      size="lg"
+                      variant="secondary"
+                      className="mt-auto"
+                      onClick={async () => {
+                        try {
+                          const subId = subscription?.provider_subscription_id;
+                          if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
+                          setPlanError('');
+                          setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다.');
+                          await downgradeSubscription(subId, plan.slug);
+                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                          if (data) setSubscription(data);
+                        } catch (e) {
+                          setPlanError(e.message || '다운그레이드 실패');
+                          setPaymentStatus('');
+                        }
+                      }}
+                      disabled={processing === 'downgrade'}
+                    >
+                      {processing === 'downgrade' ? '처리 중...' : '다음 달부터 다운그레이드'}
+                    </TailwindButton>
+                  ) : (
+                    <TailwindButton
+                      size="lg"
+                      variant="primary"
+                      className="mt-auto"
+                      onClick={() => handleSubscribe(plan.slug)}
+                      disabled={subscribing === plan.slug}
+                    >
+                      {subscribing === plan.slug ? 'PayPal로 이동 중...' : 'PayPal로 구독하기'}
+                    </TailwindButton>
+                  )}
                 </div>
               ))}
           {!plansLoading && plans.length === 0 && (
