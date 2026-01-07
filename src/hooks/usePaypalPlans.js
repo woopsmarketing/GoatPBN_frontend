@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { buildApiUrl, jsonHeaders } from '@/lib/api/httpClient';
 
-export function usePaypalPlans(returnUrl, cancelUrl) {
+// v1.1 - PayPal 구독 훅 개선 (2026.01.07)
+// - 한글 주석: 백엔드가 x-user-id 헤더를 요구하므로 userId를 받아 헤더에 포함합니다.
+// - 한글 주석: 승인 후 confirm API 호출을 위한 helper를 제공합니다.
+export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,12 +47,15 @@ export function usePaypalPlans(returnUrl, cancelUrl) {
       if (!returnUrl || !cancelUrl) {
         throw new Error('Return/cancel URLs are required');
       }
+      if (!userId) {
+        throw new Error('User context missing (userId)');
+      }
 
       setSubmitting(planSlug);
       try {
         const response = await fetch(buildApiUrl('/api/payments/paypal/create-subscription'), {
           method: 'POST',
-          headers: jsonHeaders(),
+          headers: jsonHeaders({ 'x-user-id': userId }),
           body: JSON.stringify({
             plan_slug: planSlug,
             return_url: returnUrl,
@@ -71,7 +77,32 @@ export function usePaypalPlans(returnUrl, cancelUrl) {
         setSubmitting('');
       }
     },
-    [returnUrl, cancelUrl]
+    [returnUrl, cancelUrl, userId]
+  );
+
+  const confirmSubscription = useCallback(
+    async (subscriptionId) => {
+      // 한글 주석: PayPal 승인 후 리다이렉트된 subscription_id를 백엔드 confirm에 전달합니다.
+      if (!subscriptionId) {
+        throw new Error('subscription_id missing');
+      }
+      if (!userId) {
+        throw new Error('User context missing (userId)');
+      }
+
+      const response = await fetch(buildApiUrl('/api/payments/paypal/confirm'), {
+        method: 'POST',
+        headers: jsonHeaders({ 'x-user-id': userId }),
+        body: JSON.stringify({ subscription_id: subscriptionId })
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail || 'PayPal confirmation failed.');
+      }
+      return payload;
+    },
+    [userId]
   );
 
   return {
@@ -79,6 +110,7 @@ export function usePaypalPlans(returnUrl, cancelUrl) {
     loading,
     error,
     subscribing: submitting,
-    subscribeToPlan
+    subscribeToPlan,
+    confirmSubscription
   };
 }

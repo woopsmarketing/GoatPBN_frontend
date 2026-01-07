@@ -4,6 +4,7 @@
 // Displays Supabase subscription data with English copy
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
@@ -25,6 +26,9 @@ export default function SubscriptionPageEn() {
   const [error, setError] = useState('');
   const [subscription, setSubscription] = useState(null);
   const [planError, setPlanError] = useState('');
+  const [userId, setUserId] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     let active = true;
@@ -37,6 +41,9 @@ export default function SubscriptionPageEn() {
         if (!user) {
           setError('Unable to locate login information.');
           return;
+        }
+        if (active) {
+          setUserId(user.id);
         }
 
         const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
@@ -89,7 +96,18 @@ export default function SubscriptionPageEn() {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/en/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/en/subscription?paypal_status=cancel`;
-  const { plans, loading: plansLoading, error: plansFetchError, subscribing, subscribeToPlan } = usePaypalPlans(returnUrl, cancelUrl);
+  const {
+    plans,
+    loading: plansLoading,
+    error: plansFetchError,
+    subscribing,
+    subscribeToPlan,
+    confirmSubscription
+  } = usePaypalPlans({
+    returnUrl,
+    cancelUrl,
+    userId
+  });
 
   const handleSubscribe = async (planSlug) => {
     setPlanError('');
@@ -100,6 +118,49 @@ export default function SubscriptionPageEn() {
       setPlanError(err?.message || 'Unable to start PayPal checkout.');
     }
   };
+
+  useEffect(() => {
+    // 한글 주석: PayPal 승인 후 returnUrl로 돌아오면 subscription_id가 query string에 붙습니다.
+    // 예) /en/subscription?paypal_status=success&subscription_id=I-XXXX
+    const paypalStatus = searchParams?.get('paypal_status') || '';
+    const subscriptionId = searchParams?.get('subscription_id') || '';
+
+    if (!paypalStatus) return;
+
+    if (paypalStatus === 'cancel') {
+      setPaymentStatus('Payment cancelled.');
+      return;
+    }
+
+    if (paypalStatus === 'success' && subscriptionId && userId) {
+      let active = true;
+      (async () => {
+        try {
+          setPaymentStatus('Confirming PayPal subscription...');
+          const result = await confirmSubscription(subscriptionId);
+          if (active) {
+            setPaymentStatus(`Subscription confirmed: ${result.status || 'OK'}`);
+          }
+
+          // 한글 주석: confirm 성공 후 Supabase subscriptions 테이블 상태가 변경되었을 수 있으므로 재조회합니다.
+          const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+          if (!subError && active) {
+            setSubscription(data);
+          }
+        } catch (err) {
+          console.error(err);
+          if (active) {
+            setPaymentStatus('');
+            setPlanError(err?.message || 'Failed to confirm PayPal subscription.');
+          }
+        }
+      })();
+
+      return () => {
+        active = false;
+      };
+    }
+  }, [searchParams, userId, confirmSubscription]);
 
   return (
     <div className="space-y-6">
@@ -160,6 +221,7 @@ export default function SubscriptionPageEn() {
         )}
       </MainCard>
       <MainCard title="Plan overview">
+        {paymentStatus && <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>}
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
         )}
