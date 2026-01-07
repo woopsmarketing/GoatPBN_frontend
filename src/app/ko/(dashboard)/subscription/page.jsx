@@ -46,7 +46,23 @@ export default function SubscriptionPageKo() {
         if (active) setUserId(user.id);
         const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
         if (subError) throw subError;
-        if (active) setSubscription(data);
+
+        // user_subscriptions에서 provider_subscription_id를 함께 가져와 병합
+        const { data: userSub, error: userSubError } = await supabase
+          .from('user_subscriptions')
+          .select('provider_subscription_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .maybeSingle();
+        if (userSubError) {
+          console.warn('user_subscriptions 조회 실패:', userSubError.message);
+        }
+
+        const merged = {
+          ...(data || {}),
+          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id
+        };
+        if (active) setSubscription(merged);
       } catch (err) {
         console.error('구독 정보 로드 실패:', err);
         if (active) setError('구독 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');

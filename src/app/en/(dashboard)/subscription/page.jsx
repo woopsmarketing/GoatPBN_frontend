@@ -47,10 +47,26 @@ export default function SubscriptionPageEn() {
         }
 
         const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
-
         if (subError) throw subError;
+
+        // user_subscriptions에서 provider_subscription_id를 병합
+        const { data: userSub, error: userSubError } = await supabase
+          .from('user_subscriptions')
+          .select('provider_subscription_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .maybeSingle();
+        if (userSubError) {
+          console.warn('user_subscriptions fetch failed:', userSubError.message);
+        }
+
+        const merged = {
+          ...(data || {}),
+          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id
+        };
+
         if (active) {
-          setSubscription(data);
+          setSubscription(merged);
         }
       } catch (err) {
         console.error('Failed to load subscription:', err);
