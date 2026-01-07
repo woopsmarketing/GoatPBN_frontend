@@ -117,23 +117,32 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
     confirmSubscription,
     upgradeSubscription: useCallback(
       async (subscriptionId, targetPlanSlug) => {
-        if (!subscriptionId || !targetPlanSlug) throw new Error('subscription_id/target_plan_slug required');
+        if (!targetPlanSlug) throw new Error('target_plan_slug required');
         if (!userId) throw new Error('User context missing (userId)');
+        if (!returnUrl || !cancelUrl) throw new Error('Return/cancel URLs are required');
+        // 기존 subscriptionId는 유지 정보용으로만 사용 (새 구독 생성 플로우)
         setProcessing('upgrade');
         try {
           const response = await fetch('/api/payments/paypal/upgrade', {
             method: 'PATCH',
             headers: jsonHeaders({ 'x-user-id': userId }),
-            body: JSON.stringify({ subscription_id: subscriptionId, target_plan_slug: targetPlanSlug })
+            body: JSON.stringify({
+              target_plan_slug: targetPlanSlug,
+              return_url: returnUrl,
+              cancel_url: cancelUrl,
+              previous_subscription_id: subscriptionId || undefined
+            })
           });
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.detail || 'Upgrade failed');
+          if (!payload.approval_url) throw new Error('PayPal approval URL missing.');
+          window.location.href = payload.approval_url;
           return payload;
         } finally {
           setProcessing('');
         }
       },
-      [userId]
+      [userId, returnUrl, cancelUrl]
     ),
     downgradeSubscription: useCallback(
       async (subscriptionId, targetPlanSlug) => {
