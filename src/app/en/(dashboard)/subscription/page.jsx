@@ -80,6 +80,14 @@ export default function SubscriptionPageEn() {
     return formatToUserTimeZone(subscription.expiry_date, { year: 'numeric', month: 'long', day: 'numeric' });
   }, [subscription]);
 
+  const credits = useMemo(() => {
+    const total = subscription?.credits_total ?? 0;
+    const usedRaw = subscription?.credits_used ?? 0;
+    const used = Math.min(usedRaw, total);
+    const remaining = Math.max(total - used, 0);
+    return { total, used, remaining };
+  }, [subscription]);
+
   const daysRemaining = useMemo(() => {
     if (!subscription?.expiry_date) return null;
     const end = new Date(subscription.expiry_date).getTime();
@@ -87,11 +95,7 @@ export default function SubscriptionPageEn() {
     return Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
   }, [subscription]);
 
-  const credits = {
-    total: subscription?.credits_total ?? 0,
-    used: subscription?.credits_used ?? 0,
-    remaining: subscription?.credits_remaining ?? 0
-  };
+  const currentPlanSlug = (subscription?.plan || '').toLowerCase();
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/en/subscription?paypal_status=success`;
@@ -266,12 +270,16 @@ export default function SubscriptionPageEn() {
                   </ul>
                   <TailwindButton
                     size="lg"
-                    variant="primary"
+                    variant={plan.slug === currentPlanSlug ? 'secondary' : 'primary'}
                     className="mt-auto"
                     onClick={() => handleSubscribe(plan.slug)}
-                    disabled={subscribing === plan.slug}
+                    disabled={subscribing === plan.slug || plan.slug === currentPlanSlug}
                   >
-                    {subscribing === plan.slug ? 'Redirecting to PayPal...' : 'Subscribe with PayPal'}
+                    {plan.slug === currentPlanSlug
+                      ? 'Current plan'
+                      : subscribing === plan.slug
+                        ? 'Redirecting to PayPal...'
+                        : 'Subscribe with PayPal'}
                   </TailwindButton>
                 </div>
               ))}
