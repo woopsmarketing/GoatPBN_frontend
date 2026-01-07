@@ -1,9 +1,27 @@
 import { proxyToBackend } from '@/app/api/_utils/backendProxy';
 
-// v1.0 - PayPal webhook 프록시
-// - 한글 주석: PayPal이 app.goatpbn.com/api/payments/paypal/webhook 으로 보내는 웹훅을
-//   백엔드 FastAPI로 그대로 전달합니다.
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// v1.1 - PayPal webhook 프록시
+// - PayPal이 보내는 원본 헤더/바디를 그대로 FastAPI로 전달합니다.
+// - body는 스트림을 소모하지 않도록 text()로 한 번만 읽어 전달합니다.
 export async function POST(req) {
-  // PayPal 서명 검증을 위해 원본 헤더/바디 그대로 전달
-  return proxyToBackend(req);
+  const rawBody = await req.text();
+  const headers = Object.fromEntries(req.headers.entries());
+
+  try {
+    return await proxyToBackend('/api/payments/paypal/webhook', {
+      method: 'POST',
+      headers,
+      body: rawBody
+    });
+  } catch (err) {
+    // 한글 주석: Vercel 로그 확인용
+    console.error('[webhook proxy] forward failed', err);
+    return new Response(JSON.stringify({ detail: 'webhook proxy failed', error: String(err) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 }

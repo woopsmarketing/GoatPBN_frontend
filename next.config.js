@@ -32,7 +32,19 @@ const nextConfig = {
     NEXT_APP_JWT_TIMEOUT: '86400',
     NEXTAUTH_SECRET_KEY: 'LlKq6ZtYbr+hTC073mAmAh9/h2HwMfsFo4hrfCx5mLg='
   },
-  outputFileTracingRoot: path.join(__dirname, './')
+  outputFileTracingRoot: path.join(__dirname, './'),
+  async rewrites() {
+    const backend =
+      (process.env.API_SERVER_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    // 한글 주석: 백엔드 URL이 설정된 경우에만 웹훅을 직접 백엔드로 프록시합니다.
+    if (!backend) return [];
+    return [
+      {
+        source: '/api/payments/paypal/webhook',
+        destination: `${backend}/api/payments/paypal/webhook`
+      }
+    ];
+  }
 };
 
 module.exports = nextConfig;
