@@ -114,7 +114,8 @@ export default function SubscriptionPageEn() {
   }, [subscription]);
 
   const currentPlanSlug = (subscription?.plan || '').toLowerCase();
-  const isReserved = subscription?.reserved_plan_id && subscription?.plan && subscription?.reserved_plan_id !== subscription?.plan_id;
+  // 예약 여부: 현재 구독(plan)이 pro이고, user_subscriptions에 reserved_plan_id가 존재하면 예약된 것으로 간주
+  const isReserved = subscription?.plan === 'pro' && !!subscription?.reserved_plan_id;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/en/subscription?paypal_status=success`;

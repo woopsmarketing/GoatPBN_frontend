@@ -119,7 +119,8 @@ export default function SubscriptionPageKo() {
   }, [subscription]);
 
   const currentPlanSlug = (subscription?.plan || '').toLowerCase();
-  const isReserved = subscription?.reserved_plan_id && subscription?.plan && subscription?.reserved_plan_id !== subscription?.plan_id;
+  // 현재 플랜이 프로이고 user_subscriptions에 reserved_plan_id가 있으면 예약된 것으로 간주
+  const isReserved = subscription?.plan === 'pro' && !!subscription?.reserved_plan_id;
 
   const handleSubscribe = async (planSlug) => {
     setPlanError('');
