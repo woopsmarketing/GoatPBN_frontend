@@ -34,6 +34,26 @@ export default function SubscriptionPageKo() {
 
   useEffect(() => {
     let active = true;
+    const fetchSubAndUserSub = async (uid) => {
+      const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
+      if (subError) throw subError;
+      const { data: userSub, error: userSubError } = await supabase
+        .from('user_subscriptions')
+        .select('provider_subscription_id, plan_id, status')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      if (userSubError) {
+        console.warn('user_subscriptions 조회 실패:', userSubError.message);
+      }
+      return {
+        ...(data || {}),
+        provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+        reserved_plan_id: userSub?.plan_id || null,
+        reserved_status: userSub?.status || null
+      };
+    };
+
     const loadSubscription = async () => {
       try {
         const { data: authData, error: authError } = await authAPI.getCurrentUser();
@@ -44,26 +64,7 @@ export default function SubscriptionPageKo() {
           return;
         }
         if (active) setUserId(user.id);
-        const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
-        if (subError) throw subError;
-
-        // user_subscriptions에서 provider_subscription_id를 함께 가져와 병합
-        const { data: userSub, error: userSubError } = await supabase
-          .from('user_subscriptions')
-          .select('provider_subscription_id, plan_id, status')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .maybeSingle();
-        if (userSubError) {
-          console.warn('user_subscriptions 조회 실패:', userSubError.message);
-        }
-
-        const merged = {
-          ...(data || {}),
-          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-          reserved_plan_id: userSub?.plan_id || null,
-          reserved_status: userSub?.status || null
-        };
+        const merged = await fetchSubAndUserSub(user.id);
         if (active) setSubscription(merged);
       } catch (err) {
         console.error('구독 정보 로드 실패:', err);
@@ -144,7 +145,21 @@ export default function SubscriptionPageKo() {
           const result = await confirmSubscription(subscriptionId);
           if (active) setPaymentStatus(`구독 확인: ${result.status || 'OK'}`);
           const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-          if (!subError && active) setSubscription(data);
+          if (!subError && active) {
+            const { data: userSub } = await supabase
+              .from('user_subscriptions')
+              .select('provider_subscription_id, plan_id, status')
+              .eq('user_id', userId)
+              .order('created_at', { ascending: false })
+              .maybeSingle();
+            const merged = {
+              ...(data || {}),
+              provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+              reserved_plan_id: userSub?.plan_id || null,
+              reserved_status: userSub?.status || null
+            };
+            setSubscription(merged);
+          }
         } catch (err) {
           console.error(err);
           if (active) {
@@ -309,7 +324,19 @@ export default function SubscriptionPageKo() {
                               setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
                               await cancelDowngrade(subId);
                               const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                              if (data) setSubscription(data);
+                              const { data: userSub } = await supabase
+                                .from('user_subscriptions')
+                                .select('provider_subscription_id, plan_id, status')
+                                .eq('user_id', userId)
+                                .order('created_at', { ascending: false })
+                                .maybeSingle();
+                              const merged = {
+                                ...(data || {}),
+                                provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+                                reserved_plan_id: userSub?.plan_id || null,
+                                reserved_status: userSub?.status || null
+                              };
+                              if (merged) setSubscription(merged);
                               setPaymentStatus('다운그레이드 예약이 취소되었습니다.');
                             } catch (e) {
                               setPlanError(e.message || '다운그레이드 취소 실패');
@@ -333,7 +360,19 @@ export default function SubscriptionPageKo() {
                               setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다.');
                               await downgradeSubscription(subId, plan.slug);
                               const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                              if (data) setSubscription(data);
+                              const { data: userSub } = await supabase
+                                .from('user_subscriptions')
+                                .select('provider_subscription_id, plan_id, status')
+                                .eq('user_id', userId)
+                                .order('created_at', { ascending: false })
+                                .maybeSingle();
+                              const merged = {
+                                ...(data || {}),
+                                provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+                                reserved_plan_id: userSub?.plan_id || null,
+                                reserved_status: userSub?.status || null
+                              };
+                              if (merged) setSubscription(merged);
                             } catch (e) {
                               setPlanError(e.message || '다운그레이드 실패');
                               setPaymentStatus('');

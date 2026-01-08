@@ -32,6 +32,25 @@ export default function SubscriptionPageEn() {
 
   useEffect(() => {
     let active = true;
+    const fetchSubAndUserSub = async (uid) => {
+      const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
+      if (subError) throw subError;
+      const { data: userSub, error: userSubError } = await supabase
+        .from('user_subscriptions')
+        .select('provider_subscription_id, plan_id, status')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      if (userSubError) {
+        console.warn('user_subscriptions fetch failed:', userSubError.message);
+      }
+      return {
+        ...(data || {}),
+        provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+        reserved_plan_id: userSub?.plan_id || null,
+        reserved_status: userSub?.status || null
+      };
+    };
 
     const loadSubscription = async () => {
       try {
@@ -46,30 +65,8 @@ export default function SubscriptionPageEn() {
           setUserId(user.id);
         }
 
-        const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
-        if (subError) throw subError;
-
-        // user_subscriptions에서 provider_subscription_id를 병합
-        const { data: userSub, error: userSubError } = await supabase
-          .from('user_subscriptions')
-          .select('provider_subscription_id, plan_id, status')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .maybeSingle();
-        if (userSubError) {
-          console.warn('user_subscriptions fetch failed:', userSubError.message);
-        }
-
-        const merged = {
-          ...(data || {}),
-          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-          reserved_plan_id: userSub?.plan_id || null,
-          reserved_status: userSub?.status || null
-        };
-
-        if (active) {
-          setSubscription(merged);
-        }
+        const merged = await fetchSubAndUserSub(user.id);
+        if (active) setSubscription(merged);
       } catch (err) {
         console.error('Failed to load subscription:', err);
         if (active) {
@@ -338,8 +335,26 @@ export default function SubscriptionPageEn() {
                               setPlanError('');
                               setPaymentStatus('Cancelling scheduled downgrade...');
                               await cancelDowngrade(subId);
-                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                              if (data) setSubscription(data);
+                              const merged = await supabase
+                                .from('subscriptions')
+                                .select('*')
+                                .eq('user_id', userId)
+                                .maybeSingle()
+                                .then(async ({ data }) => {
+                                  const { data: userSub } = await supabase
+                                    .from('user_subscriptions')
+                                    .select('provider_subscription_id, plan_id, status')
+                                    .eq('user_id', userId)
+                                    .order('created_at', { ascending: false })
+                                    .maybe_single();
+                                  return {
+                                    ...(data || {}),
+                                    provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+                                    reserved_plan_id: userSub?.plan_id || null,
+                                    reserved_status: userSub?.status || null
+                                  };
+                                });
+                              if (merged) setSubscription(merged);
                               setPaymentStatus('Downgrade cancellation requested.');
                             } catch (e) {
                               setPlanError(e.message || 'Cancel downgrade failed');
@@ -362,8 +377,26 @@ export default function SubscriptionPageEn() {
                               setPlanError('');
                               setPaymentStatus('Downgrade will apply next cycle.');
                               await downgradeSubscription(subId, plan.slug);
-                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                              if (data) setSubscription(data);
+                              const merged = await supabase
+                                .from('subscriptions')
+                                .select('*')
+                                .eq('user_id', userId)
+                                .maybeSingle()
+                                .then(async ({ data }) => {
+                                  const { data: userSub } = await supabase
+                                    .from('user_subscriptions')
+                                    .select('provider_subscription_id, plan_id, status')
+                                    .eq('user_id', userId)
+                                    .order('created_at', { ascending: false })
+                                    .maybe_single();
+                                  return {
+                                    ...(data || {}),
+                                    provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+                                    reserved_plan_id: userSub?.plan_id || null,
+                                    reserved_status: userSub?.status || null
+                                  };
+                                });
+                              if (merged) setSubscription(merged);
                             } catch (e) {
                               setPlanError(e.message || 'Downgrade failed');
                               setPaymentStatus('');
