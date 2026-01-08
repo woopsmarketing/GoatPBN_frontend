@@ -3,7 +3,7 @@
 // v1.1 - 구독 관리 페이지 (한국어)
 // 기능 요약: Supabase subscriptions 테이블과 연동하여 현재 플랜/크레딧을 표시하고 PayPal 결제 연동
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
@@ -28,6 +28,8 @@ export default function SubscriptionPageKo() {
   const [planError, setPlanError] = useState('');
   const [userId, setUserId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
+  // 한글 주석: 낙관적 업데이트 후 3~5초 뒤 재조회 타이머(중복 실행 방지)
+  const refreshTimerRef = useRef(null);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
@@ -36,23 +38,66 @@ export default function SubscriptionPageKo() {
   const fetchSubAndUserSub = async (uid) => {
     const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
     if (subError) throw subError;
-    const { data: userSub, error: userSubError } = await supabase
+    // 한글 주석: user_subscriptions는 과거 기록(취소/완료)이 누적되므로,
+    // active/approval_pending 중 최신 1건만 안전하게 가져옵니다.
+    const { data: userSubs, error: userSubError } = await supabase
       .from('user_subscriptions')
       .select('provider_subscription_id, plan_id, status, next_billing_date')
       .eq('user_id', uid)
+      .in('status', ['active', 'approval_pending'])
       .order('created_at', { ascending: false })
-      .maybeSingle();
+      .limit(1);
     if (userSubError) {
       console.warn('user_subscriptions 조회 실패:', userSubError.message);
     }
+
+    const userSub = Array.isArray(userSubs) ? userSubs[0] : null;
+
+    // 한글 주석: subscriptions.plan(slug) -> billing_plans.id(UUID)로 변환해서
+    // user_subscriptions.plan_id(UUID)와 비교할 수 있게 만듭니다.
+    let currentPlanId = null;
+    if (data?.plan) {
+      const { data: planRow, error: planError } = await supabase.from('billing_plans').select('id').eq('slug', data.plan).limit(1);
+      if (planError) {
+        console.warn('billing_plans 조회 실패:', planError.message);
+      } else {
+        currentPlanId = Array.isArray(planRow) ? planRow[0]?.id : null;
+      }
+    }
+
     return {
       ...(data || {}),
+      current_plan_id: currentPlanId,
       provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
       reserved_plan_id: userSub?.plan_id || null,
       reserved_status: userSub?.status || null,
       reserved_next_billing_date: userSub?.next_billing_date || null
     };
   };
+
+  // 한글 주석: 클릭 직후 UI를 먼저 토글(낙관적)하고, 3~5초 뒤 DB 상태로 최종 동기화합니다.
+  const scheduleRefresh = (delayMs = 3500) => {
+    if (!userId) return;
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = setTimeout(async () => {
+      try {
+        const merged = await fetchSubAndUserSub(userId);
+        setSubscription(merged);
+        // 한글 주석: 최종 동기화가 끝나면 안내 문구는 자연스럽게 숨깁니다.
+        setPaymentStatus('');
+      } catch (err) {
+        console.error('구독 상태 재조회 실패:', err);
+      }
+    }, delayMs);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -121,8 +166,14 @@ export default function SubscriptionPageKo() {
   }, [subscription]);
 
   const currentPlanSlug = (subscription?.plan || '').toLowerCase();
-  // 현재 플랜이 프로이고 user_subscriptions에 reserved_plan_id가 있으면 예약된 것으로 간주
-  const isReserved = subscription?.plan === 'pro' && !!subscription?.reserved_plan_id;
+  // 한글 주석: 낙관적 업데이트 시 reserved_plan_id를 특수 문자열로 세팅해 즉시 토글되도록 합니다.
+  const isOptimisticReserved =
+    typeof subscription?.reserved_plan_id === 'string' && subscription.reserved_plan_id.startsWith('__optimistic__');
+  // 한글 주석: 예약 여부 = (현재 플랜이 pro) AND (reserved_plan_id != current_plan_id)
+  const isReserved =
+    subscription?.plan === 'pro' &&
+    !!subscription?.reserved_plan_id &&
+    (isOptimisticReserved || (!!subscription?.current_plan_id && subscription.reserved_plan_id !== subscription.current_plan_id));
 
   const handleSubscribe = async (planSlug) => {
     setPlanError('');
@@ -317,16 +368,29 @@ export default function SubscriptionPageKo() {
                           variant="secondary"
                           className="mt-auto"
                           onClick={async () => {
+                            const prevSnapshot = subscription;
                             try {
                               const subId = subscription?.provider_subscription_id;
                               if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
                               setPlanError('');
                               setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
+                              // 한글 주석: 낙관적 업데이트 - 즉시 "예약 취소" 상태를 해제하고 버튼/배너를 원복합니다.
+                              setSubscription((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  reserved_plan_id: prev.current_plan_id || null,
+                                  reserved_status: 'active'
+                                };
+                              });
                               await cancelDowngrade(subId);
                               const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
-                              setPaymentStatus('다운그레이드 예약이 취소되었습니다.');
+                              setPaymentStatus('다운그레이드 예약 취소 요청이 완료되었습니다. 잠시 후 반영됩니다.');
+                              scheduleRefresh(3500);
                             } catch (e) {
+                              // 한글 주석: 실패 시 이전 상태로 롤백
+                              if (prevSnapshot) setSubscription(prevSnapshot);
                               setPlanError(e.message || '다운그레이드 취소 실패');
                               setPaymentStatus('');
                             }
@@ -341,15 +405,29 @@ export default function SubscriptionPageKo() {
                           variant="secondary"
                           className="mt-auto"
                           onClick={async () => {
+                            const prevSnapshot = subscription;
                             try {
                               const subId = subscription?.provider_subscription_id;
                               if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
                               setPlanError('');
-                              setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다.');
+                              setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다. (예약 반영 중...)');
+                              // 한글 주석: 낙관적 업데이트 - 즉시 "예약됨" 상태로 토글하여 UX를 개선합니다.
+                              setSubscription((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  reserved_plan_id: `__optimistic__${plan.slug}__`,
+                                  reserved_status: 'active'
+                                };
+                              });
                               await downgradeSubscription(subId, plan.slug);
                               const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
+                              // 한글 주석: 혹시 반영이 늦을 경우를 대비해 3~5초 후 한 번 더 동기화합니다.
+                              scheduleRefresh(3500);
                             } catch (e) {
+                              // 한글 주석: 실패 시 이전 상태로 롤백
+                              if (prevSnapshot) setSubscription(prevSnapshot);
                               setPlanError(e.message || '다운그레이드 실패');
                               setPaymentStatus('');
                             }
