@@ -171,9 +171,9 @@ export default function SubscriptionPageEn() {
           }
 
           // 한글 주석: confirm 성공 후 Supabase subscriptions 테이블 상태가 변경되었을 수 있으므로 재조회합니다.
-          const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-          if (!subError && active) {
-            setSubscription(data);
+          if (active) {
+            const merged = await fetchSubAndUserSub(userId);
+            setSubscription(merged);
           }
         } catch (err) {
           console.error(err);
