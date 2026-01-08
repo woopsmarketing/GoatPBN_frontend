@@ -37,7 +37,7 @@ export default function SubscriptionPageEn() {
       if (subError) throw subError;
       const { data: userSub, error: userSubError } = await supabase
         .from('user_subscriptions')
-        .select('provider_subscription_id, plan_id, status')
+        .select('provider_subscription_id, plan_id, status, next_billing_date')
         .eq('user_id', uid)
         .order('created_at', { ascending: false })
         .maybeSingle();
@@ -48,7 +48,8 @@ export default function SubscriptionPageEn() {
         ...(data || {}),
         provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
         reserved_plan_id: userSub?.plan_id || null,
-        reserved_status: userSub?.status || null
+        reserved_status: userSub?.status || null,
+        reserved_next_billing_date: userSub?.next_billing_date || null
       };
     };
 
@@ -111,6 +112,7 @@ export default function SubscriptionPageEn() {
   }, [subscription]);
 
   const currentPlanSlug = (subscription?.plan || '').toLowerCase();
+  const isReserved = subscription?.reserved_plan_id && subscription?.plan && subscription?.reserved_plan_id !== subscription?.plan_id;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/en/subscription?paypal_status=success`;
@@ -244,6 +246,13 @@ export default function SubscriptionPageEn() {
         )}
       </MainCard>
       <MainCard title="Plan overview">
+        {isReserved && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+            Downgrade scheduled for next billing cycle
+            {subscription?.reserved_next_billing_date ? ` (next billing: ${subscription.reserved_next_billing_date})` : ''}. You can cancel
+            the scheduled downgrade below.
+          </div>
+        )}
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
           After PayPal approval, it may take up to 1 minute for your plan/credits to update. Please wait or refresh the page.
         </div>
@@ -321,8 +330,6 @@ export default function SubscriptionPageEn() {
                     </TailwindButton>
                   ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
                     (() => {
-                      const isReserved =
-                        subscription?.reserved_plan_id && subscription?.plan === 'pro' && subscription?.reserved_plan_id !== null;
                       return isReserved ? (
                         <TailwindButton
                           size="lg"
@@ -335,25 +342,7 @@ export default function SubscriptionPageEn() {
                               setPlanError('');
                               setPaymentStatus('Cancelling scheduled downgrade...');
                               await cancelDowngrade(subId);
-                              const merged = await supabase
-                                .from('subscriptions')
-                                .select('*')
-                                .eq('user_id', userId)
-                                .maybeSingle()
-                                .then(async ({ data }) => {
-                                  const { data: userSub } = await supabase
-                                    .from('user_subscriptions')
-                                    .select('provider_subscription_id, plan_id, status')
-                                    .eq('user_id', userId)
-                                    .order('created_at', { ascending: false })
-                                    .maybe_single();
-                                  return {
-                                    ...(data || {}),
-                                    provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-                                    reserved_plan_id: userSub?.plan_id || null,
-                                    reserved_status: userSub?.status || null
-                                  };
-                                });
+                              const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                               setPaymentStatus('Downgrade cancellation requested.');
                             } catch (e) {
@@ -377,25 +366,7 @@ export default function SubscriptionPageEn() {
                               setPlanError('');
                               setPaymentStatus('Downgrade will apply next cycle.');
                               await downgradeSubscription(subId, plan.slug);
-                              const merged = await supabase
-                                .from('subscriptions')
-                                .select('*')
-                                .eq('user_id', userId)
-                                .maybeSingle()
-                                .then(async ({ data }) => {
-                                  const { data: userSub } = await supabase
-                                    .from('user_subscriptions')
-                                    .select('provider_subscription_id, plan_id, status')
-                                    .eq('user_id', userId)
-                                    .order('created_at', { ascending: false })
-                                    .maybe_single();
-                                  return {
-                                    ...(data || {}),
-                                    provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-                                    reserved_plan_id: userSub?.plan_id || null,
-                                    reserved_status: userSub?.status || null
-                                  };
-                                });
+                              const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                             } catch (e) {
                               setPlanError(e.message || 'Downgrade failed');

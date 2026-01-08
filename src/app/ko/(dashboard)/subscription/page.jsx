@@ -39,7 +39,7 @@ export default function SubscriptionPageKo() {
       if (subError) throw subError;
       const { data: userSub, error: userSubError } = await supabase
         .from('user_subscriptions')
-        .select('provider_subscription_id, plan_id, status')
+        .select('provider_subscription_id, plan_id, status, next_billing_date')
         .eq('user_id', uid)
         .order('created_at', { ascending: false })
         .maybeSingle();
@@ -50,7 +50,8 @@ export default function SubscriptionPageKo() {
         ...(data || {}),
         provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
         reserved_plan_id: userSub?.plan_id || null,
-        reserved_status: userSub?.status || null
+        reserved_status: userSub?.status || null,
+        reserved_next_billing_date: userSub?.next_billing_date || null
       };
     };
 
@@ -118,6 +119,7 @@ export default function SubscriptionPageKo() {
   }, [subscription]);
 
   const currentPlanSlug = (subscription?.plan || '').toLowerCase();
+  const isReserved = subscription?.reserved_plan_id && subscription?.plan && subscription?.reserved_plan_id !== subscription?.plan_id;
 
   const handleSubscribe = async (planSlug) => {
     setPlanError('');
@@ -233,6 +235,13 @@ export default function SubscriptionPageKo() {
         )}
       </MainCard>
       <MainCard title="플랜 안내">
+        {isReserved && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+            다운그레이드가 다음 청구 주기에 예약되었습니다
+            {subscription?.reserved_next_billing_date ? ` (다음 청구일: ${subscription.reserved_next_billing_date})` : ''}. 아래에서 예약을
+            취소할 수 있습니다.
+          </div>
+        )}
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
           PayPal 승인이 끝난 뒤 실제 플랜/크레딧 반영까지 최대 1분 정도 걸릴 수 있습니다. 잠시 기다리거나 새로고침해 주세요.
         </div>
@@ -309,8 +318,6 @@ export default function SubscriptionPageKo() {
                     </TailwindButton>
                   ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
                     (() => {
-                      const isReserved =
-                        subscription?.reserved_plan_id && subscription?.plan === 'pro' && subscription?.reserved_plan_id !== null;
                       return isReserved ? (
                         <TailwindButton
                           size="lg"
@@ -323,19 +330,7 @@ export default function SubscriptionPageKo() {
                               setPlanError('');
                               setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
                               await cancelDowngrade(subId);
-                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                              const { data: userSub } = await supabase
-                                .from('user_subscriptions')
-                                .select('provider_subscription_id, plan_id, status')
-                                .eq('user_id', userId)
-                                .order('created_at', { ascending: false })
-                                .maybeSingle();
-                              const merged = {
-                                ...(data || {}),
-                                provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-                                reserved_plan_id: userSub?.plan_id || null,
-                                reserved_status: userSub?.status || null
-                              };
+                              const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                               setPaymentStatus('다운그레이드 예약이 취소되었습니다.');
                             } catch (e) {
@@ -359,19 +354,7 @@ export default function SubscriptionPageKo() {
                               setPlanError('');
                               setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다.');
                               await downgradeSubscription(subId, plan.slug);
-                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                              const { data: userSub } = await supabase
-                                .from('user_subscriptions')
-                                .select('provider_subscription_id, plan_id, status')
-                                .eq('user_id', userId)
-                                .order('created_at', { ascending: false })
-                                .maybeSingle();
-                              const merged = {
-                                ...(data || {}),
-                                provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-                                reserved_plan_id: userSub?.plan_id || null,
-                                reserved_status: userSub?.status || null
-                              };
+                              const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                             } catch (e) {
                               setPlanError(e.message || '다운그레이드 실패');
