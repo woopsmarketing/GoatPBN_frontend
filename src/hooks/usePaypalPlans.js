@@ -163,6 +163,26 @@ export function usePaypalPlans({ returnUrl, cancelUrl, userId }) {
         }
       },
       [userId]
+    ),
+    cancelDowngrade: useCallback(
+      async (subscriptionId) => {
+        if (!subscriptionId) throw new Error('subscription_id required');
+        if (!userId) throw new Error('User context missing (userId)');
+        setProcessing('cancel-downgrade');
+        try {
+          const response = await fetch('/api/payments/paypal/cancel-downgrade', {
+            method: 'POST',
+            headers: jsonHeaders({ 'x-user-id': userId }),
+            body: JSON.stringify({ subscription_id: subscriptionId })
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || 'Cancel downgrade failed');
+          return payload;
+        } finally {
+          setProcessing('');
+        }
+      },
+      [userId]
     )
   };
 }

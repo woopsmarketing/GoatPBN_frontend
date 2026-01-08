@@ -50,7 +50,7 @@ export default function SubscriptionPageKo() {
         // user_subscriptions에서 provider_subscription_id를 함께 가져와 병합
         const { data: userSub, error: userSubError } = await supabase
           .from('user_subscriptions')
-          .select('provider_subscription_id')
+          .select('provider_subscription_id, plan_id, status')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .maybeSingle();
@@ -60,7 +60,9 @@ export default function SubscriptionPageKo() {
 
         const merged = {
           ...(data || {}),
-          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id
+          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+          reserved_plan_id: userSub?.plan_id || null,
+          reserved_status: userSub?.status || null
         };
         if (active) setSubscription(merged);
       } catch (err) {
@@ -85,6 +87,7 @@ export default function SubscriptionPageKo() {
     confirmSubscription,
     upgradeSubscription,
     downgradeSubscription,
+    cancelDowngrade,
     processing
   } = usePaypalPlans({ returnUrl, cancelUrl, userId });
 
@@ -290,28 +293,58 @@ export default function SubscriptionPageKo() {
                       {processing === 'upgrade' ? '업그레이드 중...' : '업그레이드 (일할청구)'}
                     </TailwindButton>
                   ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
-                    <TailwindButton
-                      size="lg"
-                      variant="secondary"
-                      className="mt-auto"
-                      onClick={async () => {
-                        try {
-                          const subId = subscription?.provider_subscription_id;
-                          if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
-                          setPlanError('');
-                          setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다.');
-                          await downgradeSubscription(subId, plan.slug);
-                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                          if (data) setSubscription(data);
-                        } catch (e) {
-                          setPlanError(e.message || '다운그레이드 실패');
-                          setPaymentStatus('');
-                        }
-                      }}
-                      disabled={processing === 'downgrade'}
-                    >
-                      {processing === 'downgrade' ? '처리 중...' : '다음 달부터 다운그레이드'}
-                    </TailwindButton>
+                    (() => {
+                      const isReserved =
+                        subscription?.reserved_plan_id && subscription?.plan === 'pro' && subscription?.reserved_plan_id !== null;
+                      return isReserved ? (
+                        <TailwindButton
+                          size="lg"
+                          variant="secondary"
+                          className="mt-auto"
+                          onClick={async () => {
+                            try {
+                              const subId = subscription?.provider_subscription_id;
+                              if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
+                              setPlanError('');
+                              setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
+                              await cancelDowngrade(subId);
+                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                              if (data) setSubscription(data);
+                              setPaymentStatus('다운그레이드 예약이 취소되었습니다.');
+                            } catch (e) {
+                              setPlanError(e.message || '다운그레이드 취소 실패');
+                              setPaymentStatus('');
+                            }
+                          }}
+                          disabled={processing === 'cancel-downgrade'}
+                        >
+                          {processing === 'cancel-downgrade' ? '취소 중...' : '다운그레이드 예약 취소'}
+                        </TailwindButton>
+                      ) : (
+                        <TailwindButton
+                          size="lg"
+                          variant="secondary"
+                          className="mt-auto"
+                          onClick={async () => {
+                            try {
+                              const subId = subscription?.provider_subscription_id;
+                              if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
+                              setPlanError('');
+                              setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다.');
+                              await downgradeSubscription(subId, plan.slug);
+                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                              if (data) setSubscription(data);
+                            } catch (e) {
+                              setPlanError(e.message || '다운그레이드 실패');
+                              setPaymentStatus('');
+                            }
+                          }}
+                          disabled={processing === 'downgrade'}
+                        >
+                          {processing === 'downgrade' ? '처리 중...' : '다음 달부터 다운그레이드'}
+                        </TailwindButton>
+                      );
+                    })()
                   ) : (
                     <TailwindButton
                       size="lg"

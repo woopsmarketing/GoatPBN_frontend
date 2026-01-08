@@ -52,7 +52,7 @@ export default function SubscriptionPageEn() {
         // user_subscriptions에서 provider_subscription_id를 병합
         const { data: userSub, error: userSubError } = await supabase
           .from('user_subscriptions')
-          .select('provider_subscription_id')
+          .select('provider_subscription_id, plan_id, status')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .maybeSingle();
@@ -62,7 +62,9 @@ export default function SubscriptionPageEn() {
 
         const merged = {
           ...(data || {}),
-          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id
+          provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+          reserved_plan_id: userSub?.plan_id || null,
+          reserved_status: userSub?.status || null
         };
 
         if (active) {
@@ -125,6 +127,7 @@ export default function SubscriptionPageEn() {
     confirmSubscription,
     upgradeSubscription,
     downgradeSubscription,
+    cancelDowngrade,
     processing
   } = usePaypalPlans({
     returnUrl,
@@ -290,6 +293,7 @@ export default function SubscriptionPageEn() {
                       </li>
                     ))}
                   </ul>
+                  {/* 다운그레이드/예약 상태 판단 */}
                   {plan.slug === currentPlanSlug ? (
                     <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
                       Current plan
@@ -319,28 +323,58 @@ export default function SubscriptionPageEn() {
                       {processing === 'upgrade' ? 'Upgrading...' : 'Upgrade (pro-rated)'}
                     </TailwindButton>
                   ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
-                    <TailwindButton
-                      size="lg"
-                      variant="secondary"
-                      className="mt-auto"
-                      onClick={async () => {
-                        try {
-                          const subId = subscription?.provider_subscription_id;
-                          if (!subId) throw new Error('No provider subscription id');
-                          setPlanError('');
-                          setPaymentStatus('Downgrade will apply next cycle.');
-                          await downgradeSubscription(subId, plan.slug);
-                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                          if (data) setSubscription(data);
-                        } catch (e) {
-                          setPlanError(e.message || 'Downgrade failed');
-                          setPaymentStatus('');
-                        }
-                      }}
-                      disabled={processing === 'downgrade'}
-                    >
-                      {processing === 'downgrade' ? 'Processing...' : 'Downgrade next cycle'}
-                    </TailwindButton>
+                    (() => {
+                      const isReserved =
+                        subscription?.reserved_plan_id && subscription?.plan === 'pro' && subscription?.reserved_plan_id !== null;
+                      return isReserved ? (
+                        <TailwindButton
+                          size="lg"
+                          variant="secondary"
+                          className="mt-auto"
+                          onClick={async () => {
+                            try {
+                              const subId = subscription?.provider_subscription_id;
+                              if (!subId) throw new Error('No provider subscription id');
+                              setPlanError('');
+                              setPaymentStatus('Cancelling scheduled downgrade...');
+                              await cancelDowngrade(subId);
+                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                              if (data) setSubscription(data);
+                              setPaymentStatus('Downgrade cancellation requested.');
+                            } catch (e) {
+                              setPlanError(e.message || 'Cancel downgrade failed');
+                              setPaymentStatus('');
+                            }
+                          }}
+                          disabled={processing === 'cancel-downgrade'}
+                        >
+                          {processing === 'cancel-downgrade' ? 'Cancelling...' : 'Cancel scheduled downgrade'}
+                        </TailwindButton>
+                      ) : (
+                        <TailwindButton
+                          size="lg"
+                          variant="secondary"
+                          className="mt-auto"
+                          onClick={async () => {
+                            try {
+                              const subId = subscription?.provider_subscription_id;
+                              if (!subId) throw new Error('No provider subscription id');
+                              setPlanError('');
+                              setPaymentStatus('Downgrade will apply next cycle.');
+                              await downgradeSubscription(subId, plan.slug);
+                              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+                              if (data) setSubscription(data);
+                            } catch (e) {
+                              setPlanError(e.message || 'Downgrade failed');
+                              setPaymentStatus('');
+                            }
+                          }}
+                          disabled={processing === 'downgrade'}
+                        >
+                          {processing === 'downgrade' ? 'Processing...' : 'Downgrade next cycle'}
+                        </TailwindButton>
+                      );
+                    })()
                   ) : (
                     <TailwindButton
                       size="lg"
