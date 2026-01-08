@@ -215,6 +215,9 @@ export default function SubscriptionPageKo() {
         )}
       </MainCard>
       <MainCard title="플랜 안내">
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+          PayPal 승인이 끝난 뒤 실제 플랜/크레딧 반영까지 최대 1분 정도 걸릴 수 있습니다. 잠시 기다리거나 새로고침해 주세요.
+        </div>
         {paymentStatus && <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>}
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>

@@ -244,6 +244,9 @@ export default function SubscriptionPageEn() {
         )}
       </MainCard>
       <MainCard title="Plan overview">
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+          After PayPal approval, it may take up to 1 minute for your plan/credits to update. Please wait or refresh the page.
+        </div>
         {paymentStatus && <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>}
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
