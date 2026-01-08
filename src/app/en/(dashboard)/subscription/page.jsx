@@ -211,6 +211,11 @@ export default function SubscriptionPageEn() {
                 <p className="mt-2">
                   Renewal/expiry: <span className="font-medium text-gray-900">{expiryLabel}</span>
                 </p>
+                {isReserved && subscription?.reserved_next_billing_date && (
+                  <p className="mt-1 text-xs text-blue-700">
+                    Scheduled downgrade starts on: <span className="font-semibold">{subscription.reserved_next_billing_date}</span>
+                  </p>
+                )}
                 {daysRemaining !== null && (
                   <p className="mt-1 text-xs text-gray-500">
                     Days remaining: <span className="font-semibold text-gray-700">{daysRemaining} days</span>
@@ -256,10 +261,9 @@ export default function SubscriptionPageEn() {
             the scheduled downgrade below.
           </div>
         )}
-        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-          After PayPal approval, it may take up to 1 minute for your plan/credits to update. Please wait or refresh the page.
-        </div>
-        {paymentStatus && <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>}
+        {paymentStatus && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
+        )}
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
         )}

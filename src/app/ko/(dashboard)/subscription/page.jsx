@@ -32,28 +32,30 @@ export default function SubscriptionPageKo() {
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
 
+  // helper: subscriptions + user_subscriptions 병합 조회
+  const fetchSubAndUserSub = async (uid) => {
+    const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
+    if (subError) throw subError;
+    const { data: userSub, error: userSubError } = await supabase
+      .from('user_subscriptions')
+      .select('provider_subscription_id, plan_id, status, next_billing_date')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+    if (userSubError) {
+      console.warn('user_subscriptions 조회 실패:', userSubError.message);
+    }
+    return {
+      ...(data || {}),
+      provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+      reserved_plan_id: userSub?.plan_id || null,
+      reserved_status: userSub?.status || null,
+      reserved_next_billing_date: userSub?.next_billing_date || null
+    };
+  };
+
   useEffect(() => {
     let active = true;
-    const fetchSubAndUserSub = async (uid) => {
-      const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
-      if (subError) throw subError;
-      const { data: userSub, error: userSubError } = await supabase
-        .from('user_subscriptions')
-        .select('provider_subscription_id, plan_id, status, next_billing_date')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-      if (userSubError) {
-        console.warn('user_subscriptions 조회 실패:', userSubError.message);
-      }
-      return {
-        ...(data || {}),
-        provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-        reserved_plan_id: userSub?.plan_id || null,
-        reserved_status: userSub?.status || null,
-        reserved_next_billing_date: userSub?.next_billing_date || null
-      };
-    };
 
     const loadSubscription = async () => {
       try {
@@ -147,22 +149,8 @@ export default function SubscriptionPageKo() {
           setPaymentStatus('PayPal 구독을 확인 중입니다...');
           const result = await confirmSubscription(subscriptionId);
           if (active) setPaymentStatus(`구독 확인: ${result.status || 'OK'}`);
-          const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-          if (!subError && active) {
-            const { data: userSub } = await supabase
-              .from('user_subscriptions')
-              .select('provider_subscription_id, plan_id, status')
-              .eq('user_id', userId)
-              .order('created_at', { ascending: false })
-              .maybeSingle();
-            const merged = {
-              ...(data || {}),
-              provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-              reserved_plan_id: userSub?.plan_id || null,
-              reserved_status: userSub?.status || null
-            };
-            setSubscription(merged);
-          }
+          const merged = await fetchSubAndUserSub(userId);
+          if (active) setSubscription(merged);
         } catch (err) {
           console.error(err);
           if (active) {
@@ -198,6 +186,11 @@ export default function SubscriptionPageKo() {
                 <p className="mt-2">
                   갱신/만료일: <span className="font-medium text-gray-900">{expiryLabel}</span>
                 </p>
+                {isReserved && subscription?.reserved_next_billing_date && (
+                  <p className="mt-1 text-xs text-blue-700">
+                    다음 청구일에 다운그레이드 예정: <span className="font-semibold">{subscription.reserved_next_billing_date}</span>
+                  </p>
+                )}
                 {daysRemaining !== null && (
                   <p className="mt-1 text-xs text-gray-500">
                     남은 일수: <span className="font-semibold text-gray-700">{daysRemaining}일</span>
@@ -243,10 +236,9 @@ export default function SubscriptionPageKo() {
             취소할 수 있습니다.
           </div>
         )}
-        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-          PayPal 승인이 끝난 뒤 실제 플랜/크레딧 반영까지 최대 1분 정도 걸릴 수 있습니다. 잠시 기다리거나 새로고침해 주세요.
-        </div>
-        {paymentStatus && <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>}
+        {paymentStatus && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
+        )}
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
         )}
@@ -306,8 +298,8 @@ export default function SubscriptionPageKo() {
                           setPaymentStatus('PayPal에서 업그레이드(일할) 진행 중...');
                           await upgradeSubscription(subId, plan.slug);
                           setPaymentStatus('업그레이드 요청 완료. PayPal이 차액을 자동 정산합니다.');
-                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                          if (data) setSubscription(data);
+                          const merged = await fetchSubAndUserSub(userId);
+                          if (merged) setSubscription(merged);
                         } catch (e) {
                           setPlanError(e.message || '업그레이드 실패');
                           setPaymentStatus('');
