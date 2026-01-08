@@ -30,28 +30,30 @@ export default function SubscriptionPageEn() {
   const [paymentStatus, setPaymentStatus] = useState('');
   const searchParams = useSearchParams();
 
+  // helper: subscriptions + user_subscriptions 병합 조회
+  const fetchSubAndUserSub = async (uid) => {
+    const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
+    if (subError) throw subError;
+    const { data: userSub, error: userSubError } = await supabase
+      .from('user_subscriptions')
+      .select('provider_subscription_id, plan_id, status, next_billing_date')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+    if (userSubError) {
+      console.warn('user_subscriptions fetch failed:', userSubError.message);
+    }
+    return {
+      ...(data || {}),
+      provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
+      reserved_plan_id: userSub?.plan_id || null,
+      reserved_status: userSub?.status || null,
+      reserved_next_billing_date: userSub?.next_billing_date || null
+    };
+  };
+
   useEffect(() => {
     let active = true;
-    const fetchSubAndUserSub = async (uid) => {
-      const { data, error: subError } = await supabase.from('subscriptions').select('*').eq('user_id', uid).maybeSingle();
-      if (subError) throw subError;
-      const { data: userSub, error: userSubError } = await supabase
-        .from('user_subscriptions')
-        .select('provider_subscription_id, plan_id, status, next_billing_date')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-      if (userSubError) {
-        console.warn('user_subscriptions fetch failed:', userSubError.message);
-      }
-      return {
-        ...(data || {}),
-        provider_subscription_id: userSub?.provider_subscription_id || data?.provider_subscription_id,
-        reserved_plan_id: userSub?.plan_id || null,
-        reserved_status: userSub?.status || null,
-        reserved_next_billing_date: userSub?.next_billing_date || null
-      };
-    };
 
     const loadSubscription = async () => {
       try {
