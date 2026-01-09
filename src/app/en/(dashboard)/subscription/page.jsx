@@ -184,6 +184,29 @@ export default function SubscriptionPageEn() {
     userId
   });
 
+  // invoices
+  const [invoices, setInvoices] = useState([]);
+  const [invoiceError, setInvoiceError] = useState('');
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+
+  const loadInvoices = async () => {
+    if (!userId) return;
+    setInvoiceLoading(true);
+    setInvoiceError('');
+    try {
+      const res = await fetch('/api/invoices', {
+        headers: jsonHeaders({ 'x-user-id': userId })
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.detail || 'Failed to load invoices.');
+      setInvoices(payload.data || []);
+    } catch (e) {
+      setInvoiceError(e.message || 'Failed to load invoices.');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
   // 한글 주석: 영어 플랜 설명과 기능을 로컬라이즈하여 차별점을 명확히 노출합니다.
   const localizedPlans = useMemo(() => {
     return plans.map((plan) => {
@@ -270,6 +293,10 @@ export default function SubscriptionPageEn() {
       };
     }
   }, [searchParams, userId, confirmSubscription]);
+
+  useEffect(() => {
+    loadInvoices();
+  }, [userId]);
 
   return (
     <div className="space-y-6">
