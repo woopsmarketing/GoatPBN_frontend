@@ -32,6 +32,11 @@ export default function SubscriptionPageEn() {
   const searchParams = useSearchParams();
   // 한글 주석: 낙관적 업데이트 후 3~5초 뒤 재조회 타이머(중복 실행 방지)
   const refreshTimerRef = useRef(null);
+  const [isRefundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundMessage, setRefundMessage] = useState('');
+  const [refundError, setRefundError] = useState('');
 
   // helper: subscriptions + user_subscriptions 병합 조회
   const fetchSubAndUserSub = async (uid) => {
@@ -307,6 +312,53 @@ export default function SubscriptionPageEn() {
     loadInvoices();
   }, [userId]);
 
+  const handleRefundSubmit = async () => {
+    if (!subscription?.id) {
+      setRefundError('Subscription data is missing.');
+      return;
+    }
+
+    if (!refundReason.trim()) {
+      setRefundError('Please describe the reason for the refund request.');
+      return;
+    }
+
+    setRefundSubmitting(true);
+    setRefundError('');
+    try {
+      const latestInvoice = invoices?.[0];
+      const payload = {
+        subscription_id: subscription.id,
+        reason: refundReason.trim(),
+        invoice_number: latestInvoice?.invoice_number,
+        amount_cents: latestInvoice?.amount_cents,
+        currency: latestInvoice?.currency || 'USD'
+      };
+
+      const response = await fetch('/api/refunds/request', {
+        method: 'POST',
+        headers: {
+          ...jsonHeaders,
+          'x-user-id': userId
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.detail || data?.error || 'Refund request failed.');
+      }
+
+      setRefundMessage('Refund request submitted. We will review it and get back to you.');
+      setRefundReason('');
+      setRefundModalOpen(false);
+    } catch (err) {
+      setRefundError(err?.message || 'Unable to submit refund request.');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <MainCard title="Subscription overview">
@@ -339,9 +391,15 @@ export default function SubscriptionPageEn() {
                   </p>
                 )}
               </div>
-              <TailwindButton size="lg" variant="secondary" onClick={() => window.open('https://totoggong.com/contact', '_blank')}>
-                Request plan upgrade
-              </TailwindButton>
+              <div className="space-y-2">
+                <TailwindButton size="lg" variant="secondary" onClick={() => window.open('https://totoggong.com/contact', '_blank')}>
+                  Request plan upgrade
+                </TailwindButton>
+                <TailwindButton size="lg" variant="secondary" outline onClick={() => setRefundModalOpen(true)}>
+                  Request refund
+                </TailwindButton>
+                {refundMessage && <p className="text-sm text-emerald-600">{refundMessage}</p>}
+              </div>
             </div>
             <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-3">
               <div className="space-y-1 rounded-lg bg-blue-50 p-4 text-center">
@@ -615,6 +673,44 @@ export default function SubscriptionPageEn() {
           </div>
         )}
       </MainCard>
+      {isRefundModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Request a refund</h3>
+                <p className="text-sm text-gray-500">Describe why you need a refund. We will review your request and respond shortly.</p>
+              </div>
+              <button className="text-gray-400 transition hover:text-gray-600" onClick={() => setRefundModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="mt-5 space-y-3">
+              <label className="block text-sm font-medium text-gray-700">Reason</label>
+              <textarea
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
+                rows={4}
+                value={refundReason}
+                onChange={(event) => setRefundReason(event.target.value)}
+                placeholder="Let us know what changed or why the purchase didn’t meet expectations."
+              />
+              {refundError && <p className="text-xs text-red-600">{refundError}</p>}
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
+                onClick={() => setRefundModalOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <TailwindButton size="md" variant="primary" disabled={refundSubmitting} onClick={handleRefundSubmit}>
+                {refundSubmitting ? 'Submitting...' : 'Submit refund request'}
+              </TailwindButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
