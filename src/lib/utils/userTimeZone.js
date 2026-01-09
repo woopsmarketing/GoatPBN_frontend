@@ -149,9 +149,11 @@ export class UserTimeZoneManager {
       second: '2-digit'
     };
 
+    const locale = options.locale || (isBrowser ? navigator.language || navigator.userLanguage || 'en-US' : 'en-US');
+
     try {
       const date = new Date(dateInput);
-      return date.toLocaleString('ko-KR', {
+      return date.toLocaleString(locale, {
         timeZone: this.getUserTimeZone(),
         ...defaultOptions,
         ...options

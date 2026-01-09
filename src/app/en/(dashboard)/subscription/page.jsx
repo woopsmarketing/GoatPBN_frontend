@@ -563,7 +563,17 @@ export default function SubscriptionPageEn() {
                   <tr key={inv.id}>
                     <td className="px-4 py-2 font-medium text-gray-900">{inv.invoice_number || '—'}</td>
                     <td className="px-4 py-2 text-gray-700">
-                      {inv.issued_at ? formatToUserTimeZone(inv.issued_at, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      {inv.issued_at
+                        ? formatToUserTimeZone(inv.issued_at, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZoneName: 'short',
+                            locale: 'en-US'
+                          })
+                        : '—'}
                     </td>
                     <td className="px-4 py-2 text-gray-700">
                       {inv.currency || 'USD'} {((inv.amount_cents || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
