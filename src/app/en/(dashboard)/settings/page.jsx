@@ -1,7 +1,6 @@
 'use client';
 
-// v1.0 - Account settings (English)
-// Provides timezone configuration and info in English UI
+// v1.1 - Account settings (English) with Supabase timezone save/load
 
 import { useEffect, useMemo, useState } from 'react';
 
@@ -14,6 +13,8 @@ import {
   getUserTimeZoneInfo,
   formatToUserTimeZone
 } from '@/lib/utils/userTimeZone';
+import { authAPI } from '@/lib/supabase';
+import { jsonHeaders } from '@/lib/api/httpClient';
 
 export default function SettingsPageEn() {
   const [autoDetect, setAutoDetect] = useState(() => userTimeZone.getAutoDetectSetting());
@@ -22,6 +23,9 @@ export default function SettingsPageEn() {
   const [currentTime, setCurrentTime] = useState(() =>
     formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   );
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [userId, setUserId] = useState('');
 
   useEffect(() => {
     const updateClock = () => {
@@ -35,6 +39,30 @@ export default function SettingsPageEn() {
     };
 
     syncState();
+
+    // Load saved timezone from backend
+    authAPI
+      .getCurrentUser()
+      .then(async ({ data, error }) => {
+        if (error) return;
+        const uid = data?.user?.id;
+        if (!uid) return;
+        setUserId(uid);
+        try {
+          const res = await fetch(`/api/user/settings?user_id=${uid}`);
+          const payload = await res.json();
+          if (payload?.success && payload.settings?.timezone) {
+            setUserTimeZone(payload.settings.timezone);
+            setAutoDetect(false);
+            setSelectedTimeZone(payload.settings.timezone);
+            setTimeZoneInfo(getUserTimeZoneInfo());
+          }
+        } catch (e) {
+          console.warn('Failed to fetch user settings:', e);
+        }
+      })
+      .catch(() => {});
+
     const timer = setInterval(updateClock, 1000 * 30);
     return () => clearInterval(timer);
   }, []);
@@ -53,6 +81,29 @@ export default function SettingsPageEn() {
     setSelectedTimeZone(value);
     setTimeZoneInfo(getUserTimeZoneInfo());
     setCurrentTime(formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+  };
+
+  const handleSave = async () => {
+    if (!userId) {
+      setSaveMessage('Could not load user info.');
+      return;
+    }
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      const resp = await fetch('/api/user/settings/timezone', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ user_id: userId, timezone: selectedTimeZone })
+      });
+      const payload = await resp.json();
+      if (!resp.ok) throw new Error(payload.detail || 'Save failed');
+      setSaveMessage(payload.message || 'Saved successfully.');
+    } catch (e) {
+      setSaveMessage(e.message || 'Error occurred while saving.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const detectedLabel = useMemo(() => {
@@ -101,6 +152,17 @@ export default function SettingsPageEn() {
                   <p className="mt-1 text-xs text-orange-600">Different from detected timezone. Toggle auto-detect or verify manually.</p>
                 )}
               </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              {saveMessage && <span className="text-sm text-gray-700">{saveMessage}</span>}
             </div>
           </section>
 

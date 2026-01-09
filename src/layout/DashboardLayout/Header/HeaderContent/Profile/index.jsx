@@ -140,12 +140,28 @@ export default function ProfilePage() {
     }
   ];
 
-  const joinedAtLabel =
-    joinDate && !loadingProfile
-      ? formatToUserTimeZone(joinDate, { year: 'numeric', month: 'long', day: 'numeric' }, isEnglishLocale ? 'en-US' : undefined)
-      : isEnglishLocale
-        ? 'Loading info...'
-        : '정보 준비 중';
+  const formatJoined = () => {
+    if (!joinDate || loadingProfile) {
+      return isEnglishLocale ? 'Loading info...' : '정보 준비 중';
+    }
+    if (isEnglishLocale) {
+      const dt = new Date(joinDate);
+      const pad = (n) => String(n).padStart(2, '0');
+      const y = dt.getFullYear();
+      const m = pad(dt.getMonth() + 1);
+      const d = pad(dt.getDate());
+      const hours = dt.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hr12 = hours % 12 || 12;
+      const hh = pad(hr12);
+      const mm = pad(dt.getMinutes());
+      const ss = pad(dt.getSeconds());
+      return `${y}. ${m}. ${d}. ${ampm} ${hh}:${mm}:${ss}`;
+    }
+    return formatToUserTimeZone(joinDate, { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const joinedAtLabel = formatJoined();
 
   const displayEmail = user?.email || supabaseEmail || '멤버';
   const displayAvatar = user?.avatar || supabaseAvatar || FALLBACK_AVATAR;
