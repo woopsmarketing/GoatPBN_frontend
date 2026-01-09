@@ -185,6 +185,39 @@ export default function SubscriptionPageKo() {
     }
   };
 
+  // 플랜별 기능/설명 로컬라이즈 (Basic vs Pro 차별화)
+  const localizedPlans = useMemo(() => {
+    return plans.map((plan) => {
+      if (plan.slug === 'basic') {
+        return {
+          ...plan,
+          description: '최대 10개 캠페인을 자동화하고 20개 사이트까지 등록 가능합니다. 핵심 리포트와 기본 품질 콘텐츠/이미지를 제공합니다.',
+          features: [
+            '최대 10개 활성 캠페인',
+            '사이트 등록 20개까지',
+            '기본 자동화 & 스케줄링',
+            '표준 프롬프트 + 기본 이미지 품질',
+            '이메일/인앱 알림'
+          ]
+        };
+      }
+      if (plan.slug === 'pro') {
+        return {
+          ...plan,
+          description: '최대 100개 캠페인, 사이트 무제한. 고품질 프롬프트/이미지, 고급 자동화와 우선 지원을 제공합니다.',
+          features: [
+            '최대 100개 활성 캠페인',
+            '사이트 등록 무제한',
+            '고급 자동화 & 스케줄링',
+            '고도화 프롬프트 + 프리미엄 이미지 생성',
+            '우선 지원 & 빠른 동기화'
+          ]
+        };
+      }
+      return plan;
+    });
+  }, [plans]);
+
   useEffect(() => {
     const paypalStatus = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('paypal_status') || '' : '';
     const subscriptionId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('subscription_id') || '' : '';
@@ -309,7 +342,7 @@ export default function SubscriptionPageKo() {
                   <div className="mt-6 h-8 w-full rounded bg-gray-200" />
                 </div>
               ))
-            : plans.map((plan) => (
+            : localizedPlans.map((plan) => (
                 <div key={plan.slug} className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
