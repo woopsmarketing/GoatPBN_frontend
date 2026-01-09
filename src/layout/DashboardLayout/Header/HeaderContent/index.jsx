@@ -28,20 +28,26 @@ export default function HeaderContent() {
   return (
     <>
       {menuOrientation === MenuOrientation.HORIZONTAL && !downLG && <DrawerHeader open={true} />}
-      {!downLG && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexGrow: 1 }}>
-          <Search />
+      {!downLG ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', width: 1, gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, minWidth: 0 }}>
+            <Search />
+            {megaMenu}
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Notification />
+            <Support />
+            <Profile />
+          </Box>
         </Box>
+      ) : (
+        <>
+          <Search />
+          <Box sx={{ width: 1, ml: 1 }} />
+          <Notification />
+          <MobileSection />
+        </>
       )}
-      {!downLG && megaMenu}
-      {downLG && <Box sx={{ width: 1, ml: 1 }} />}
-
-      {!downLG && <Box sx={{ flexGrow: 1 }} />}
-
-      <Notification />
-      {!downLG && <Support />}
-      {!downLG && <Profile />}
-      {downLG && <MobileSection />}
     </>
   );
 }
