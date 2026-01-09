@@ -538,6 +538,64 @@ export default function SubscriptionPageEn() {
           )}
         </div>
       </MainCard>
+      <MainCard title="Invoices">
+        {invoiceLoading ? (
+          <p className="text-sm text-gray-600">Loading invoices...</p>
+        ) : invoiceError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{invoiceError}</div>
+        ) : invoices.length === 0 ? (
+          <p className="text-sm text-gray-600">No invoices found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">Invoice #</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">Amount</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">Status</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">Download</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {invoices.map((inv) => (
+                  <tr key={inv.id}>
+                    <td className="px-4 py-2 font-medium text-gray-900">{inv.invoice_number || '—'}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {inv.issued_at ? formatToUserTimeZone(inv.issued_at, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {inv.currency || 'USD'} {((inv.amount_cents || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          inv.status === 'paid'
+                            ? 'bg-green-100 text-green-700'
+                            : inv.status === 'refunded'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {inv.pdf_url ? (
+                        <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                          Download
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </MainCard>
     </div>
   );
 }

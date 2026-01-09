@@ -10,6 +10,7 @@ import TailwindButton from '@/components/ui/TailwindButton';
 import { authAPI, supabase } from '@/lib/supabase';
 import { formatToUserTimeZone } from '@/lib/utils/userTimeZone';
 import { usePaypalPlans } from '@/hooks/usePaypalPlans';
+import { jsonHeaders } from '@/lib/api/httpClient';
 
 const PLAN_LABELS = {
   free: '무료 플랜',
@@ -30,6 +31,9 @@ export default function SubscriptionPageKo() {
   const [paymentStatus, setPaymentStatus] = useState('');
   // 한글 주석: 낙관적 업데이트 후 3~5초 뒤 재조회 타이머(중복 실행 방지)
   const refreshTimerRef = useRef(null);
+  const [invoices, setInvoices] = useState([]);
+  const [invoiceError, setInvoiceError] = useState('');
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
@@ -127,6 +131,10 @@ export default function SubscriptionPageKo() {
     };
   }, []);
 
+  useEffect(() => {
+    loadInvoices();
+  }, [userId]);
+
   const {
     plans,
     loading: plansLoading,
@@ -139,6 +147,24 @@ export default function SubscriptionPageKo() {
     cancelDowngrade,
     processing
   } = usePaypalPlans({ returnUrl, cancelUrl, userId });
+
+  const loadInvoices = async () => {
+    if (!userId) return;
+    setInvoiceLoading(true);
+    setInvoiceError('');
+    try {
+      const res = await fetch('/api/invoices', {
+        headers: jsonHeaders({ 'x-user-id': userId })
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.detail || '인보이스 조회에 실패했습니다.');
+      setInvoices(payload.data || []);
+    } catch (e) {
+      setInvoiceError(e.message || '인보이스 조회에 실패했습니다.');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
 
   const planLabel = useMemo(() => {
     if (!subscription?.plan) return '플랜 없음';
@@ -490,6 +516,64 @@ export default function SubscriptionPageKo() {
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">등록된 PayPal 플랜이 없습니다.</div>
           )}
         </div>
+      </MainCard>
+      <MainCard title="인보이스">
+        {invoiceLoading ? (
+          <p className="text-sm text-gray-600">인보이스를 불러오는 중입니다...</p>
+        ) : invoiceError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{invoiceError}</div>
+        ) : invoices.length === 0 ? (
+          <p className="text-sm text-gray-600">인보이스가 없습니다.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">인보이스 번호</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">발행일</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">금액</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">상태</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500">다운로드</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {invoices.map((inv) => (
+                  <tr key={inv.id}>
+                    <td className="px-4 py-2 font-medium text-gray-900">{inv.invoice_number || '—'}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {inv.issued_at ? formatToUserTimeZone(inv.issued_at, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {inv.currency || 'USD'} {((inv.amount_cents || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          inv.status === 'paid'
+                            ? 'bg-green-100 text-green-700'
+                            : inv.status === 'refunded'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {inv.pdf_url ? (
+                        <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                          다운로드
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </MainCard>
     </div>
   );
