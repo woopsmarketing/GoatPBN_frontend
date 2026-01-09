@@ -137,7 +137,15 @@ export default function SubscriptionPageEn() {
 
   const expiryLabel = useMemo(() => {
     if (!subscription?.expiry_date) return 'Unlimited';
-    return formatToUserTimeZone(subscription.expiry_date, { year: 'numeric', month: 'long', day: 'numeric' });
+    return formatToUserTimeZone(subscription.expiry_date, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+      locale: 'en-US'
+    });
   }, [subscription]);
 
   const credits = useMemo(() => {
