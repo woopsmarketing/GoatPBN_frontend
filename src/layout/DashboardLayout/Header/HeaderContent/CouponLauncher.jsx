@@ -11,6 +11,7 @@ import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
 import { PlusSmallIcon } from '@heroicons/react/24/outline';
 
 import { authAPI } from '@/lib/supabase';

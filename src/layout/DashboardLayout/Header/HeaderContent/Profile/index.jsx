@@ -141,7 +141,11 @@ export default function ProfilePage() {
   ];
 
   const joinedAtLabel =
-    joinDate && !loadingProfile ? formatToUserTimeZone(joinDate, { year: 'numeric', month: 'long', day: 'numeric' }) : '정보 준비 중';
+    joinDate && !loadingProfile
+      ? formatToUserTimeZone(joinDate, { year: 'numeric', month: 'long', day: 'numeric' }, isEnglishLocale ? 'en-US' : undefined)
+      : isEnglishLocale
+        ? 'Loading info...'
+        : '정보 준비 중';
 
   const displayEmail = user?.email || supabaseEmail || '멤버';
   const displayAvatar = user?.avatar || supabaseAvatar || FALLBACK_AVATAR;
