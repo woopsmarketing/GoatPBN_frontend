@@ -11,6 +11,7 @@ import TailwindButton from '@/components/ui/TailwindButton';
 import { authAPI, supabase } from '@/lib/supabase';
 import { formatToUserTimeZone } from '@/lib/utils/userTimeZone';
 import { usePaypalPlans } from '@/hooks/usePaypalPlans';
+import { jsonHeaders } from '@/lib/api/httpClient';
 
 const PLAN_LABELS = {
   free: 'Free plan',
