@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainCard from '../../../components/MainCard';
 import TailwindButton from '../../../components/ui/TailwindButton';
+import CouponLauncher from '@/layout/DashboardLayout/Header/HeaderContent/CouponLauncher';
 import { campaignsAPI } from '../../../lib/api/campaigns';
 import { sitesAPI } from '../../../lib/api/sites';
 import { logsAPI } from '../../../lib/api/logs';
@@ -178,13 +179,14 @@ export default function DashboardPage() {
             {isEnglish ? 'Check your entire system status at a glance.' : '전체 시스템 현황을 한눈에 확인하세요.'}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <TailwindButton variant="secondary" onClick={loadDashboardData} disabled={dashboardData.isLoading}>
             {dashboardData.isLoading ? (isEnglish ? '⏳ Loading...' : '⏳ 로딩중...') : isEnglish ? '🔄 Refresh' : '🔄 새로고침'}
           </TailwindButton>
           <TailwindButton variant="primary" onClick={() => router.push(localizePath('/reports'))}>
             {isEnglish ? '📥 Reports' : '📥 보고서'}
           </TailwindButton>
+          <CouponLauncher />
         </div>
       </div>
 

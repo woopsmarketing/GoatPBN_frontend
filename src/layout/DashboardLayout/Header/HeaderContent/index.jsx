@@ -29,17 +29,8 @@ export default function HeaderContent() {
     <>
       {menuOrientation === MenuOrientation.HORIZONTAL && !downLG && <DrawerHeader open={true} />}
       {!downLG && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            ml: { xs: 0, md: 0 },
-            minWidth: 0
-          }}
-        >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <Search />
-          <CouponLauncher />
         </Box>
       )}
       {!downLG && megaMenu}
