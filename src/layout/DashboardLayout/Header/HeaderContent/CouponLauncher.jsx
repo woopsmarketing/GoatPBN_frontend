@@ -16,6 +16,7 @@ import { PlusSmallIcon } from '@heroicons/react/24/outline';
 
 import { authAPI } from '@/lib/supabase';
 import { jsonHeaders } from '@/lib/api/httpClient';
+import TailwindButton from '@/components/ui/TailwindButton';
 
 export default function CouponLauncher() {
   const [open, setOpen] = useState(false);
@@ -79,16 +80,10 @@ export default function CouponLauncher() {
 
   return (
     <>
-      <Button
-        variant="outlined"
-        color="primary"
-        startIcon={<PlusSmallIcon className="h-4 w-4" />}
-        size="small"
-        onClick={() => setOpen(true)}
-        sx={{ ml: 1 }}
-      >
+      <TailwindButton variant="primary" className="h-10 px-4 gap-2 flex items-center" onClick={() => setOpen(true)}>
+        <PlusSmallIcon className="h-4 w-4" />
         쿠폰 등록
-      </Button>
+      </TailwindButton>
       <Dialog open={open} onClose={closeDialog} maxWidth="xs" fullWidth>
         <DialogTitle>무료 크레딧 쿠폰 등록</DialogTitle>
         <DialogContent>
