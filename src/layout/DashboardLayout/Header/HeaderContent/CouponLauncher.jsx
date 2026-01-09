@@ -3,7 +3,6 @@
 
 import { useState } from 'react';
 
-import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -18,7 +17,14 @@ import { authAPI } from '@/lib/supabase';
 import { jsonHeaders } from '@/lib/api/httpClient';
 import TailwindButton from '@/components/ui/TailwindButton';
 
-export default function CouponLauncher() {
+export default function CouponLauncher({
+  label = '쿠폰 등록',
+  dialogTitle = '무료 크레딧 쿠폰 등록',
+  helperText = '무료 구독자 전용 쿠폰을 입력하면 즉시 크레딧이 충전됩니다. 쿠폰은 한 번만 사용 가능합니다.',
+  placeholder = '예: FREE-100CREDIT',
+  closeText = '닫기',
+  submitText = '쿠폰 적용'
+}) {
   const [open, setOpen] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [status, setStatus] = useState(null);
@@ -82,21 +88,21 @@ export default function CouponLauncher() {
     <>
       <TailwindButton variant="primary" className="h-10 px-4 gap-2 flex items-center" onClick={() => setOpen(true)}>
         <PlusSmallIcon className="h-4 w-4" />
-        쿠폰 등록
+        {label}
       </TailwindButton>
       <Dialog open={open} onClose={closeDialog} maxWidth="xs" fullWidth>
-        <DialogTitle>무료 크레딧 쿠폰 등록</DialogTitle>
+        <DialogTitle>{dialogTitle}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={1}>
             <Typography variant="body2" color="textSecondary">
-              무료 구독자 전용 쿠폰을 입력하면 즉시 크레딧이 충전됩니다. 쿠폰은 한 번만 사용 가능합니다.
+              {helperText}
             </Typography>
             <TextField
               label="쿠폰 코드"
               fullWidth
               value={couponCode}
               onChange={(event) => setCouponCode(event.target.value)}
-              placeholder="예: FREE-100CREDIT"
+              placeholder={placeholder}
               disabled={processing}
             />
             {status && (
@@ -108,10 +114,10 @@ export default function CouponLauncher() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDialog} disabled={processing}>
-            닫기
+            {closeText}
           </Button>
           <Button onClick={handleApply} variant="contained" disabled={processing} color="primary">
-            {processing ? '등록 중...' : '쿠폰 적용'}
+            {processing ? '등록 중...' : submitText}
           </Button>
         </DialogActions>
       </Dialog>

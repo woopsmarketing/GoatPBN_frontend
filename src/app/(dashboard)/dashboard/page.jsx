@@ -186,7 +186,18 @@ export default function DashboardPage() {
           <TailwindButton variant="primary" onClick={() => router.push(localizePath('/reports'))}>
             {isEnglish ? '📥 Reports' : '📥 보고서'}
           </TailwindButton>
-          <CouponLauncher />
+          <CouponLauncher
+            label={isEnglish ? 'Redeem coupon' : '쿠폰 등록'}
+            dialogTitle={isEnglish ? 'Redeem coupon for free credits' : '무료 크레딧 쿠폰 등록'}
+            helperText={
+              isEnglish
+                ? 'Enter your coupon to instantly receive bonus credits. Each coupon can be used once per account.'
+                : '쿠폰을 입력하면 즉시 보너스 크레딧이 충전됩니다. 계정당 한 번만 사용할 수 있습니다.'
+            }
+            placeholder={isEnglish ? 'e.g., FREE-500CREDIT' : '예: FREE-500CREDIT'}
+            closeText={isEnglish ? 'Close' : '닫기'}
+            submitText={isEnglish ? 'Apply coupon' : '쿠폰 적용'}
+          />
         </div>
       </div>
 

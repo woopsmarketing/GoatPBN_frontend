@@ -184,6 +184,39 @@ export default function SubscriptionPageEn() {
     userId
   });
 
+  // 한글 주석: 영어 플랜 설명과 기능을 로컬라이즈하여 차별점을 명확히 노출합니다.
+  const localizedPlans = useMemo(() => {
+    return plans.map((plan) => {
+      if (plan.slug === 'basic') {
+        return {
+          ...plan,
+          description: 'Automate up to 10 campaigns with core reporting and baseline quality. Register up to 20 sites.',
+          features: [
+            'Up to 10 active campaigns',
+            'Register up to 20 sites',
+            'Core automation & scheduling',
+            'Standard content prompts + baseline image generation',
+            'Email & in-app notifications'
+          ]
+        };
+      }
+      if (plan.slug === 'pro') {
+        return {
+          ...plan,
+          description: 'Scale to 100 active campaigns with premium quality content and unlimited sites.',
+          features: [
+            'Up to 100 active campaigns',
+            'Unlimited site registrations',
+            'Advanced automation & scheduling',
+            'Enhanced prompts + premium image generation quality',
+            'Priority support & faster updates'
+          ]
+        };
+      }
+      return plan;
+    });
+  }, [plans]);
+
   const handleSubscribe = async (planSlug) => {
     setPlanError('');
     try {
@@ -329,7 +362,7 @@ export default function SubscriptionPageEn() {
                   <div className="mt-6 h-8 w-full rounded bg-gray-200" />
                 </div>
               ))
-            : plans.map((plan) => (
+            : localizedPlans.map((plan) => (
                 <div key={plan.slug} className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
