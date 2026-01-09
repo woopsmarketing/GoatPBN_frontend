@@ -11,7 +11,7 @@ import { SearchNormal1 } from '@wandersonalwes/iconsax-react';
 
 export default function Search() {
   return (
-    <Box sx={{ width: '100%', ml: { xs: 0, md: 2 } }}>
+    <Box sx={{ ml: { xs: 0, md: 2 } }}>
       <FormControl sx={{ width: { xs: '100%', md: 224 } }}>
         <OutlinedInput
           id="header-search"

@@ -10,6 +10,7 @@ import Notification from './Notification';
 import Profile from './Profile';
 import Search from './Search';
 import Support from './Support';
+import CouponLauncher from './CouponLauncher';
 
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -27,7 +28,12 @@ export default function HeaderContent() {
   return (
     <>
       {menuOrientation === MenuOrientation.HORIZONTAL && !downLG && <DrawerHeader open={true} />}
-      {!downLG && <Search />}
+      {!downLG && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Search />
+          <CouponLauncher />
+        </Box>
+      )}
       {!downLG && megaMenu}
       {downLG && <Box sx={{ width: 1, ml: 1 }} />}
 
