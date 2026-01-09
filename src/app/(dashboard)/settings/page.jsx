@@ -14,6 +14,8 @@ import {
   getUserTimeZoneInfo,
   formatToUserTimeZone
 } from '@/lib/utils/userTimeZone';
+import { authAPI } from '@/lib/supabase';
+import { jsonHeaders } from '@/lib/api/httpClient';
 
 export default function SettingsPage() {
   const [autoDetect, setAutoDetect] = useState(() => userTimeZone.getAutoDetectSetting());
@@ -22,6 +24,9 @@ export default function SettingsPage() {
   const [currentTime, setCurrentTime] = useState(() =>
     formatToUserTimeZone(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   );
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [userId, setUserId] = useState('');
 
   useEffect(() => {
     const updateClock = () => {
@@ -35,6 +40,30 @@ export default function SettingsPage() {
     };
 
     syncState();
+
+    // 백엔드에 저장된 타임존 불러오기
+    authAPI
+      .getCurrentUser()
+      .then(async ({ data, error }) => {
+        if (error) return;
+        const uid = data?.user?.id;
+        if (!uid) return;
+        setUserId(uid);
+        try {
+          const res = await fetch(`/api/user/settings?user_id=${uid}`);
+          const payload = await res.json();
+          if (payload?.success && payload.settings?.timezone) {
+            setUserTimeZone(payload.settings.timezone);
+            setAutoDetect(false);
+            setSelectedTimeZone(payload.settings.timezone);
+            setTimeZoneInfo(getUserTimeZoneInfo());
+          }
+        } catch (e) {
+          console.warn('사용자 설정 조회 실패:', e);
+        }
+      })
+      .catch(() => {});
+
     const timer = setInterval(updateClock, 1000 * 30);
     return () => clearInterval(timer);
   }, []);
@@ -59,6 +88,29 @@ export default function SettingsPage() {
     const detectedOption = TIMEZONE_OPTIONS.find((tz) => tz.value === timeZoneInfo.detected);
     return detectedOption ? detectedOption.label : timeZoneInfo.detected;
   }, [timeZoneInfo]);
+
+  const handleSave = async () => {
+    if (!userId) {
+      setSaveMessage('로그인 정보를 불러오지 못했습니다.');
+      return;
+    }
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      const resp = await fetch('/api/user/settings/timezone', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ user_id: userId, timezone: selectedTimeZone })
+      });
+      const payload = await resp.json();
+      if (!resp.ok) throw new Error(payload.detail || '저장 실패');
+      setSaveMessage(payload.message || '저장되었습니다.');
+    } catch (e) {
+      setSaveMessage(e.message || '저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -102,6 +154,17 @@ export default function SettingsPage() {
                   </p>
                 )}
               </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {saving ? '저장 중...' : '저장하기'}
+              </button>
+              {saveMessage && <span className="text-sm text-gray-700">{saveMessage}</span>}
             </div>
           </section>
 
