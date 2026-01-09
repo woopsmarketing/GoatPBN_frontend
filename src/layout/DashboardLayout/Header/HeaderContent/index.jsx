@@ -30,11 +30,13 @@ export default function HeaderContent() {
       {menuOrientation === MenuOrientation.HORIZONTAL && !downLG && <DrawerHeader open={true} />}
       {!downLG ? (
         <Box sx={{ display: 'flex', alignItems: 'center', width: 1, gap: 2 }}>
+          {/* 좌측: 검색만 배치 */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, minWidth: 0 }}>
             <Search />
-            {megaMenu}
           </Box>
+          {/* 우측: 빠른 이동(메가메뉴) + 알림/지원/프로필 */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {megaMenu}
             <Notification />
             <Support />
             <Profile />
@@ -44,6 +46,7 @@ export default function HeaderContent() {
         <>
           <Search />
           <Box sx={{ width: 1, ml: 1 }} />
+          {megaMenu}
           <Notification />
           <MobileSection />
         </>
