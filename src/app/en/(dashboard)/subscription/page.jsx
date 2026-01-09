@@ -71,7 +71,7 @@ export default function SubscriptionPageEn() {
   };
 
   // 한글 주석: 클릭 직후 UI를 먼저 토글(낙관적)하고, 3~5초 뒤 DB 상태로 최종 동기화합니다.
-  const scheduleRefresh = (delayMs = 3500) => {
+  const scheduleRefresh = (delayMs = 10000) => {
     if (!userId) return;
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
@@ -221,6 +221,7 @@ export default function SubscriptionPageEn() {
           if (active) {
             const merged = await fetchSubAndUserSub(userId);
             setSubscription(merged);
+            scheduleRefresh();
           }
         } catch (err) {
           console.error(err);
@@ -409,7 +410,7 @@ export default function SubscriptionPageEn() {
                               const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                               setPaymentStatus('Downgrade cancellation requested. Syncing...');
-                              scheduleRefresh(3500);
+                              scheduleRefresh();
                             } catch (e) {
                               if (prevSnapshot) setSubscription(prevSnapshot);
                               setPlanError(e.message || 'Cancel downgrade failed');
@@ -444,7 +445,7 @@ export default function SubscriptionPageEn() {
                               await downgradeSubscription(subId, plan.slug);
                               const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
-                              scheduleRefresh(3500);
+                              scheduleRefresh();
                             } catch (e) {
                               if (prevSnapshot) setSubscription(prevSnapshot);
                               setPlanError(e.message || 'Downgrade failed');

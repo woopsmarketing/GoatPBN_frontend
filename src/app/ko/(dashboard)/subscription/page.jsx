@@ -76,7 +76,7 @@ export default function SubscriptionPageKo() {
   };
 
   // 한글 주석: 클릭 직후 UI를 먼저 토글(낙관적)하고, 3~5초 뒤 DB 상태로 최종 동기화합니다.
-  const scheduleRefresh = (delayMs = 3500) => {
+  const scheduleRefresh = (delayMs = 10000) => {
     if (!userId) return;
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
@@ -202,6 +202,8 @@ export default function SubscriptionPageKo() {
           if (active) setPaymentStatus(`구독 확인: ${result.status || 'OK'}`);
           const merged = await fetchSubAndUserSub(userId);
           if (active) setSubscription(merged);
+          // 한글 주석: 웹훅 반영이 지연될 수 있으므로 3~5초 뒤 한 번 더 상태 확인을 예약합니다.
+          scheduleRefresh();
         } catch (err) {
           console.error(err);
           if (active) {
@@ -387,7 +389,7 @@ export default function SubscriptionPageKo() {
                               const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                               setPaymentStatus('다운그레이드 예약 취소 요청이 완료되었습니다. 잠시 후 반영됩니다.');
-                              scheduleRefresh(3500);
+                              scheduleRefresh();
                             } catch (e) {
                               // 한글 주석: 실패 시 이전 상태로 롤백
                               if (prevSnapshot) setSubscription(prevSnapshot);
@@ -424,7 +426,7 @@ export default function SubscriptionPageKo() {
                               const merged = await fetchSubAndUserSub(userId);
                               if (merged) setSubscription(merged);
                               // 한글 주석: 혹시 반영이 늦을 경우를 대비해 3~5초 후 한 번 더 동기화합니다.
-                              scheduleRefresh(3500);
+                              scheduleRefresh();
                             } catch (e) {
                               // 한글 주석: 실패 시 이전 상태로 롤백
                               if (prevSnapshot) setSubscription(prevSnapshot);
