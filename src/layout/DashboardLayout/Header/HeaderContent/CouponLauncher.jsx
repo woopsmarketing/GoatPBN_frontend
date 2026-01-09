@@ -12,7 +12,7 @@ import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import AddCardIcon from '@mui/icons-material/AddCard';
+import { PlusSmallIcon } from '@heroicons/react/24/outline';
 
 import { authAPI } from '@/lib/supabase';
 import { jsonHeaders } from '@/lib/api/httpClient';
@@ -79,7 +79,14 @@ export default function CouponLauncher() {
 
   return (
     <>
-      <Button variant="outlined" color="primary" startIcon={<AddCardIcon />} size="small" onClick={() => setOpen(true)} sx={{ ml: 1 }}>
+      <Button
+        variant="outlined"
+        color="primary"
+        startIcon={<PlusSmallIcon className="h-4 w-4" />}
+        size="small"
+        onClick={() => setOpen(true)}
+        sx={{ ml: 1 }}
+      >
         쿠폰 등록
       </Button>
       <Dialog open={open} onClose={closeDialog} maxWidth="xs" fullWidth>
