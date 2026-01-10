@@ -343,7 +343,7 @@ export default function SubscriptionPageEn() {
       const response = await fetch('/api/refunds/request', {
         method: 'POST',
         headers: {
-          ...jsonHeaders,
+          ...jsonHeaders(),
           'x-user-id': userId
         },
         body: JSON.stringify(payload)

@@ -23,7 +23,13 @@ export async function POST(request) {
       body: JSON.stringify(payload)
     });
 
-    const data = await resp.json();
+    const text = await resp.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      data = { error: text || 'Unable to parse backend response' };
+    }
     return new Response(JSON.stringify(data), {
       status: resp.status,
       headers: jsonHeaders()
