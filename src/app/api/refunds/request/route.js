@@ -7,7 +7,7 @@ export async function POST(request) {
   if (!API_URL) {
     return new Response(JSON.stringify({ error: 'API url not configured' }), {
       status: 500,
-      headers: jsonHeaders
+      headers: jsonHeaders()
     });
   }
 
@@ -17,7 +17,7 @@ export async function POST(request) {
     const resp = await fetch(`${API_URL}/api/refunds/request`, {
       method: 'POST',
       headers: {
-        ...jsonHeaders,
+        ...jsonHeaders(),
         'x-user-id': userId
       },
       body: JSON.stringify(payload)
@@ -26,12 +26,12 @@ export async function POST(request) {
     const data = await resp.json();
     return new Response(JSON.stringify(data), {
       status: resp.status,
-      headers: jsonHeaders
+      headers: jsonHeaders()
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error?.message || 'Unknown error' }), {
       status: 500,
-      headers: jsonHeaders
+      headers: jsonHeaders()
     });
   }
 }

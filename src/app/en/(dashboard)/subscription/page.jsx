@@ -318,8 +318,13 @@ export default function SubscriptionPageEn() {
       return;
     }
 
-    if (!refundReason.trim()) {
+    const trimmedReason = refundReason.trim();
+    if (!trimmedReason) {
       setRefundError('Please describe the reason for the refund request.');
+      return;
+    }
+    if (trimmedReason.length < 10) {
+      setRefundError('Please provide at least 10 characters for the refund reason.');
       return;
     }
 
@@ -329,7 +334,7 @@ export default function SubscriptionPageEn() {
       const latestInvoice = invoices?.[0];
       const payload = {
         subscription_id: subscription.id,
-        reason: refundReason.trim(),
+        reason: trimmedReason,
         invoice_number: latestInvoice?.invoice_number,
         amount_cents: latestInvoice?.amount_cents,
         currency: latestInvoice?.currency || 'USD'
