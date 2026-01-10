@@ -1,6 +1,7 @@
 import { jsonHeaders } from '@/lib/api/httpClient';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_SERVER_URL;
+const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_SERVER_URL;
+const API_URL = (RAW_API_URL || '').replace(/\/+$/, '');
 
 export async function POST(request) {
   if (!API_URL) {
