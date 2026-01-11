@@ -356,7 +356,9 @@ export default function NotificationPage() {
                         )}
                         {!loading &&
                           notifications.map((item) => {
-                            const Component = item.actionUrl ? Link : 'div';
+                            const isRefundAdminItem = isAdmin && item.metadata?.refund_request_id;
+                            // 한글 주석: 관리자 환불 알림은 이동 없이 모달을 띄우기 위해 div로 처리
+                            const Component = isRefundAdminItem ? 'div' : item.actionUrl ? Link : 'div';
 
                             return (
                               <ListItemButton
