@@ -14,6 +14,10 @@ import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import List from '@mui/material/List';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -30,6 +34,7 @@ import IconButton from 'components/@extended/IconButton';
 import Transitions from 'components/@extended/Transitions';
 import MainCard from 'components/MainCard';
 import SimpleBar from 'components/third-party/SimpleBar';
+import Button from '@mui/material/Button';
 
 // supabase helpers
 import { authAPI, notificationAPI } from '@/lib/supabase';
@@ -99,6 +104,7 @@ export const mapNotificationRecord = (record, defaultTitle) => ({
   title: record.title ?? defaultTitle,
   message: record.message ?? '',
   actionUrl: record.action_url ?? '',
+  metadata: record.metadata ?? {},
   createdAt: record.created_at,
   readAt: record.read_at
 });
@@ -110,6 +116,7 @@ export default function NotificationPage() {
   const pathname = usePathname();
   const locale = pathname?.startsWith('/ko') ? 'ko' : 'en';
   const localeTexts = NOTIFICATION_LOCALE_TEXT[locale];
+  const ADMIN_USER_IDS = ['5175284c-71de-4ba5-8b70-6ae2a5d46492']; // 한글 주석: 마스터 계정만 승인 가능
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -117,6 +124,9 @@ export default function NotificationPage() {
   const [error, setError] = useState('');
   const [userId, setUserId] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [selectedRefund, setSelectedRefund] = useState(null);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const isAdmin = userId && ADMIN_USER_IDS.includes(userId);
 
   const unreadCount = useMemo(() => notifications.filter((item) => !item.readAt).length, [notifications]);
 
@@ -230,7 +240,39 @@ export default function NotificationPage() {
         setError(e.message ?? localeTexts.markOneError);
       }
     }
+    // 환불 승인용 모달 (관리자 + refund_request_id가 있을 때)
+    if (isAdmin && item.metadata?.refund_request_id) {
+      setSelectedRefund(item);
+      return;
+    }
     setOpen(false);
+  };
+
+  const handleApproveRefund = async () => {
+    if (!selectedRefund?.metadata?.refund_request_id) return;
+    setApproveLoading(true);
+    try {
+      const resp = await fetch('/api/refunds/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || ''
+        },
+        body: JSON.stringify({ refund_request_id: selectedRefund.metadata.refund_request_id })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || 'Refund approve failed');
+      }
+      // 읽음 처리 + 목록에서 제거(선택)
+      setNotifications((prev) => prev.map((n) => (n.id === selectedRefund.id ? { ...n, readAt: new Date().toISOString() } : n)));
+      setSelectedRefund(null);
+      setOpen(false);
+    } catch (e) {
+      setError(e.message || 'Refund approve failed');
+    } finally {
+      setApproveLoading(false);
+    }
   };
 
   return (
@@ -369,6 +411,31 @@ export default function NotificationPage() {
           </Transitions>
         )}
       </Popper>
+      {/* 환불 승인 모달 (관리자 전용) */}
+      <Dialog open={Boolean(selectedRefund)} onClose={() => setSelectedRefund(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>환불 승인</DialogTitle>
+        <DialogContent dividers>
+          <Stack sx={{ gap: 1 }}>
+            <Typography variant="subtitle1">환불 요청 ID: {selectedRefund?.metadata?.refund_request_id}</Typography>
+            <Typography variant="body2">사용자 ID: {selectedRefund?.metadata?.user_id}</Typography>
+            <Typography variant="body2">구독 ID: {selectedRefund?.metadata?.subscription_id}</Typography>
+            <Typography variant="body2">
+              금액: {(selectedRefund?.metadata?.amount_cents ?? 0) / 100} {selectedRefund?.metadata?.currency || 'USD'}
+            </Typography>
+            <Typography variant="body2">인보이스: {selectedRefund?.metadata?.invoice_number || 'N/A'}</Typography>
+            <Typography variant="body2">사유: {selectedRefund?.metadata?.reason}</Typography>
+            <Typography variant="body2">요청시각: {selectedRefund?.metadata?.requested_at}</Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedRefund(null)} disabled={approveLoading}>
+            닫기
+          </Button>
+          <Button variant="contained" onClick={handleApproveRefund} disabled={approveLoading}>
+            {approveLoading ? '승인 중...' : '환불 승인'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
