@@ -791,12 +791,54 @@ export const campaignsAPI = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // 사이트별 통계 생성 (등록된 워드프레스 도메인 기준 - logs.site_id 사용)
-      const siteStats = {};
+      // 사이트별 통계 생성 (타겟 사이트 도메인 기준) - 기존 로직
+      const normalizeDomain = (url) => {
+        if (!url) return 'unknown';
+        try {
+          return url
+            .replace(/^https?:\/\//i, '')
+            .split('/')[0]
+            .toLowerCase();
+        } catch (e) {
+          return url;
+        }
+      };
+
+      const siteStatsTarget = {};
+      logs.forEach((log) => {
+        const siteDomain = normalizeDomain(log.target_site);
+        if (!siteStatsTarget[siteDomain]) {
+          siteStatsTarget[siteDomain] = {
+            name: siteDomain,
+            url: siteDomain,
+            totalPublished: 0,
+            successCount: 0,
+            failureCount: 0,
+            successRate: 0
+          };
+        }
+        siteStatsTarget[siteDomain].totalPublished += 1;
+        if (log.status === 'success') {
+          siteStatsTarget[siteDomain].successCount += 1;
+        } else if (log.status === 'failed') {
+          siteStatsTarget[siteDomain].failureCount += 1;
+        }
+      });
+
+      Object.values(siteStatsTarget).forEach((site) => {
+        site.successRate = site.totalPublished > 0 ? Math.round((site.successCount / site.totalPublished) * 100) : 0;
+      });
+
+      const sitePerformance = Object.values(siteStatsTarget)
+        .sort((a, b) => b.totalPublished - a.totalPublished) // 발행 개수로 정렬
+        .slice(0, 3);
+
+      // 사이트별 통계 생성 (등록 워드프레스 site_id 기준)
+      const siteStatsRegistered = {};
       logs.forEach((log) => {
         const siteId = log.site_id || 'unknown';
-        if (!siteStats[siteId]) {
-          siteStats[siteId] = {
+        if (!siteStatsRegistered[siteId]) {
+          siteStatsRegistered[siteId] = {
             site_id: siteId,
             name: log.site_id || '미지정',
             url: log.site_id || '미지정',
@@ -806,16 +848,15 @@ export const campaignsAPI = {
             successRate: 0
           };
         }
-        siteStats[siteId].totalPublished += 1;
+        siteStatsRegistered[siteId].totalPublished += 1;
         if (log.status === 'success') {
-          siteStats[siteId].successCount += 1;
+          siteStatsRegistered[siteId].successCount += 1;
         } else if (log.status === 'failed') {
-          siteStats[siteId].failureCount += 1;
+          siteStatsRegistered[siteId].failureCount += 1;
         }
       });
 
-      // 사이트 메타 정보 보강 (sites 테이블에서 id/name/url 조회)
-      const siteIds = Object.keys(siteStats).filter((id) => id && id !== 'unknown');
+      const siteIds = Object.keys(siteStatsRegistered).filter((id) => id && id !== 'unknown');
       if (siteIds.length > 0) {
         const { data: siteRows, error: siteError } = await supabase
           .from('sites')
@@ -824,22 +865,19 @@ export const campaignsAPI = {
           .eq('user_id', user.id);
         if (!siteError && siteRows) {
           siteRows.forEach((row) => {
-            if (siteStats[row.id]) {
-              siteStats[row.id].name = row.name || row.url || row.id;
-              siteStats[row.id].url = row.url || row.name || row.id;
+            if (siteStatsRegistered[row.id]) {
+              siteStatsRegistered[row.id].name = row.name || row.url || row.id;
+              siteStatsRegistered[row.id].url = row.url || row.name || row.id;
             }
           });
         }
       }
 
-      // 사이트별 성공률 계산
-      Object.values(siteStats).forEach((site) => {
+      Object.values(siteStatsRegistered).forEach((site) => {
         site.successRate = site.totalPublished > 0 ? Math.round((site.successCount / site.totalPublished) * 100) : 0;
       });
 
-      const sitePerformance = Object.values(siteStats)
-        .sort((a, b) => b.totalPublished - a.totalPublished) // 발행 개수로 정렬
-        .slice(0, 3);
+      const sitePerformanceRegistered = Object.values(siteStatsRegistered).sort((a, b) => b.totalPublished - a.totalPublished); // 전체 보여주기
 
       return {
         data: {
@@ -853,7 +891,8 @@ export const campaignsAPI = {
           },
           campaignProgress: campaignProgress.slice(0, 4), // 최대 4개
           topKeywords,
-          sitePerformance,
+          sitePerformance, // 타겟 사이트 기준 (상단 카드)
+          sitePerformanceRegistered, // 등록 사이트 기준 (하단 요약 테이블)
           // 기간별 생성 추이 (logs 테이블 기반)
           dailyTrend: this.generateDailyTrendFromLogs(logs),
           successFailureRatio: {

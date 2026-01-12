@@ -186,15 +186,14 @@ export default function StatisticsPage() {
     return { connected, disconnected, total: sites.length };
   }, [statisticsData.sitePerformance]);
 
-  // 사이트별 콘텐츠 발행 현황 (API 데이터 사용)
+  // 사이트별 콘텐츠 발행 현황 (타겟 사이트 기준 - 상단 카드)
   const siteContentStats = useMemo(() => {
     const sites = statisticsData.sitePerformance || [];
-    // 사이트 데이터 매핑
     return sites.map((site) => ({
       siteId: site.name,
       siteName: site.name,
       siteUrl: site.url,
-      status: (site.totalPublished || 0) > 0 ? 'connected' : 'disconnected', // 발행 실적이 있으면 연결됨
+      status: (site.totalPublished || 0) > 0 ? 'connected' : 'disconnected',
       totalGenerated: site.totalPublished || 0,
       successCount: site.successCount || 0,
       failedCount: site.failureCount || 0,
@@ -202,10 +201,25 @@ export default function StatisticsPage() {
     }));
   }, [statisticsData.sitePerformance]);
 
-  // 한글 주석: 발행 수량 순 정렬 (테이블 표시용)
-  const siteContentStatsSorted = useMemo(() => {
-    return [...siteContentStats].sort((a, b) => (b.totalGenerated || 0) - (a.totalGenerated || 0));
-  }, [siteContentStats]);
+  // 등록 도메인별 발행 현황 (logs.site_id 기준 - 하단 테이블)
+  const siteContentStatsRegistered = useMemo(() => {
+    const sites = statisticsData.sitePerformanceRegistered || [];
+    return sites.map((site) => ({
+      siteId: site.site_id || site.name,
+      siteName: site.name || site.url || site.site_id,
+      siteUrl: site.url || site.name || site.site_id,
+      status: (site.totalPublished || 0) > 0 ? 'connected' : 'disconnected',
+      totalGenerated: site.totalPublished || 0,
+      successCount: site.successCount || 0,
+      failedCount: site.failureCount || 0,
+      successRate: site.successRate || 0
+    }));
+  }, [statisticsData.sitePerformanceRegistered]);
+
+  // 발행 수량 순 정렬 (테이블 표시용) - 전체 표시
+  const siteContentStatsRegisteredSorted = useMemo(() => {
+    return [...siteContentStatsRegistered].sort((a, b) => (b.totalGenerated || 0) - (a.totalGenerated || 0));
+  }, [siteContentStatsRegistered]);
 
   // 캠페인 성과 비교 데이터 (API 데이터 사용)
   const campaignPerformance = useMemo(() => {
@@ -639,11 +653,11 @@ export default function StatisticsPage() {
         </div>
       </MainCard>
 
-      {/* 사이트별 발행 수량 요약 (테이블) */}
+      {/* 등록 도메인별 콘텐츠 발행 수량 요약 (테이블) */}
       <MainCard>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">사이트별 발행 수량 요약</h2>
-          <span className="text-sm text-gray-500">상위 10개 사이트 기준</span>
+          <h2 className="text-xl font-semibold text-gray-900">도메인별 발행 수량 요약</h2>
+          <span className="text-sm text-gray-500">등록된 사이트 전체</span>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -657,7 +671,7 @@ export default function StatisticsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {siteContentStatsSorted.slice(0, 10).map((site) => (
+              {siteContentStatsRegisteredSorted.map((site) => (
                 <tr key={site.siteId} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-sm text-gray-900 truncate" title={site.siteName}>
                     {site.siteName}
@@ -668,7 +682,7 @@ export default function StatisticsPage() {
                   <td className="px-4 py-2 text-sm text-right font-semibold text-blue-600">{site.successRate}%</td>
                 </tr>
               ))}
-              {siteContentStatsSorted.length === 0 && (
+              {siteContentStatsRegisteredSorted.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
                     데이터가 없습니다.
