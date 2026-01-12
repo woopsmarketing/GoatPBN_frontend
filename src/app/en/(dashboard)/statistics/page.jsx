@@ -190,6 +190,11 @@ export default function StatisticsPageEn() {
     }));
   }, [statisticsData.sitePerformance]);
 
+  // Sorted by total generated (for table view)
+  const siteContentStatsSorted = useMemo(() => {
+    return [...siteContentStats].sort((a, b) => (b.totalGenerated || 0) - (a.totalGenerated || 0));
+  }, [siteContentStats]);
+
   // 캠페인 성과 비교 데이터 (API 데이터 사용)
   const campaignPerformance = useMemo(() => {
     return statisticsData.campaignProgress || [];
@@ -643,6 +648,47 @@ export default function StatisticsPageEn() {
             <div className="text-sm text-gray-500">Average success rate</div>
             <div className="text-xl font-bold text-blue-600">{averageSuccessRate}%</div>
           </div>
+        </div>
+      </MainCard>
+
+      {/* Site content summary (table) */}
+      <MainCard>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Site Content Summary</h2>
+          <span className="text-sm text-gray-500">Top 10 sites by published count</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Site</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600">Total</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 text-green-600">Success</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 text-red-600">Failed</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 text-blue-600">Success rate</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {siteContentStatsSorted.slice(0, 10).map((site) => (
+                <tr key={site.siteId} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 text-sm text-gray-900 truncate" title={site.siteName}>
+                    {site.siteName}
+                  </td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-gray-900">{site.totalGenerated}</td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-green-600">{site.successCount}</td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-red-600">{site.failedCount}</td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-blue-600">{site.successRate}%</td>
+                </tr>
+              ))}
+              {siteContentStatsSorted.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                    No data.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </MainCard>
 

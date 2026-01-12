@@ -202,6 +202,11 @@ export default function StatisticsPage() {
     }));
   }, [statisticsData.sitePerformance]);
 
+  // 한글 주석: 발행 수량 순 정렬 (테이블 표시용)
+  const siteContentStatsSorted = useMemo(() => {
+    return [...siteContentStats].sort((a, b) => (b.totalGenerated || 0) - (a.totalGenerated || 0));
+  }, [siteContentStats]);
+
   // 캠페인 성과 비교 데이터 (API 데이터 사용)
   const campaignPerformance = useMemo(() => {
     return statisticsData.campaignProgress || [];
@@ -631,6 +636,47 @@ export default function StatisticsPage() {
               {Math.round(siteContentStats.reduce((acc, site) => acc + site.successRate, 0) / siteContentStats.length)}%
             </div>
           </div>
+        </div>
+      </MainCard>
+
+      {/* 사이트별 발행 수량 요약 (테이블) */}
+      <MainCard>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">사이트별 발행 수량 요약</h2>
+          <span className="text-sm text-gray-500">상위 10개 사이트 기준</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">사이트</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600">총 발행</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 text-green-600">성공</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 text-red-600">실패</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 text-blue-600">성공률</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {siteContentStatsSorted.slice(0, 10).map((site) => (
+                <tr key={site.siteId} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 text-sm text-gray-900 truncate" title={site.siteName}>
+                    {site.siteName}
+                  </td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-gray-900">{site.totalGenerated}</td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-green-600">{site.successCount}</td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-red-600">{site.failedCount}</td>
+                  <td className="px-4 py-2 text-sm text-right font-semibold text-blue-600">{site.successRate}%</td>
+                </tr>
+              ))}
+              {siteContentStatsSorted.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                    데이터가 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </MainCard>
 
