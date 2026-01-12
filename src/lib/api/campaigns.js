@@ -64,7 +64,13 @@ export const campaignsAPI = {
         completed: campaigns.filter((c) => c.status === 'completed').length,
         completedContent: successLogsCount || 0,
         totalContent: campaigns.reduce((sum, c) => sum + (c.completed_count || 0), 0),
-        totalTarget: campaigns.reduce((sum, c) => sum + (c.quantity || 0), 0)
+        totalTarget: campaigns.reduce((sum, c) => sum + (c.quantity || 0), 0),
+        // 완료(콘텐츠)만 별도 반환해 UI에서 바로 사용하도록
+        summaryForUi: {
+          total: campaigns.length,
+          active: campaigns.filter((c) => c.status === 'active').length,
+          completedContent: successLogsCount || 0
+        }
       };
 
       return { data: stats, error: null };

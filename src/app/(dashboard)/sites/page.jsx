@@ -460,7 +460,7 @@ export default function SiteListPage() {
 
   // 사이트 카드 컴포넌트 (편집 상태를 카드 내부에서 관리)
   const SiteCard = ({ site, isSelectMode, isSelected, onSelect }) => {
-    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0 };
+    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0, completedContent: 0 };
     const statusStyle = getStatusStyle(site.status);
     const isEditing = editingId === site.id;
 
@@ -650,8 +650,8 @@ export default function SiteListPage() {
               <div className="text-xs text-gray-500">활성</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-green-600">{siteCampaignStats.completed}</div>
-              <div className="text-xs text-gray-500">완료</div>
+              <div className="text-lg font-bold text-green-600">{siteCampaignStats.completedContent}</div>
+              <div className="text-xs text-gray-500">완료(콘텐츠)</div>
             </div>
           </div>
         </div>
@@ -661,7 +661,7 @@ export default function SiteListPage() {
 
   // 테이블 행 컴포넌트
   const SiteTableRow = ({ site, isSelectMode, isSelected, onSelect }) => {
-    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0 };
+    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0, completedContent: 0 };
     const isEditing = editingId === site.id;
 
     // 로컬 편집 상태
@@ -739,8 +739,8 @@ export default function SiteListPage() {
               <div className="text-xs text-gray-500">활성</div>
             </div>
             <div>
-              <div className="text-sm font-medium text-green-600">{siteCampaignStats.completed}</div>
-              <div className="text-xs text-gray-500">완료</div>
+              <div className="text-sm font-medium text-green-600">{siteCampaignStats.completedContent}</div>
+              <div className="text-xs text-gray-500">완료(콘텐츠)</div>
             </div>
           </div>
         </td>

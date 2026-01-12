@@ -390,7 +390,7 @@ export default function SiteListPageEn() {
   };
 
   const SiteCard = ({ site, isSelectMode, isSelected, onSelect }) => {
-    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0 };
+    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0, completedContent: 0 };
     const isEditing = editingId === site.id;
 
     const [local, setLocal] = useState({
@@ -573,8 +573,8 @@ export default function SiteListPageEn() {
               <div className="text-xs text-gray-500">Active</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-green-600">{siteCampaignStats.completed}</div>
-              <div className="text-xs text-gray-500">Completed</div>
+              <div className="text-lg font-bold text-green-600">{siteCampaignStats.completedContent}</div>
+              <div className="text-xs text-gray-500">Completed (contents)</div>
             </div>
           </div>
         </div>
@@ -583,7 +583,7 @@ export default function SiteListPageEn() {
   };
 
   const SiteTableRow = ({ site, isSelectMode, isSelected, onSelect }) => {
-    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0 };
+    const siteCampaignStats = campaignStats[site.id] || { total: 0, active: 0, completed: 0, completedContent: 0 };
     const isEditing = editingId === site.id;
 
     const [local, setLocal] = useState({ name: site.name, url: site.url, username: site.username });
@@ -659,8 +659,8 @@ export default function SiteListPageEn() {
               <div className="text-xs text-gray-500">Active</div>
             </div>
             <div>
-              <div className="text-sm font-medium text-green-600">{siteCampaignStats.completed}</div>
-              <div className="text-xs text-gray-500">Completed</div>
+              <div className="text-sm font-medium text-green-600">{siteCampaignStats.completedContent}</div>
+              <div className="text-xs text-gray-500">Completed (contents)</div>
             </div>
           </div>
         </td>
