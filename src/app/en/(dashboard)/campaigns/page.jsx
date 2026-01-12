@@ -166,12 +166,25 @@ export default function CampaignListPageEn() {
     async (campaign) => {
       try {
         const duplicatedCampaignData = {
-          siteId: campaign.siteId,
-          name: `${campaign.name} (Copy)`,
-          targetSite: campaign.targetSite,
-          keywords: campaign.keywords,
-          quantity: campaign.quantity,
-          duration: campaign.duration,
+          name: `${campaign.name || 'Campaign'} (Copy)`,
+          description: campaign.description || '',
+          site_id: campaign.site_id || campaign.siteId || null,
+          selected_sites: campaign.selected_site_ids || campaign.selectedSiteIds || (campaign.site_id ? [campaign.site_id] : []),
+          target_site: campaign.target_site || campaign.targetSite || '',
+          keywords: campaign.keywords || [],
+          quantity: campaign.quantity || 0,
+          duration: campaign.duration || 0,
+          persona: campaign.persona || 'expert',
+          sectionCount: campaign.section_count || campaign.sectionCount || 5,
+          includeImages: campaign.include_images || campaign.includeImages || false,
+          sectionImageCount: campaign.section_image_count || campaign.sectionImageCount || 0,
+          includeToc: campaign.include_toc || campaign.includeToc || false,
+          includeBacklinks: campaign.include_backlinks || campaign.includeBacklinks || false,
+          includeInternalLinks: campaign.include_internal_links || campaign.includeInternalLinks || false,
+          creditsPerContent: campaign.credits_per_content || campaign.creditsPerContent || 10,
+          contentLanguage: campaign.content_language || campaign.contentLanguage || 'ko',
+          start_type: campaign.start_type || 'immediate',
+          scheduled_start: campaign.scheduled_start || null,
           status: 'paused'
         };
 
