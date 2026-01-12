@@ -82,15 +82,16 @@ export default function SiteListPage() {
         setSites(mappedSites);
 
         // 각 사이트별 캠페인 통계 로드
+        // Supabase 캠페인 통계 로드 (사이트별)
         const statsPromises = mappedSites.map(async (site) => {
-          const stats = await getSiteCampaignStats(site.id);
-          return { siteId: site.id, stats };
+          const { data: stats } = await getSiteCampaignStats(site.id);
+          return { siteId: site.id, stats: stats || { total: 0, active: 0, completed: 0 } };
         });
 
         const statsResults = await Promise.all(statsPromises);
         const statsMap = {};
         statsResults.forEach(({ siteId, stats }) => {
-          statsMap[siteId] = stats;
+          statsMap[siteId] = stats || { total: 0, active: 0, completed: 0 };
         });
 
         setCampaignStats(statsMap);

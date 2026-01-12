@@ -59,15 +59,16 @@ export default function SiteListPageEn() {
         }));
         setSites(mappedSites);
 
+        // Supabase campaign stats per site
         const statsPromises = mappedSites.map(async (site) => {
-          const stats = await getSiteCampaignStats(site.id);
-          return { siteId: site.id, stats };
+          const { data: stats } = await getSiteCampaignStats(site.id);
+          return { siteId: site.id, stats: stats || { total: 0, active: 0, completed: 0 } };
         });
 
         const statsResults = await Promise.all(statsPromises);
         const statsMap = {};
         statsResults.forEach(({ siteId, stats }) => {
-          statsMap[siteId] = stats;
+          statsMap[siteId] = stats || { total: 0, active: 0, completed: 0 };
         });
         setCampaignStats(statsMap);
       }
