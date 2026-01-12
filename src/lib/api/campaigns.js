@@ -24,7 +24,7 @@ export const campaignsAPI = {
     }
   },
 
-  // 사이트별 캠페인 통계 가져오기
+  // 사이트별 캠페인 통계 가져오기 (캠페인 개수 + 로그 성공 건수)
   async getSiteCampaignStats(siteId) {
     try {
       const {
@@ -32,21 +32,39 @@ export const campaignsAPI = {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('로그인이 필요합니다.');
 
-      const { data, error } = await supabase
+      // 한글 주석: site_id로 직접 연결된 캠페인 + selected_site_ids 배열에 포함된 캠페인 모두 집계
+      const { data: campaignsRaw, error: campaignsError } = await supabase
         .from('campaigns')
-        .select('status, completed_count, quantity')
-        .eq('user_id', user.id)
-        .eq('site_id', siteId);
+        .select('id, status, completed_count, quantity, site_id, selected_site_ids')
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (campaignsError) throw campaignsError;
+
+      const campaigns = (campaignsRaw || []).filter((c) => {
+        // site_id 직접 매핑 또는 selected_site_ids 배열에 포함 여부 확인
+        const directMatch = c.site_id === siteId;
+        const selectedMatch = Array.isArray(c.selected_site_ids) && c.selected_site_ids.includes(siteId);
+        return directMatch || selectedMatch;
+      });
+
+      // 한글 주석: 사이트별 로그 성공 건수 집계 (콘텐츠 완료 건수)
+      const { count: successLogsCount, error: logsError } = await supabase
+        .from('logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('site_id', siteId)
+        .eq('status', 'success');
+
+      if (logsError) throw logsError;
 
       // 통계 계산
       const stats = {
-        total: data.length,
-        active: data.filter((c) => c.status === 'active').length,
-        completed: data.filter((c) => c.status === 'completed').length,
-        totalContent: data.reduce((sum, c) => sum + (c.completed_count || 0), 0),
-        totalTarget: data.reduce((sum, c) => sum + (c.quantity || 0), 0)
+        total: campaigns.length,
+        active: campaigns.filter((c) => c.status === 'active').length,
+        completed: campaigns.filter((c) => c.status === 'completed').length,
+        completedContent: successLogsCount || 0,
+        totalContent: campaigns.reduce((sum, c) => sum + (c.completed_count || 0), 0),
+        totalTarget: campaigns.reduce((sum, c) => sum + (c.quantity || 0), 0)
       };
 
       return { data: stats, error: null };

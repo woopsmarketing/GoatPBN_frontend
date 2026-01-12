@@ -62,13 +62,16 @@ export default function SiteListPageEn() {
         // Supabase campaign stats per site
         const statsPromises = mappedSites.map(async (site) => {
           const { data: stats } = await getSiteCampaignStats(site.id);
-          return { siteId: site.id, stats: stats || { total: 0, active: 0, completed: 0 } };
+          return {
+            siteId: site.id,
+            stats: stats || { total: 0, active: 0, completed: 0, completedContent: 0 }
+          };
         });
 
         const statsResults = await Promise.all(statsPromises);
         const statsMap = {};
         statsResults.forEach(({ siteId, stats }) => {
-          statsMap[siteId] = stats || { total: 0, active: 0, completed: 0 };
+          statsMap[siteId] = stats || { total: 0, active: 0, completed: 0, completedContent: 0 };
         });
         setCampaignStats(statsMap);
       }
@@ -83,12 +86,12 @@ export default function SiteListPageEn() {
       const { data, error } = await campaignsAPI.getSiteCampaignStats(siteId);
       if (error) {
         console.error('Failed to fetch campaign stats:', error);
-        return { total: 0, active: 0, completed: 0 };
+        return { total: 0, active: 0, completed: 0, completedContent: 0 };
       }
       return data;
     } catch (error) {
       console.error('Failed to fetch campaign stats:', error);
-      return { total: 0, active: 0, completed: 0 };
+      return { total: 0, active: 0, completed: 0, completedContent: 0 };
     }
   };
 
