@@ -724,7 +724,7 @@ export const campaignsAPI = {
       const campaigns = campaignsResult.data || [];
       const logs = logsResult.data || [];
 
-      return this._processStatisticsData(campaigns, logs);
+      return await this._processStatisticsData(campaigns, logs, user);
     } catch (error) {
       console.error('상세 통계 조회 오류:', error);
       return { data: null, error: error.message };
@@ -732,7 +732,7 @@ export const campaignsAPI = {
   },
 
   // 통계 데이터 처리 로직 분리
-  _processStatisticsData(campaigns, logs) {
+  async _processStatisticsData(campaigns, logs, user) {
     try {
       // 기본 통계 계산
       const totalCampaigns = campaigns.length;
@@ -791,33 +791,46 @@ export const campaignsAPI = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // 사이트별 통계 생성
-
+      // 사이트별 통계 생성 (등록된 워드프레스 도메인 기준 - logs.site_id 사용)
       const siteStats = {};
-      logs.forEach((log, index) => {
-        const siteName = log.target_site;
-
-        // 사이트별 통계 집계
-
-        if (!siteStats[siteName]) {
-          siteStats[siteName] = {
-            name: siteName,
-            url: siteName,
+      logs.forEach((log) => {
+        const siteId = log.site_id || 'unknown';
+        if (!siteStats[siteId]) {
+          siteStats[siteId] = {
+            site_id: siteId,
+            name: log.site_id || '미지정',
+            url: log.site_id || '미지정',
             totalPublished: 0,
             successCount: 0,
             failureCount: 0,
             successRate: 0
           };
         }
-        siteStats[siteName].totalPublished += 1;
+        siteStats[siteId].totalPublished += 1;
         if (log.status === 'success') {
-          siteStats[siteName].successCount += 1;
+          siteStats[siteId].successCount += 1;
         } else if (log.status === 'failed') {
-          siteStats[siteName].failureCount += 1;
+          siteStats[siteId].failureCount += 1;
         }
       });
 
-      // 사이트별 통계 완료
+      // 사이트 메타 정보 보강 (sites 테이블에서 id/name/url 조회)
+      const siteIds = Object.keys(siteStats).filter((id) => id && id !== 'unknown');
+      if (siteIds.length > 0) {
+        const { data: siteRows, error: siteError } = await supabase
+          .from('sites')
+          .select('id, name, url')
+          .in('id', siteIds)
+          .eq('user_id', user.id);
+        if (!siteError && siteRows) {
+          siteRows.forEach((row) => {
+            if (siteStats[row.id]) {
+              siteStats[row.id].name = row.name || row.url || row.id;
+              siteStats[row.id].url = row.url || row.name || row.id;
+            }
+          });
+        }
+      }
 
       // 사이트별 성공률 계산
       Object.values(siteStats).forEach((site) => {
