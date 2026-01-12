@@ -208,6 +208,14 @@ export default function StatisticsPageEn() {
     return [...siteContentStatsRegistered].sort((a, b) => (b.totalGenerated || 0) - (a.totalGenerated || 0));
   }, [siteContentStatsRegistered]);
 
+  const siteRegisteredTotals = useMemo(() => {
+    const totalGenerated = siteContentStatsRegistered.reduce((sum, s) => sum + (s.totalGenerated || 0), 0);
+    const successCount = siteContentStatsRegistered.reduce((sum, s) => sum + (s.successCount || 0), 0);
+    const failedCount = siteContentStatsRegistered.reduce((sum, s) => sum + (s.failedCount || 0), 0);
+    const successRate = totalGenerated > 0 ? Math.round((successCount / totalGenerated) * 100) : 0;
+    return { totalGenerated, successCount, failedCount, successRate };
+  }, [siteContentStatsRegistered]);
+
   // 캠페인 성과 비교 데이터 (API 데이터 사용)
   const campaignPerformance = useMemo(() => {
     return statisticsData.campaignProgress || [];
@@ -702,6 +710,26 @@ export default function StatisticsPageEn() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Totals */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+          <div className="text-center">
+            <div className="text-sm text-gray-500">Total</div>
+            <div className="text-xl font-bold text-gray-900">{siteRegisteredTotals.totalGenerated}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-gray-500">Success</div>
+            <div className="text-xl font-bold text-green-600">{siteRegisteredTotals.successCount}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-gray-500">Failed</div>
+            <div className="text-xl font-bold text-red-600">{siteRegisteredTotals.failedCount}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-gray-500">Success rate</div>
+            <div className="text-xl font-bold text-blue-600">{siteRegisteredTotals.successRate}%</div>
+          </div>
         </div>
       </MainCard>
 
