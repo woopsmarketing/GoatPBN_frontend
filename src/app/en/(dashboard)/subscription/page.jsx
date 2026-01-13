@@ -401,27 +401,29 @@ export default function SubscriptionPageEn() {
                 <TailwindButton size="lg" variant="secondary" onClick={() => window.open('https://totoggong.com/contact', '_blank')}>
                   Request plan upgrade
                 </TailwindButton>
-                <TailwindButton
-                  size="lg"
-                  variant="secondary"
-                  outline
-                  disabled={isFreePlan || isReserved}
-                  onClick={() => {
-                    if (isFreePlan) {
-                      setRefundError('Free plan cannot be refunded.');
-                      return;
-                    }
-                    if (isReserved) {
-                      setRefundError('Cancel the scheduled downgrade before requesting a refund.');
-                      return;
-                    }
-                    setRefundModalOpen(true);
-                  }}
-                >
-                  Request refund
-                </TailwindButton>
-                {refundMessage && <p className="text-sm text-emerald-600">{refundMessage}</p>}
-                {refundError && <p className="text-xs text-red-600">{refundError}</p>}
+                <div className="space-y-1">
+                  <TailwindButton
+                    size="lg"
+                    variant="secondary"
+                    outline
+                    onClick={() => {
+                      if (isFreePlan) {
+                        setRefundError('There is no paid subscription to refund (free plan).');
+                        return;
+                      }
+                      if (isReserved) {
+                        setRefundError('Cancel the scheduled downgrade before requesting a refund.');
+                        return;
+                      }
+                      setRefundError('');
+                      setRefundModalOpen(true);
+                    }}
+                  >
+                    Request refund
+                  </TailwindButton>
+                  {refundMessage && <p className="text-sm text-emerald-600">{refundMessage}</p>}
+                  {refundError && <p className="text-xs text-red-600">{refundError}</p>}
+                </div>
               </div>
             </div>
             <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-3">
