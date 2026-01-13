@@ -571,8 +571,13 @@ export default function SubscriptionPageKo() {
                     </td>
                     <td className="px-4 py-2">
                       {inv.pdf_url ? (
-                        <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                          다운로드
+                        <a
+                          href={inv.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:underline font-medium"
+                        >
+                          보기
                         </a>
                       ) : (
                         <span className="text-gray-400">—</span>

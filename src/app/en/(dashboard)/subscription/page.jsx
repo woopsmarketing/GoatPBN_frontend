@@ -684,8 +684,13 @@ export default function SubscriptionPageEn() {
                     </td>
                     <td className="px-4 py-2">
                       {inv.pdf_url ? (
-                        <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                          Download
+                        <a
+                          href={inv.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:underline font-medium"
+                        >
+                          View
                         </a>
                       ) : (
                         <span className="text-gray-400">—</span>
