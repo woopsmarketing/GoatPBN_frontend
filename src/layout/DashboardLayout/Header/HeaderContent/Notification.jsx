@@ -229,7 +229,7 @@ export default function NotificationPage() {
     }
   };
 
-  const handleNotificationClick = async (item) => {
+  const handleNotificationClick = async (item, event) => {
     if (!item.readAt) {
       try {
         await notificationAPI.markAsRead(item.id);
@@ -242,6 +242,8 @@ export default function NotificationPage() {
     }
     // 환불 승인용 모달 (관리자 + refund_request_id가 있을 때)
     if (isAdmin && item.metadata?.refund_request_id) {
+      // 한글 주석: 모달을 열 때는 외부 링크 이동을 막기 위해 기본 동작 차단
+      event?.preventDefault();
       setSelectedRefund(item);
       return;
     }
@@ -364,8 +366,8 @@ export default function NotificationPage() {
                               <ListItemButton
                                 key={item.id}
                                 component={Component}
-                                href={item.actionUrl || undefined}
-                                onClick={() => handleNotificationClick(item)}
+                                href={isRefundAdminItem ? undefined : item.actionUrl || undefined}
+                                onClick={(event) => handleNotificationClick(item, event)}
                                 sx={{
                                   opacity: item.readAt ? 0.7 : 1,
                                   alignItems: 'flex-start'
