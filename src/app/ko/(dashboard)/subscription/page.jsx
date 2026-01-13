@@ -533,7 +533,6 @@ export default function SubscriptionPageKo() {
                   <th className="px-4 py-2 text-left font-medium text-gray-500">발행일</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-500">금액</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-500">상태</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">다운로드</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
@@ -568,20 +567,6 @@ export default function SubscriptionPageKo() {
                       >
                         {inv.status}
                       </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      {inv.pdf_url ? (
-                        <a
-                          href={inv.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline font-medium"
-                        >
-                          보기
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
                     </td>
                   </tr>
                 ))}

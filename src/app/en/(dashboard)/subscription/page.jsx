@@ -646,7 +646,6 @@ export default function SubscriptionPageEn() {
                   <th className="px-4 py-2 text-left font-medium text-gray-500">Date</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-500">Amount</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Download</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
@@ -681,20 +680,6 @@ export default function SubscriptionPageEn() {
                       >
                         {inv.status}
                       </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      {inv.pdf_url ? (
-                        <a
-                          href={inv.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline font-medium"
-                        >
-                          View
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
                     </td>
                   </tr>
                 ))}
