@@ -37,6 +37,8 @@ export default function SubscriptionPageEn() {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundMessage, setRefundMessage] = useState('');
   const [refundError, setRefundError] = useState('');
+  const currentPlan = (subscription?.plan || '').toLowerCase();
+  const isFreePlan = currentPlan === 'free';
 
   // helper: subscriptions + user_subscriptions 병합 조회
   const fetchSubAndUserSub = async (uid) => {
@@ -400,10 +402,23 @@ export default function SubscriptionPageEn() {
                 <TailwindButton size="lg" variant="secondary" onClick={() => window.open('https://totoggong.com/contact', '_blank')}>
                   Request plan upgrade
                 </TailwindButton>
-                <TailwindButton size="lg" variant="secondary" outline onClick={() => setRefundModalOpen(true)}>
+                <TailwindButton
+                  size="lg"
+                  variant="secondary"
+                  outline
+                  disabled={isFreePlan}
+                  onClick={() => {
+                    if (isFreePlan) {
+                      setRefundError('Free plan cannot be refunded.');
+                      return;
+                    }
+                    setRefundModalOpen(true);
+                  }}
+                >
                   Request refund
                 </TailwindButton>
                 {refundMessage && <p className="text-sm text-emerald-600">{refundMessage}</p>}
+                {refundError && isFreePlan && <p className="text-xs text-red-600">{refundError}</p>}
               </div>
             </div>
             <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-3">
