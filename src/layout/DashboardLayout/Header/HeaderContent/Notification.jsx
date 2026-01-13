@@ -240,8 +240,9 @@ export default function NotificationPage() {
         setError(e.message ?? localeTexts.markOneError);
       }
     }
-    // 환불 승인용 모달 (관리자 + refund_request_id가 있을 때)
-    if (isAdmin && item.metadata?.refund_request_id) {
+    // 환불 승인용 모달 (관리자 + refund_request_id + pending 상태일 때만)
+    const isRefundRequestPending = isAdmin && item.metadata?.refund_request_id && (item.metadata?.status || '').toLowerCase() === 'pending';
+    if (isRefundRequestPending) {
       // 한글 주석: 모달을 열 때는 외부 링크 이동을 막기 위해 기본 동작 차단
       event?.preventDefault();
       setSelectedRefund(item);
@@ -358,7 +359,8 @@ export default function NotificationPage() {
                         )}
                         {!loading &&
                           notifications.map((item) => {
-                            const isRefundAdminItem = isAdmin && item.metadata?.refund_request_id;
+                            const isRefundAdminItem =
+                              isAdmin && item.metadata?.refund_request_id && (item.metadata?.status || '').toLowerCase() === 'pending';
                             // 한글 주석: 관리자 환불 알림은 이동 없이 모달을 띄우기 위해 div로 처리
                             const Component = isRefundAdminItem ? 'div' : item.actionUrl ? Link : 'div';
 
