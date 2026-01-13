@@ -37,8 +37,6 @@ export default function SubscriptionPageEn() {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundMessage, setRefundMessage] = useState('');
   const [refundError, setRefundError] = useState('');
-  const currentPlan = (subscription?.plan || '').toLowerCase();
-  const isFreePlan = currentPlan === 'free';
 
   // helper: subscriptions + user_subscriptions 병합 조회
   const fetchSubAndUserSub = async (uid) => {
@@ -179,6 +177,7 @@ export default function SubscriptionPageEn() {
     subscription?.plan === 'pro' &&
     !!subscription?.reserved_plan_id &&
     (isOptimisticReserved || (!!subscription?.current_plan_id && subscription.reserved_plan_id !== subscription.current_plan_id));
+  const isFreePlan = currentPlanSlug === 'free';
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/en/subscription?paypal_status=success`;
@@ -406,10 +405,14 @@ export default function SubscriptionPageEn() {
                   size="lg"
                   variant="secondary"
                   outline
-                  disabled={isFreePlan}
+                  disabled={isFreePlan || isReserved}
                   onClick={() => {
                     if (isFreePlan) {
                       setRefundError('Free plan cannot be refunded.');
+                      return;
+                    }
+                    if (isReserved) {
+                      setRefundError('Cancel the scheduled downgrade before requesting a refund.');
                       return;
                     }
                     setRefundModalOpen(true);
@@ -418,7 +421,7 @@ export default function SubscriptionPageEn() {
                   Request refund
                 </TailwindButton>
                 {refundMessage && <p className="text-sm text-emerald-600">{refundMessage}</p>}
-                {refundError && isFreePlan && <p className="text-xs text-red-600">{refundError}</p>}
+                {refundError && <p className="text-xs text-red-600">{refundError}</p>}
               </div>
             </div>
             <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-3">
