@@ -24,7 +24,9 @@ export default function CouponLauncher({
   helperText = '무료 구독자 전용 쿠폰을 입력하면 즉시 크레딧이 충전됩니다. 쿠폰은 한 번만 사용 가능합니다.',
   placeholder = '예: FREE-100CREDIT',
   closeText = '닫기',
-  submitText = '쿠폰 적용'
+  submitText = '쿠폰 적용',
+  inputLabel = '쿠폰 코드',
+  processingText = '등록 중...'
 }) {
   const [open, setOpen] = useState(false);
   const [couponCode, setCouponCode] = useState('');
@@ -99,7 +101,7 @@ export default function CouponLauncher({
               {helperText}
             </Typography>
             <TextField
-              label="쿠폰 코드"
+              label={inputLabel}
               fullWidth
               value={couponCode}
               onChange={(event) => setCouponCode(event.target.value)}
@@ -118,7 +120,7 @@ export default function CouponLauncher({
             {closeText}
           </Button>
           <Button onClick={handleApply} variant="contained" disabled={processing} color="primary">
-            {processing ? '등록 중...' : submitText}
+            {processing ? processingText : submitText}
           </Button>
         </DialogActions>
       </Dialog>

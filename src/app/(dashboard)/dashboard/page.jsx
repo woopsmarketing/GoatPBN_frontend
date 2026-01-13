@@ -197,6 +197,8 @@ export default function DashboardPage() {
             placeholder={isEnglish ? 'e.g., FREE-500CREDIT' : '예: FREE-500CREDIT'}
             closeText={isEnglish ? 'Close' : '닫기'}
             submitText={isEnglish ? 'Apply coupon' : '쿠폰 적용'}
+            inputLabel={isEnglish ? 'Coupon code' : '쿠폰 코드'}
+            processingText={isEnglish ? 'Submitting...' : '등록 중...'}
           />
         </div>
       </div>
