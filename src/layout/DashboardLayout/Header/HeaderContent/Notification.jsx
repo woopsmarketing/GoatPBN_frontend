@@ -126,6 +126,7 @@ export default function NotificationPage() {
   const [notifications, setNotifications] = useState([]);
   const [selectedRefund, setSelectedRefund] = useState(null);
   const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const isAdmin = userId && ADMIN_USER_IDS.includes(userId);
 
@@ -243,6 +244,7 @@ export default function NotificationPage() {
     }
     const isRefundRequestPending = isAdmin && item.metadata?.refund_request_id && (item.metadata?.status || '').toLowerCase() === 'pending';
     const isCoupon = item.metadata?.event === 'coupon_redeemed';
+    const isSubscription = item.metadata?.event === 'subscription_started';
 
     // 환불 승인 모달
     if (isRefundRequestPending) {
@@ -255,6 +257,13 @@ export default function NotificationPage() {
     if (isCoupon) {
       event?.preventDefault();
       setSelectedCoupon(item);
+      return;
+    }
+
+    // 구독 시작 모달
+    if (isSubscription) {
+      event?.preventDefault();
+      setSelectedSubscription(item);
       return;
     }
 
@@ -373,13 +382,14 @@ export default function NotificationPage() {
                               isAdmin && item.metadata?.refund_request_id && (item.metadata?.status || '').toLowerCase() === 'pending';
                             // 한글 주석: 관리자 환불 알림은 이동 없이 모달을 띄우기 위해 div로 처리
                             const isCoupon = item.metadata?.event === 'coupon_redeemed';
-                            const Component = isRefundAdminItem || isCoupon ? 'div' : item.actionUrl ? Link : 'div';
+                            const isSubscription = item.metadata?.event === 'subscription_started';
+                            const Component = isRefundAdminItem || isCoupon || isSubscription ? 'div' : item.actionUrl ? Link : 'div';
 
                             return (
                               <ListItemButton
                                 key={item.id}
                                 component={Component}
-                                href={isRefundAdminItem || isCoupon ? undefined : item.actionUrl || undefined}
+                                href={isRefundAdminItem || isCoupon || isSubscription ? undefined : item.actionUrl || undefined}
                                 onClick={(event) => handleNotificationClick(item, event)}
                                 sx={{
                                   opacity: item.readAt ? 0.7 : 1,
@@ -467,6 +477,25 @@ export default function NotificationPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedCoupon(null)}>닫기</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 구독 시작 알림 모달 */}
+      <Dialog open={Boolean(selectedSubscription)} onClose={() => setSelectedSubscription(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>구독 시작</DialogTitle>
+        <DialogContent dividers>
+          <Stack sx={{ gap: 1 }}>
+            <Typography variant="subtitle1">플랜: {selectedSubscription?.metadata?.plan}</Typography>
+            <Typography variant="body2">사용자 ID: {selectedSubscription?.metadata?.user_id}</Typography>
+            <Typography variant="body2">구독 ID: {selectedSubscription?.metadata?.provider_subscription_id}</Typography>
+            <Typography variant="body2">인보이스: {selectedSubscription?.metadata?.invoice_number || 'N/A'}</Typography>
+            <Typography variant="body2">
+              생성 시각: {selectedSubscription?.metadata?.created_at || selectedSubscription?.createdAt}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedSubscription(null)}>닫기</Button>
         </DialogActions>
       </Dialog>
     </Box>
