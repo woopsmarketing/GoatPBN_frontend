@@ -14,6 +14,8 @@ import CouponLauncher from '@/layout/DashboardLayout/Header/HeaderContent/Coupon
 import { campaignsAPI } from '../../../lib/api/campaigns';
 import { sitesAPI } from '../../../lib/api/sites';
 import { logsAPI } from '../../../lib/api/logs';
+import { buildApiUrl } from '../../../lib/api/httpClient';
+import { authAPI } from '../../../lib/supabase';
 import { useDashboardLocale } from '../../../contexts/DashboardLocaleContext';
 
 // 간단 진행률 바 컴포넌트
@@ -61,11 +63,32 @@ export default function DashboardPage() {
     },
     isLoading: true
   });
+  const [creditSummary, setCreditSummary] = useState({ total: 0, remaining: 0 });
 
   // 대시보드 데이터 로드
   const loadDashboardData = async () => {
     try {
       setDashboardData((prev) => ({ ...prev, isLoading: true }));
+
+      // 크레딧 요약 로드 (비동기 병렬)
+      const loadCredits = async () => {
+        try {
+          const {
+            data: { session }
+          } = await authAPI.getSession();
+          const userId = session?.user?.id;
+          if (!userId) return;
+          const resp = await fetch(buildApiUrl(`/api/credits/summary/${userId}`));
+          if (!resp.ok) return;
+          const data = await resp.json();
+          setCreditSummary({
+            total: data.credits_total || 0,
+            remaining: data.credits_remaining || 0
+          });
+        } catch (creditError) {
+          console.error('크레딧 요약 로드 오류:', creditError);
+        }
+      };
 
       // 병렬로 모든 데이터 로드
       const [campaignStats, sitesStats, campaignProgress, dailyGoals, recentActivities] = await Promise.all([
@@ -75,6 +98,9 @@ export default function DashboardPage() {
         campaignsAPI.getDailyGoals(),
         logsAPI.getRecentActivities(5) // 최근 활동 5개
       ]);
+
+      // 대시보드 데이터와 함께 크레딧 로드 실행
+      loadCredits();
 
       // 디버깅용 로그
       console.log('📊 대시보드 데이터 로드 결과:');
@@ -180,14 +206,24 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-3 items-center">
+          <div className="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-800">
+            {/* 한글 주석: 남은 크레딧 배지 */}
+            {isEnglish ? 'Credits' : '크레딧'}:{' '}
+            <span className="font-semibold text-blue-600">
+              {creditSummary.remaining.toLocaleString()} / {creditSummary.total.toLocaleString()}
+            </span>
+          </div>
           <TailwindButton variant="secondary" onClick={loadDashboardData} disabled={dashboardData.isLoading}>
             {dashboardData.isLoading ? (isEnglish ? '⏳ Loading...' : '⏳ 로딩중...') : isEnglish ? '🔄 Refresh' : '🔄 새로고침'}
+          </TailwindButton>
+          <TailwindButton variant="ghost" onClick={() => router.push(localizePath('/subscription'))}>
+            {isEnglish ? 'Manage subscription' : '구독 관리'}
           </TailwindButton>
           <TailwindButton variant="primary" onClick={() => router.push(localizePath('/reports'))}>
             {isEnglish ? '📥 Reports' : '📥 보고서'}
           </TailwindButton>
           <CouponLauncher
-            label={isEnglish ? 'Redeem coupon' : '쿠폰 등록'}
+            label={isEnglish ? '+ coupon' : '+ 쿠폰'}
             dialogTitle={isEnglish ? 'Redeem coupon for free credits' : '무료 크레딧 쿠폰 등록'}
             helperText={
               isEnglish
