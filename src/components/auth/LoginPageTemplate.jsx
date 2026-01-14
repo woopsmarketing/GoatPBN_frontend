@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/supabase';
+import { buildApiUrl } from '@/lib/api/httpClient';
 
 // 한글 주석: locale별 로그인 텍스트와 메시지를 정의
 const LOGIN_LOCALE_CONFIG = {
@@ -78,7 +79,7 @@ export default function LoginPageTemplate({ locale = 'en' }) {
         const lastSignInAt = user.last_sign_in_at;
         // 최초 로그인(가입 직후)일 때만 관리자 알림 전송
         if (createdAt && lastSignInAt && createdAt === lastSignInAt) {
-          await fetch('/api/events/user-signed-up', {
+          await fetch(buildApiUrl('/api/events/user-signed-up'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

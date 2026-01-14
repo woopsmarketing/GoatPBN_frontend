@@ -125,6 +125,7 @@ export default function NotificationPage() {
   const [userId, setUserId] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [selectedRefund, setSelectedRefund] = useState(null);
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const isAdmin = userId && ADMIN_USER_IDS.includes(userId);
 
@@ -240,14 +241,23 @@ export default function NotificationPage() {
         setError(e.message ?? localeTexts.markOneError);
       }
     }
-    // 환불 승인용 모달 (관리자 + refund_request_id + pending 상태일 때만)
     const isRefundRequestPending = isAdmin && item.metadata?.refund_request_id && (item.metadata?.status || '').toLowerCase() === 'pending';
+    const isCoupon = item.metadata?.event === 'coupon_redeemed';
+
+    // 환불 승인 모달
     if (isRefundRequestPending) {
-      // 한글 주석: 모달을 열 때는 외부 링크 이동을 막기 위해 기본 동작 차단
       event?.preventDefault();
       setSelectedRefund(item);
       return;
     }
+
+    // 쿠폰 사용 모달
+    if (isCoupon) {
+      event?.preventDefault();
+      setSelectedCoupon(item);
+      return;
+    }
+
     setOpen(false);
   };
 
@@ -362,13 +372,14 @@ export default function NotificationPage() {
                             const isRefundAdminItem =
                               isAdmin && item.metadata?.refund_request_id && (item.metadata?.status || '').toLowerCase() === 'pending';
                             // 한글 주석: 관리자 환불 알림은 이동 없이 모달을 띄우기 위해 div로 처리
-                            const Component = isRefundAdminItem ? 'div' : item.actionUrl ? Link : 'div';
+                            const isCoupon = item.metadata?.event === 'coupon_redeemed';
+                            const Component = isRefundAdminItem || isCoupon ? 'div' : item.actionUrl ? Link : 'div';
 
                             return (
                               <ListItemButton
                                 key={item.id}
                                 component={Component}
-                                href={isRefundAdminItem ? undefined : item.actionUrl || undefined}
+                                href={isRefundAdminItem || isCoupon ? undefined : item.actionUrl || undefined}
                                 onClick={(event) => handleNotificationClick(item, event)}
                                 sx={{
                                   opacity: item.readAt ? 0.7 : 1,
@@ -440,6 +451,22 @@ export default function NotificationPage() {
           <Button variant="contained" onClick={handleApproveRefund} disabled={approveLoading}>
             {approveLoading ? '승인 중...' : '환불 승인'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 쿠폰 사용 알림 모달 */}
+      <Dialog open={Boolean(selectedCoupon)} onClose={() => setSelectedCoupon(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>쿠폰 사용</DialogTitle>
+        <DialogContent dividers>
+          <Stack sx={{ gap: 1 }}>
+            <Typography variant="subtitle1">쿠폰 코드: {selectedCoupon?.metadata?.coupon_code}</Typography>
+            <Typography variant="body2">사용자 ID: {selectedCoupon?.metadata?.user_id}</Typography>
+            <Typography variant="body2">지급 크레딧: {selectedCoupon?.metadata?.credits_awarded}</Typography>
+            <Typography variant="body2">사용 시각: {selectedCoupon?.metadata?.redeemed_at}</Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedCoupon(null)}>닫기</Button>
         </DialogActions>
       </Dialog>
     </Box>
