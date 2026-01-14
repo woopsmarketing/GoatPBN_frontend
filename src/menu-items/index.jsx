@@ -7,8 +7,8 @@ import individualTools from './individual-tools';
 // ==============================|| MENU ITEMS ||============================== //
 
 const menuItems = {
-  // ✅ 대시보드 관련 핵심 메뉴만 노출
-  items: [pbnDashboard, individualTools]
+  // ✅ 대시보드 관련 핵심 메뉴만 노출 (개별 도구 그룹 숨김)
+  items: [pbnDashboard]
 };
 
 export default menuItems;

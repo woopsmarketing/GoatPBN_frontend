@@ -6,7 +6,8 @@ import pbnDashboardEn from './pbn-dashboard';
 import individualToolsEn from './individual-tools';
 
 const menuItemsEn = {
-  items: [pbnDashboardEn, individualToolsEn]
+  // ✅ 대시보드 전용으로 노출 (개별 도구 그룹 숨김)
+  items: [pbnDashboardEn]
 };
 
 export default menuItemsEn;
