@@ -3,7 +3,7 @@
 // v1.1 - 영어 로그 페이지 전용 구현 (2025.11.13)
 // 기능 요약: 콘텐츠 및 활동 로그를 영어 UI로 제공
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
 import { logsAPI } from '@/lib/api/logs';
@@ -104,21 +104,29 @@ export default function LogsPageEn() {
   const [campaignFilter, setCampaignFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
-  // 무한 스크롤을 위한 가시 항목
-  const [visibleCount, setVisibleCount] = useState(20);
-  const loadMoreRef = useRef(null);
-
   // 실제 데이터 상태
   const [logs, setLogs] = useState([]);
   const [campaigns, setCampaigns] = useState([{ id: 'all', name: 'All campaigns' }]);
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('content'); // content | activity
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalLogs, setTotalLogs] = useState(0);
+
+  // 필터 변경 시 페이지 초기화
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, campaignFilter, dateRange.from, dateRange.to]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   // 초기 데이터 로드
   useEffect(() => {
     loadLogsData();
-  }, []);
+  }, [statusFilter, campaignFilter, dateRange.from, dateRange.to, page, pageSize]);
 
   // 실시간 활동 로그 리스너 등록
   useEffect(() => {
@@ -137,10 +145,20 @@ export default function LogsPageEn() {
     try {
       setIsLoading(true);
 
-      const [logsResult, campaignsResult] = await Promise.all([logsAPI.getAllLogs(), campaignsAPI.getCampaignsWithSites()]);
+      const filters = {
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        campaignId: campaignFilter === 'all' ? undefined : campaignFilter,
+        startDate: dateRange.from || undefined,
+        endDate: dateRange.to || undefined,
+        page,
+        pageSize
+      };
+
+      const [logsResult, campaignsResult] = await Promise.all([logsAPI.getAllLogs(filters), campaignsAPI.getCampaignsWithSites()]);
 
       if (!logsResult.error) {
         setLogs(logsResult.data || []);
+        setTotalLogs(logsResult.count ?? (logsResult.data?.length || 0));
       }
 
       if (!campaignsResult.error) {
@@ -190,45 +208,7 @@ export default function LogsPageEn() {
     }
   };
 
-  /**
-   * 필터링된 로그 계산
-   */
-  const filteredLogs = useMemo(() => {
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-    return logs
-      .filter((log) => {
-        const logDate = new Date(log.created_at);
-        if (logDate < sixtyDaysAgo) return false;
-        if (log.status === 'processing' || log.status === 'pending') return false;
-        if (statusFilter !== 'all' && log.status !== statusFilter) return false;
-        if (campaignFilter !== 'all' && String(log.campaign_id) !== String(campaignFilter)) return false;
-        if (!dateRange.from && !dateRange.to) return true;
-        const ts = new Date(log.created_at).getTime();
-        const fromTs = dateRange.from ? new Date(dateRange.from).getTime() : -Infinity;
-        const toTs = dateRange.to ? new Date(dateRange.to).getTime() + 24 * 60 * 60 * 1000 : Infinity;
-        return ts >= fromTs && ts < toTs;
-      })
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [logs, statusFilter, campaignFilter, dateRange]);
-
-  /**
-   * IntersectionObserver를 통한 무한 스크롤
-   */
-  useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        setVisibleCount((prev) => prev + 20);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const visibleLogs = filteredLogs.slice(0, visibleCount);
+  const pageCount = Math.max(1, Math.ceil(totalLogs / pageSize));
 
   return (
     <div className="space-y-6">
@@ -361,7 +341,7 @@ export default function LogsPageEn() {
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="text-center py-12 text-gray-500">⏳ Loading log entries...</div>
-            ) : filteredLogs.length === 0 ? (
+            ) : logs.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 📝 No log entries to display.
                 <br />
@@ -381,7 +361,7 @@ export default function LogsPageEn() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {visibleLogs.map((log) => {
+                  {logs.map((log) => {
                     // 한글 주석: uploaded_url이 기본 경로이며, 호환성을 위해 과거 published_url 키도 함께 확인
                     const submissionUrl = log.uploaded_url || log.published_url || log.publishedUrl || '';
                     return (
@@ -430,11 +410,57 @@ export default function LogsPageEn() {
             )}
           </div>
 
-          {!isLoading && filteredLogs.length > 0 && (
-            <>
-              <div ref={loadMoreRef} className="h-8" />
-              {visibleCount < filteredLogs.length && <div className="text-center text-sm text-gray-500">Loading more...</div>}
-            </>
+          {/* Pagination */}
+          {!isLoading && logs.length > 0 && (
+            <div className="mt-4 flex flex-col gap-2 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-3">
+                <span>
+                  Total {totalLogs} · Page {page} / {pageCount}
+                </span>
+                <span>Page size</span>
+                <select className="border rounded px-2 py-1" value={pageSize} onChange={(e) => setPageSize(parseInt(e.target.value, 10))}>
+                  {[10, 20, 30, 50].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="px-3 py-1 rounded border bg-white"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                >
+                  Prev
+                </button>
+                <button
+                  className="px-3 py-1 rounded border bg-white"
+                  onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
+                  disabled={page >= pageCount}
+                >
+                  Next
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNum) => {
+                  if (pageNum <= 2 || pageNum > pageCount - 2 || Math.abs(pageNum - page) <= 1) {
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`px-2 py-1 rounded border ${
+                          pageNum === page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700'
+                        }`}
+                        onClick={() => setPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                  if (pageNum === 3 && page > 4) return <span key="start-ellipsis">…</span>;
+                  if (pageNum === pageCount - 2 && page < pageCount - 3) return <span key="end-ellipsis">…</span>;
+                  return null;
+                })}
+              </div>
+            </div>
           )}
         </MainCard>
       )}
