@@ -75,20 +75,16 @@ export default function LoginPageTemplate({ locale = 'en' }) {
         } = await authAPI.getSession();
         const user = session?.user;
         if (!user) return;
-        const createdAt = user.created_at;
-        const lastSignInAt = user.last_sign_in_at;
-        // 최초 로그인(가입 직후)일 때만 관리자 알림 전송
-        if (createdAt && lastSignInAt && createdAt === lastSignInAt) {
-          await fetch(buildApiUrl('/api/events/user-signed-up'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id: user.id,
-              email: user.email,
-              name: user.user_metadata?.name || user.user_metadata?.full_name || ''
-            })
-          });
-        }
+        // 한글 주석: 로그인 성공 시마다 관리자에게 가입 알림을 보냅니다.
+        await fetch(buildApiUrl('/api/events/user-signed-up'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            email: user.email,
+            name: user.user_metadata?.name || user.user_metadata?.full_name || ''
+          })
+        });
       } catch (error) {
         console.error('Signup notification failed:', error);
       }
