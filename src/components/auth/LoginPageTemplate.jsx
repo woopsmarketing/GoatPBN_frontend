@@ -67,6 +67,32 @@ export default function LoginPageTemplate({ locale = 'en' }) {
   useEffect(() => {
     let subscription;
 
+    const notifySignupIfNew = async () => {
+      try {
+        const {
+          data: { session }
+        } = await authAPI.getSession();
+        const user = session?.user;
+        if (!user) return;
+        const createdAt = user.created_at;
+        const lastSignInAt = user.last_sign_in_at;
+        // 최초 로그인(가입 직후)일 때만 관리자 알림 전송
+        if (createdAt && lastSignInAt && createdAt === lastSignInAt) {
+          await fetch('/api/events/user-signed-up', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: user.id,
+              email: user.email,
+              name: user.user_metadata?.name || user.user_metadata?.full_name || ''
+            })
+          });
+        }
+      } catch (error) {
+        console.error('Signup notification failed:', error);
+      }
+    };
+
     const initializeAuthState = async () => {
       try {
         // 한글 주석: 기존 세션이 있다면 locale에 맞는 대시보드로 이동
@@ -89,6 +115,7 @@ export default function LoginPageTemplate({ locale = 'en' }) {
       // 한글 주석: 로그인 상태가 SIGNED_IN으로 변경되면 locale별 대시보드로 이동
       subscription = authAPI.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN') {
+          notifySignupIfNew();
           if (typeof window !== 'undefined' && window.location.hash) {
             window.location.hash = '';
           }
