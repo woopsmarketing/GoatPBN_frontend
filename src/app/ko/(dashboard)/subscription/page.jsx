@@ -1,6 +1,6 @@
 'use client';
 
-// v1.5 - 토스 버튼 렌더 타이밍 보정 및 재시도 추가 (2026.01.15)
+// v1.6 - 토스 업그레이드/다운그레이드 연동 (2026.01.15)
 // 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -53,6 +53,10 @@ export default function SubscriptionPageKo() {
   const [tossScriptError, setTossScriptError] = useState('');
   const [tossPlanConfig, setTossPlanConfig] = useState(FALLBACK_TOSS_PLAN_CONFIG);
   const [tossConfigReady, setTossConfigReady] = useState(false);
+  const [upgradeQuote, setUpgradeQuote] = useState(null);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState('');
+  const [downgradeLoading, setDowngradeLoading] = useState(false);
   // 한글 주석: 토스페이먼츠 스니펫 중복 삽입을 막기 위한 플래그
   const tossScriptLoadedRef = useRef(false);
   // 한글 주석: 토스 결제 버튼 초기화 중복 방지
@@ -222,6 +226,15 @@ export default function SubscriptionPageKo() {
     !!subscription?.reserved_plan_id &&
     (isOptimisticReserved || (!!subscription?.current_plan_id && subscription.reserved_plan_id !== subscription.current_plan_id));
 
+  const isUpgradeFlow = currentPlanSlug === 'basic';
+
+  // 한글 주석: 화면에 표시할 토스 금액을 계산합니다.
+  const getPlanDisplayAmount = (plan) => {
+    if (plan.slug === 'pro' && isUpgradeFlow && upgradeQuote?.amount) return upgradeQuote.amount;
+    if (['basic', 'pro'].includes(plan.slug)) return tossPlanConfig?.[plan.slug]?.amount;
+    return plan.price;
+  };
+
   // 플랜별 기능/설명 로컬라이즈 (Basic vs Pro 차별화)
   const localizedPlans = useMemo(() => {
     return plans.map((plan) => {
@@ -323,6 +336,39 @@ export default function SubscriptionPageKo() {
     };
   }, []);
 
+  // 한글 주석: 업그레이드 차액(일할 계산) 금액 조회
+  useEffect(() => {
+    if (!userId || !isUpgradeFlow) {
+      setUpgradeQuote(null);
+      return;
+    }
+    let active = true;
+    const fetchUpgradeQuote = async () => {
+      setUpgradeLoading(true);
+      setUpgradeError('');
+      try {
+        const resp = await fetch('/api/payments/toss/upgrade-quote', {
+          method: 'POST',
+          headers: jsonHeaders({ 'x-user-id': userId }),
+          body: JSON.stringify({ target_plan_slug: 'pro' })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data?.detail || data?.error || '업그레이드 금액 조회 실패');
+        }
+        if (active) setUpgradeQuote(data);
+      } catch (err) {
+        if (active) setUpgradeError(err?.message || '업그레이드 금액 조회 실패');
+      } finally {
+        if (active) setUpgradeLoading(false);
+      }
+    };
+    fetchUpgradeQuote();
+    return () => {
+      active = false;
+    };
+  }, [userId, isUpgradeFlow]);
+
   // 한글 주석: 토스 결제 버튼을 실제로 초기화합니다.
   const initTossButtons = () => {
     if (typeof window === 'undefined') return;
@@ -338,6 +384,9 @@ export default function SubscriptionPageKo() {
       if (tossInitRef.current[slug]) return;
       const plan = tossPlanConfig?.[slug];
       if (!plan?.amount) return;
+      if (slug === 'pro' && isUpgradeFlow && upgradeLoading) return;
+      const upgradeAmount = isUpgradeFlow && slug === 'pro' ? upgradeQuote?.amount : null;
+      const upgradeOrderName = isUpgradeFlow && slug === 'pro' ? upgradeQuote?.order_name : null;
       const buttonSelector = `#toss-pay-${slug}`;
       const buttonElement = document.querySelector(buttonSelector);
       if (!buttonElement) {
@@ -350,14 +399,16 @@ export default function SubscriptionPageKo() {
       }
       const config = {
         ...baseConfig,
-        amount: plan.amount,
-        orderName: plan.orderName,
+        amount: upgradeAmount || plan.amount,
+        orderName: upgradeOrderName || plan.orderName,
         payButtonSelector: buttonSelector,
         customerKey: userId || undefined,
         metadata: {
           planSlug: slug,
           userId: userId || null,
-          locale: 'ko'
+          locale: 'ko',
+          upgradeFrom: isUpgradeFlow && slug === 'pro' ? 'basic' : null,
+          upgradeProrated: Boolean(upgradeAmount)
         }
       };
       try {
@@ -397,7 +448,72 @@ export default function SubscriptionPageKo() {
       }
       tossScriptLoadedRef.current = false;
     };
-  }, [origin, tossPlanConfig, userId, tossApiBase, tossTenantKey, tossClientKey, tossConfigReady, plansLoading]);
+  }, [
+    origin,
+    tossPlanConfig,
+    userId,
+    tossApiBase,
+    tossTenantKey,
+    tossClientKey,
+    tossConfigReady,
+    plansLoading,
+    isUpgradeFlow,
+    upgradeQuote,
+    upgradeLoading
+  ]);
+
+  const handleScheduleDowngrade = async () => {
+    if (!userId) return;
+    setPlanError('');
+    setPaymentStatus('다운그레이드를 예약하는 중입니다...');
+    setDowngradeLoading(true);
+    try {
+      const resp = await fetch('/api/payments/toss/downgrade', {
+        method: 'POST',
+        headers: jsonHeaders({ 'x-user-id': userId }),
+        body: JSON.stringify({ target_plan_slug: 'basic' })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || '다운그레이드 예약 실패');
+      }
+      const merged = await fetchSubAndUserSub(userId);
+      if (merged) setSubscription(merged);
+      setPaymentStatus('다음 결제 주기에 다운그레이드가 예약되었습니다.');
+      scheduleRefresh();
+    } catch (err) {
+      setPlanError(err?.message || '다운그레이드 예약 실패');
+      setPaymentStatus('');
+    } finally {
+      setDowngradeLoading(false);
+    }
+  };
+
+  const handleCancelDowngrade = async () => {
+    if (!userId) return;
+    setPlanError('');
+    setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
+    setDowngradeLoading(true);
+    try {
+      const resp = await fetch('/api/payments/toss/cancel-downgrade', {
+        method: 'POST',
+        headers: jsonHeaders({ 'x-user-id': userId })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || '다운그레이드 취소 실패');
+      }
+      const merged = await fetchSubAndUserSub(userId);
+      if (merged) setSubscription(merged);
+      setPaymentStatus('다운그레이드 예약이 취소되었습니다.');
+      scheduleRefresh();
+    } catch (err) {
+      setPlanError(err?.message || '다운그레이드 취소 실패');
+      setPaymentStatus('');
+    } finally {
+      setDowngradeLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -482,6 +598,7 @@ export default function SubscriptionPageKo() {
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
         )}
+        {upgradeError && <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{upgradeError}</div>}
         {planError && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{planError}</div>}
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {plansLoading
@@ -509,8 +626,7 @@ export default function SubscriptionPageKo() {
                   </div>
                   <div className="mt-5 flex items-baseline gap-1">
                     <p className="text-3xl font-bold text-gray-900">
-                      {['basic', 'pro'].includes(plan.slug) ? 'KRW' : plan.currency}{' '}
-                      {(['basic', 'pro'].includes(plan.slug) ? tossPlanConfig?.[plan.slug]?.amount : plan.price)?.toLocaleString() ?? 'TBD'}
+                      {['basic', 'pro'].includes(plan.slug) ? 'KRW' : plan.currency} {getPlanDisplayAmount(plan)?.toLocaleString() ?? 'TBD'}
                     </p>
                     <span className="text-sm text-gray-500">/ {plan.interval || 'month'}</span>
                   </div>
@@ -526,13 +642,39 @@ export default function SubscriptionPageKo() {
                     <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
                       현재 플랜
                     </TailwindButton>
+                  ) : currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
+                    isReserved ? (
+                      <TailwindButton
+                        size="lg"
+                        variant="secondary"
+                        className="mt-auto"
+                        onClick={handleCancelDowngrade}
+                        disabled={downgradeLoading}
+                      >
+                        {downgradeLoading ? '취소 중...' : '다운그레이드 예약 취소'}
+                      </TailwindButton>
+                    ) : (
+                      <TailwindButton
+                        size="lg"
+                        variant="secondary"
+                        className="mt-auto"
+                        onClick={handleScheduleDowngrade}
+                        disabled={downgradeLoading}
+                      >
+                        {downgradeLoading ? '예약 중...' : '다음 달부터 다운그레이드'}
+                      </TailwindButton>
+                    )
                   ) : ['basic', 'pro'].includes(plan.slug) ? (
                     <TailwindButton
                       id={`toss-pay-${plan.slug}`}
                       size="lg"
                       variant="primary"
                       className="mt-auto"
-                      disabled={!!tossScriptError || !tossPlanConfig?.[plan.slug]?.amount}
+                      disabled={
+                        !!tossScriptError ||
+                        !tossPlanConfig?.[plan.slug]?.amount ||
+                        (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
+                      }
                     >
                       간편결제하기
                     </TailwindButton>

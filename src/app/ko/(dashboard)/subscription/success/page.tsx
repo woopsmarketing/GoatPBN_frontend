@@ -9,16 +9,6 @@ import Link from 'next/link';
 
 import { authAPI, supabase } from '../../../../../lib/supabase';
 
-// 한글 주석: 플랜별 기본 크레딧 총량 (백엔드 기준과 동일)
-const PLAN_CREDITS_TOTAL = {
-  basic: 2000,
-  pro: 10000
-};
-
-const getPlanCreditsTotal = (planSlug) => {
-  return Number(PLAN_CREDITS_TOTAL[planSlug] || 100);
-};
-
 const buildPlanSlugFromConfirm = async (amount, confirmData) => {
   // 한글 주석: 1) confirm 응답 메타데이터 우선
   const metadataPlan = confirmData?.metadata?.planSlug || confirmData?.metadata?.plan_slug;
@@ -46,48 +36,19 @@ const buildPlanSlugFromConfirm = async (amount, confirmData) => {
   return '';
 };
 
-const applySubscriptionForUser = async (userId, planSlug) => {
-  if (!userId) throw new Error('사용자 정보를 찾을 수 없습니다.');
-  if (!planSlug) throw new Error('플랜 정보를 확인할 수 없습니다.');
-
-  const now = new Date();
-  const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const creditsTotal = getPlanCreditsTotal(planSlug);
-
-  const { data: existingRow, error: existingError } = await supabase
-    .from('subscriptions')
-    .select('user_id, credits_used, start_date')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (existingError) throw existingError;
-
-  const existingUsedRaw = Number(existingRow?.credits_used || 0);
-  const existingUsed = Math.min(existingUsedRaw, creditsTotal);
-  const creditsRemaining = Math.max(0, creditsTotal - existingUsed);
-
-  const payload = {
-    user_id: userId,
-    plan: planSlug,
-    status: 'active',
-    credits_total: creditsTotal,
-    credits_used: existingUsed,
-    credits_remaining: creditsRemaining,
-    start_date: existingRow?.start_date || now.toISOString(),
-    expiry_date: expiry.toISOString(),
-    last_credit_update: now.toISOString(),
-    updated_at: now.toISOString()
-  };
-
-  if (existingRow?.user_id) {
-    const { error: updateError } = await supabase.from('subscriptions').update(payload).eq('user_id', userId);
-    if (updateError) throw updateError;
-    return 'updated';
+const applyTossPostProcess = async (payload: Record<string, any>) => {
+  const response = await fetch('/api/payments/toss/confirm', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result?.detail || result?.message || '구독 후처리에 실패했습니다.');
   }
-
-  const { error: insertError } = await supabase.from('subscriptions').insert({ ...payload, created_at: now.toISOString() });
-  if (insertError) throw insertError;
-  return 'inserted';
+  return result;
 };
 
 export default function SubscriptionSuccessPage() {
@@ -161,7 +122,16 @@ export default function SubscriptionSuccessPage() {
           throw new Error('플랜 정보를 확인할 수 없습니다. 고객센터에 문의해주세요.');
         }
 
-        await applySubscriptionForUser(authData.user.id, planSlug);
+        await applyTossPostProcess({
+          user_id: authData.user.id,
+          plan_slug: planSlug,
+          payment_key: queryInfo.paymentKey,
+          order_id: queryInfo.orderId,
+          amount: queryInfo.amount,
+          currency: 'KRW',
+          status: data?.status || 'CONFIRMED',
+          raw_payload: data
+        });
         setPostProcessMessage(`구독이 활성화되었습니다. (${planSlug.toUpperCase()})`);
         setPostProcessError('');
         return null;
