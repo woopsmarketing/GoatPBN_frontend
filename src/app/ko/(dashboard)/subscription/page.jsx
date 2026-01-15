@@ -1,6 +1,6 @@
 'use client';
 
-// v1.3 - 토스 스니펫 로딩 오류 가시화 및 URL 자동화 (2026.01.15)
+// v1.4 - 토스 결제 버튼을 플랜 카드에 연동 (2026.01.15)
 // 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -22,6 +22,22 @@ const PLAN_LABELS = {
   basic: '베이직'
 };
 
+// 한글 주석: 토스 결제 기본값(서버 설정이 없을 때 사용)
+const FALLBACK_TOSS_PLAN_CONFIG = {
+  basic: {
+    amount: 20000,
+    orderName: 'GoatPBN Basic 1개월'
+  },
+  pro: {
+    amount: 50000,
+    orderName: 'GoatPBN Pro 1개월'
+  }
+};
+
+const DEFAULT_TOSS_API_BASE = 'https://jjqugwegnpbwsxgclywg.supabase.co/functions/v1';
+const DEFAULT_TOSS_TENANT_KEY = 'tenant_key_goatpbn_ko';
+const DEFAULT_TOSS_CLIENT_KEY = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
+
 export default function SubscriptionPageKo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,11 +51,18 @@ export default function SubscriptionPageKo() {
   const [invoiceError, setInvoiceError] = useState('');
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [tossScriptError, setTossScriptError] = useState('');
+  const [tossPlanConfig, setTossPlanConfig] = useState(FALLBACK_TOSS_PLAN_CONFIG);
+  const [tossConfigReady, setTossConfigReady] = useState(false);
   // 한글 주석: 토스페이먼츠 스니펫 중복 삽입을 막기 위한 플래그
   const tossScriptLoadedRef = useRef(false);
+  // 한글 주석: 토스 결제 버튼 초기화 중복 방지
+  const tossInitRef = useRef({ basic: false, pro: false });
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
+  const tossApiBase = process.env.NEXT_PUBLIC_TOSS_API_BASE || DEFAULT_TOSS_API_BASE;
+  const tossTenantKey = process.env.NEXT_PUBLIC_TOSS_TENANT_KEY || DEFAULT_TOSS_TENANT_KEY;
+  const tossClientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || DEFAULT_TOSS_CLIENT_KEY;
 
   // helper: subscriptions + user_subscriptions 병합 조회
   const fetchSubAndUserSub = async (uid) => {
@@ -138,18 +161,11 @@ export default function SubscriptionPageKo() {
     loadInvoices();
   }, [userId]);
 
-  const {
-    plans,
-    loading: plansLoading,
-    error: plansFetchError,
-    subscribing,
-    subscribeToPlan,
-    confirmSubscription,
-    upgradeSubscription,
-    downgradeSubscription,
-    cancelDowngrade,
-    processing
-  } = usePaypalPlans({ returnUrl, cancelUrl, userId });
+  const paypalPlans = usePaypalPlans({ returnUrl, cancelUrl, userId });
+  const plans = paypalPlans.plans;
+  const plansLoading = paypalPlans.loading;
+  const plansFetchError = paypalPlans.error;
+  const confirmSubscription = paypalPlans.confirmSubscription;
 
   const loadInvoices = async () => {
     if (!userId) return;
@@ -203,16 +219,6 @@ export default function SubscriptionPageKo() {
     subscription?.plan === 'pro' &&
     !!subscription?.reserved_plan_id &&
     (isOptimisticReserved || (!!subscription?.current_plan_id && subscription.reserved_plan_id !== subscription.current_plan_id));
-
-  const handleSubscribe = async (planSlug) => {
-    setPlanError('');
-    try {
-      await subscribeToPlan(planSlug);
-    } catch (err) {
-      console.error(err);
-      setPlanError(err?.message || 'PayPal 결제를 시작할 수 없습니다.');
-    }
-  };
 
   // 플랜별 기능/설명 로컬라이즈 (Basic vs Pro 차별화)
   const localizedPlans = useMemo(() => {
@@ -280,33 +286,104 @@ export default function SubscriptionPageKo() {
     }
   }, [userId, confirmSubscription]);
 
+  // 한글 주석: 토스 결제 설정을 Supabase에서 우선 조회(없으면 기본값 사용)
+  useEffect(() => {
+    let active = true;
+    const loadTossPlanConfig = async () => {
+      try {
+        const { data, error } = await supabase.from('billing_plans').select('*').in('slug', ['basic', 'pro']);
+        if (error) throw error;
+        const nextConfig = { ...FALLBACK_TOSS_PLAN_CONFIG };
+        (data || []).forEach((row) => {
+          const slug = row?.slug;
+          if (!slug || !nextConfig[slug]) return;
+          const metadata = row?.metadata || {};
+          const amountFromMeta = Number(metadata?.toss_amount_krw) || Number(metadata?.toss_price_krw) || Number(metadata?.toss_amount);
+          if (Number.isFinite(amountFromMeta) && amountFromMeta > 0) {
+            nextConfig[slug].amount = amountFromMeta;
+          }
+          const orderNameFromMeta = metadata?.toss_order_name_ko || metadata?.toss_order_name;
+          if (orderNameFromMeta) {
+            nextConfig[slug].orderName = orderNameFromMeta;
+          }
+        });
+        if (active) setTossPlanConfig(nextConfig);
+      } catch (err) {
+        console.warn('토스 결제 설정 조회 실패:', err?.message || err);
+        if (active) setTossPlanConfig(FALLBACK_TOSS_PLAN_CONFIG);
+      } finally {
+        if (active) setTossConfigReady(true);
+      }
+    };
+    loadTossPlanConfig();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 한글 주석: 토스 결제 버튼을 실제로 초기화합니다.
+  const initTossButtons = () => {
+    if (typeof window === 'undefined') return;
+    if (!window.TossPaymentWindow?.init) return;
+    const baseConfig = {
+      apiBase: tossApiBase,
+      tenantKey: tossTenantKey,
+      clientKey: tossClientKey,
+      method: 'CARD'
+    };
+    ['basic', 'pro'].forEach((slug) => {
+      if (tossInitRef.current[slug]) return;
+      const plan = tossPlanConfig?.[slug];
+      if (!plan?.amount) return;
+      const config = {
+        ...baseConfig,
+        amount: plan.amount,
+        orderName: plan.orderName,
+        payButtonSelector: `#toss-pay-${slug}`,
+        customerKey: userId || undefined,
+        metadata: {
+          planSlug: slug,
+          userId: userId || null,
+          locale: 'ko'
+        }
+      };
+      try {
+        window.TossPaymentWindow.init(config);
+        tossInitRef.current[slug] = true;
+      } catch (err) {
+        console.error('토스 결제 버튼 초기화 실패:', err);
+        setTossScriptError('토스 결제 버튼 초기화에 실패했습니다. 콘솔 로그를 확인해주세요.');
+      }
+    });
+  };
+
   // 한글 주석: 토스페이먼츠 결제 스니펫을 클라이언트에서만 로드합니다.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (tossScriptLoadedRef.current) return;
+    if (!tossConfigReady) return;
+    if (tossScriptLoadedRef.current) {
+      initTossButtons();
+      return;
+    }
     const script = document.createElement('script');
     // 한글 주석: public/에 배포된 정적 스니펫을 현재 도메인 기준으로 로드합니다.
     script.src = `${origin}/toss-billing-snippet-payment-window.js`;
-    script.dataset.apiBase = 'https://jjqugwegnpbwsxgclywg.supabase.co/functions/v1';
-    script.dataset.tenantKey = 'tenant_key_goatpbn_ko';
-    script.dataset.clientKey = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
-    script.dataset.amount = '10000';
-    script.dataset.orderName = '구독 결제 1개월';
-    script.dataset.payButtonSelector = '#pay-button';
-    script.dataset.method = 'CARD';
+    script.onload = () => {
+      tossScriptLoadedRef.current = true;
+      initTossButtons();
+    };
     script.onerror = () => {
       // 한글 주석: 스니펫 로딩 실패 시 안내 메시지를 노출합니다.
       setTossScriptError('토스 결제 스니펫 로딩에 실패했습니다. 파일 경로/배포 상태를 확인해주세요.');
     };
     document.body.appendChild(script);
-    tossScriptLoadedRef.current = true;
     return () => {
       if (script && script.parentNode) {
         script.parentNode.removeChild(script);
       }
       tossScriptLoadedRef.current = false;
     };
-  }, []);
+  }, [origin, tossPlanConfig, userId, tossApiBase, tossTenantKey, tossClientKey, tossConfigReady]);
 
   return (
     <div className="space-y-6">
@@ -380,16 +457,7 @@ export default function SubscriptionPageKo() {
           </div>
         )}
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          한국어 페이지는 토스페이먼츠 결제만 지원합니다. 아래 <strong>결제하기</strong> 버튼을 사용하세요. (PayPal 결제는 영문 페이지 이용)
-        </div>
-        <div className="mb-6 flex items-center gap-3">
-          <button
-            id="pay-button"
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
-          >
-            결제하기
-          </button>
-          <p className="text-xs text-gray-600">결제 창이 새 창/팝업으로 열립니다.</p>
+          한국어 페이지는 토스페이먼츠 결제만 지원합니다. (PayPal 결제는 영문 페이지 이용)
         </div>
         {tossScriptError && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{tossScriptError}</div>
@@ -427,7 +495,8 @@ export default function SubscriptionPageKo() {
                   </div>
                   <div className="mt-5 flex items-baseline gap-1">
                     <p className="text-3xl font-bold text-gray-900">
-                      {plan.currency} {plan.price?.toLocaleString() ?? 'TBD'}
+                      {['basic', 'pro'].includes(plan.slug) ? 'KRW' : plan.currency}{' '}
+                      {(['basic', 'pro'].includes(plan.slug) ? tossPlanConfig?.[plan.slug]?.amount : plan.price)?.toLocaleString() ?? 'TBD'}
                     </p>
                     <span className="text-sm text-gray-500">/ {plan.interval || 'month'}</span>
                   </div>
@@ -439,9 +508,25 @@ export default function SubscriptionPageKo() {
                       </li>
                     ))}
                   </ul>
-                  <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
-                    토스페이먼츠 결제 버튼을 이용해주세요
-                  </TailwindButton>
+                  {plan.slug === currentPlanSlug ? (
+                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+                      현재 플랜
+                    </TailwindButton>
+                  ) : ['basic', 'pro'].includes(plan.slug) ? (
+                    <TailwindButton
+                      id={`toss-pay-${plan.slug}`}
+                      size="lg"
+                      variant="primary"
+                      className="mt-auto"
+                      disabled={!!tossScriptError || !tossPlanConfig?.[plan.slug]?.amount}
+                    >
+                      간편결제하기
+                    </TailwindButton>
+                  ) : (
+                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+                      준비 중
+                    </TailwindButton>
+                  )}
                 </div>
               ))}
           {!plansLoading && plans.length === 0 && (
