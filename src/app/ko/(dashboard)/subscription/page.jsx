@@ -1,7 +1,7 @@
 'use client';
 
-// v1.1 - 구독 관리 페이지 (한국어)
-// 기능 요약: Supabase subscriptions 테이블과 연동하여 현재 플랜/크레딧을 표시하고 PayPal 결제 연동
+// v1.2 - 토스페이먼츠 버튼 삽입 및 PayPal CTA 비활성화 (2026.01.15)
+// 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -34,6 +34,8 @@ export default function SubscriptionPageKo() {
   const [invoices, setInvoices] = useState([]);
   const [invoiceError, setInvoiceError] = useState('');
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  // 한글 주석: 토스페이먼츠 스니펫 중복 삽입을 막기 위한 플래그
+  const tossScriptLoadedRef = useRef(false);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
@@ -277,6 +279,29 @@ export default function SubscriptionPageKo() {
     }
   }, [userId, confirmSubscription]);
 
+  // 한글 주석: 토스페이먼츠 결제 스니펫을 클라이언트에서만 로드합니다.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (tossScriptLoadedRef.current) return;
+    const script = document.createElement('script');
+    script.src = 'https://your.cdn.com/toss-billing-snippet-payment-window.js';
+    script.dataset.apiBase = 'https://jjqugwegnpbwsxgclywg.supabase.co/functions/v1';
+    script.dataset.tenantKey = 'tenant_key_goatpbn_ko';
+    script.dataset.clientKey = 'test_ck_여기에_클라이언트키';
+    script.dataset.amount = '10000';
+    script.dataset.orderName = '구독 결제 1개월';
+    script.dataset.payButtonSelector = '#pay-button';
+    script.dataset.method = 'CARD';
+    document.body.appendChild(script);
+    tossScriptLoadedRef.current = true;
+    return () => {
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      tossScriptLoadedRef.current = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <MainCard title="구독 요약">
@@ -348,6 +373,18 @@ export default function SubscriptionPageKo() {
             취소할 수 있습니다.
           </div>
         )}
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          한국어 페이지는 토스페이먼츠 결제만 지원합니다. 아래 <strong>결제하기</strong> 버튼을 사용하세요. (PayPal 결제는 영문 페이지 이용)
+        </div>
+        <div className="mb-6 flex items-center gap-3">
+          <button
+            id="pay-button"
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
+          >
+            결제하기
+          </button>
+          <p className="text-xs text-gray-600">결제 창이 새 창/팝업으로 열립니다.</p>
+        </div>
         {paymentStatus && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
         )}
@@ -393,123 +430,9 @@ export default function SubscriptionPageKo() {
                       </li>
                     ))}
                   </ul>
-                  {plan.slug === currentPlanSlug ? (
-                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
-                      현재 플랜
-                    </TailwindButton>
-                  ) : currentPlanSlug && currentPlanSlug !== 'free' && plan.slug === 'pro' ? (
-                    <TailwindButton
-                      size="lg"
-                      variant="primary"
-                      className="mt-auto"
-                      onClick={async () => {
-                        try {
-                          const subId = subscription?.provider_subscription_id;
-                          if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
-                          setPlanError('');
-                          setPaymentStatus('PayPal에서 업그레이드(일할) 진행 중...');
-                          await upgradeSubscription(subId, plan.slug);
-                          setPaymentStatus('업그레이드 요청 완료. PayPal이 차액을 자동 정산합니다.');
-                          const merged = await fetchSubAndUserSub(userId);
-                          if (merged) setSubscription(merged);
-                        } catch (e) {
-                          setPlanError(e.message || '업그레이드 실패');
-                          setPaymentStatus('');
-                        }
-                      }}
-                      disabled={processing === 'upgrade'}
-                    >
-                      {processing === 'upgrade' ? '업그레이드 중...' : '업그레이드 (일할청구)'}
-                    </TailwindButton>
-                  ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
-                    (() => {
-                      return isReserved ? (
-                        <TailwindButton
-                          size="lg"
-                          variant="secondary"
-                          className="mt-auto"
-                          onClick={async () => {
-                            const prevSnapshot = subscription;
-                            try {
-                              const subId = subscription?.provider_subscription_id;
-                              if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
-                              setPlanError('');
-                              setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
-                              // 한글 주석: 낙관적 업데이트 - 즉시 "예약 취소" 상태를 해제하고 버튼/배너를 원복합니다.
-                              setSubscription((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  reserved_plan_id: prev.current_plan_id || null,
-                                  reserved_status: 'active'
-                                };
-                              });
-                              await cancelDowngrade(subId);
-                              const merged = await fetchSubAndUserSub(userId);
-                              if (merged) setSubscription(merged);
-                              setPaymentStatus('다운그레이드 예약 취소 요청이 완료되었습니다. 잠시 후 반영됩니다.');
-                              scheduleRefresh();
-                            } catch (e) {
-                              // 한글 주석: 실패 시 이전 상태로 롤백
-                              if (prevSnapshot) setSubscription(prevSnapshot);
-                              setPlanError(e.message || '다운그레이드 취소 실패');
-                              setPaymentStatus('');
-                            }
-                          }}
-                          disabled={processing === 'cancel-downgrade'}
-                        >
-                          {processing === 'cancel-downgrade' ? '취소 중...' : '다운그레이드 예약 취소'}
-                        </TailwindButton>
-                      ) : (
-                        <TailwindButton
-                          size="lg"
-                          variant="secondary"
-                          className="mt-auto"
-                          onClick={async () => {
-                            const prevSnapshot = subscription;
-                            try {
-                              const subId = subscription?.provider_subscription_id;
-                              if (!subId) throw new Error('구독 ID를 찾을 수 없습니다');
-                              setPlanError('');
-                              setPaymentStatus('다운그레이드는 다음 청구일부터 적용됩니다. (예약 반영 중...)');
-                              // 한글 주석: 낙관적 업데이트 - 즉시 "예약됨" 상태로 토글하여 UX를 개선합니다.
-                              setSubscription((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  reserved_plan_id: `__optimistic__${plan.slug}__`,
-                                  reserved_status: 'active'
-                                };
-                              });
-                              await downgradeSubscription(subId, plan.slug);
-                              const merged = await fetchSubAndUserSub(userId);
-                              if (merged) setSubscription(merged);
-                              // 한글 주석: 혹시 반영이 늦을 경우를 대비해 3~5초 후 한 번 더 동기화합니다.
-                              scheduleRefresh();
-                            } catch (e) {
-                              // 한글 주석: 실패 시 이전 상태로 롤백
-                              if (prevSnapshot) setSubscription(prevSnapshot);
-                              setPlanError(e.message || '다운그레이드 실패');
-                              setPaymentStatus('');
-                            }
-                          }}
-                          disabled={processing === 'downgrade'}
-                        >
-                          {processing === 'downgrade' ? '처리 중...' : '다음 달부터 다운그레이드'}
-                        </TailwindButton>
-                      );
-                    })()
-                  ) : (
-                    <TailwindButton
-                      size="lg"
-                      variant="primary"
-                      className="mt-auto"
-                      onClick={() => handleSubscribe(plan.slug)}
-                      disabled={subscribing === plan.slug}
-                    >
-                      {subscribing === plan.slug ? 'PayPal로 이동 중...' : 'PayPal로 구독하기'}
-                    </TailwindButton>
-                  )}
+                  <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+                    토스페이먼츠 결제 버튼을 이용해주세요
+                  </TailwindButton>
                 </div>
               ))}
           {!plansLoading && plans.length === 0 && (
