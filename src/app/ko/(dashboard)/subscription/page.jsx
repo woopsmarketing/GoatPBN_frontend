@@ -1,6 +1,6 @@
 'use client';
 
-// v1.4 - 토스 결제 버튼을 플랜 카드에 연동 (2026.01.15)
+// v1.5 - 토스 버튼 렌더 타이밍 보정 및 재시도 추가 (2026.01.15)
 // 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -57,6 +57,8 @@ export default function SubscriptionPageKo() {
   const tossScriptLoadedRef = useRef(false);
   // 한글 주석: 토스 결제 버튼 초기화 중복 방지
   const tossInitRef = useRef({ basic: false, pro: false });
+  // 한글 주석: 토스 결제 버튼 렌더 타이밍 지연 대응을 위한 재시도 카운터
+  const tossRetryRef = useRef({ basic: 0, pro: 0 });
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
@@ -325,6 +327,7 @@ export default function SubscriptionPageKo() {
   const initTossButtons = () => {
     if (typeof window === 'undefined') return;
     if (!window.TossPaymentWindow?.init) return;
+    if (plansLoading) return;
     const baseConfig = {
       apiBase: tossApiBase,
       tenantKey: tossTenantKey,
@@ -335,11 +338,21 @@ export default function SubscriptionPageKo() {
       if (tossInitRef.current[slug]) return;
       const plan = tossPlanConfig?.[slug];
       if (!plan?.amount) return;
+      const buttonSelector = `#toss-pay-${slug}`;
+      const buttonElement = document.querySelector(buttonSelector);
+      if (!buttonElement) {
+        // 한글 주석: 버튼 DOM이 아직 없으면 잠시 후 재시도합니다.
+        if (tossRetryRef.current[slug] < 5) {
+          tossRetryRef.current[slug] += 1;
+          setTimeout(initTossButtons, 300);
+        }
+        return;
+      }
       const config = {
         ...baseConfig,
         amount: plan.amount,
         orderName: plan.orderName,
-        payButtonSelector: `#toss-pay-${slug}`,
+        payButtonSelector: buttonSelector,
         customerKey: userId || undefined,
         metadata: {
           planSlug: slug,
@@ -361,6 +374,7 @@ export default function SubscriptionPageKo() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!tossConfigReady) return;
+    if (plansLoading) return;
     if (tossScriptLoadedRef.current) {
       initTossButtons();
       return;
@@ -383,7 +397,7 @@ export default function SubscriptionPageKo() {
       }
       tossScriptLoadedRef.current = false;
     };
-  }, [origin, tossPlanConfig, userId, tossApiBase, tossTenantKey, tossClientKey, tossConfigReady]);
+  }, [origin, tossPlanConfig, userId, tossApiBase, tossTenantKey, tossClientKey, tossConfigReady, plansLoading]);
 
   return (
     <div className="space-y-6">
