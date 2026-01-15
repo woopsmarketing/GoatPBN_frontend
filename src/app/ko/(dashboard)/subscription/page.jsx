@@ -1,9 +1,10 @@
 'use client';
 
-// v1.7 - 토스 업그레이드 버튼 라벨/플랜 저장 (2026.01.15)
-// 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
+// v2.0 - 토스 정기결제(빌링) 전환 (2026.01.15)
+// 기능 요약: 카드 등록(빌링키) 후 정기결제 승인 + 구독/인보이스 반영
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Script from 'next/script';
 
 import MainCard from '@/components/MainCard';
 import TailwindButton from '@/components/ui/TailwindButton';
@@ -34,8 +35,6 @@ const FALLBACK_TOSS_PLAN_CONFIG = {
   }
 };
 
-const DEFAULT_TOSS_API_BASE = 'https://jjqugwegnpbwsxgclywg.supabase.co/functions/v1';
-const DEFAULT_TOSS_TENANT_KEY = 'tenant_key_goatpbn_ko';
 const DEFAULT_TOSS_CLIENT_KEY = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
 
 export default function SubscriptionPageKo() {
@@ -50,24 +49,20 @@ export default function SubscriptionPageKo() {
   const [invoices, setInvoices] = useState([]);
   const [invoiceError, setInvoiceError] = useState('');
   const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [tossScriptError, setTossScriptError] = useState('');
   const [tossPlanConfig, setTossPlanConfig] = useState(FALLBACK_TOSS_PLAN_CONFIG);
-  const [tossConfigReady, setTossConfigReady] = useState(false);
   const [upgradeQuote, setUpgradeQuote] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeError, setUpgradeError] = useState('');
   const [downgradeLoading, setDowngradeLoading] = useState(false);
-  // 한글 주석: 토스페이먼츠 스니펫 중복 삽입을 막기 위한 플래그
-  const tossScriptLoadedRef = useRef(false);
-  // 한글 주석: 토스 결제 버튼 초기화 중복 방지
-  const tossInitRef = useRef({ basic: false, pro: false });
-  // 한글 주석: 토스 결제 버튼 렌더 타이밍 지연 대응을 위한 재시도 카운터
-  const tossRetryRef = useRef({ basic: 0, pro: 0 });
+  const [billingStatus, setBillingStatus] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState('');
+  const [tossSdkReady, setTossSdkReady] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
-  const tossApiBase = process.env.NEXT_PUBLIC_TOSS_API_BASE || DEFAULT_TOSS_API_BASE;
-  const tossTenantKey = process.env.NEXT_PUBLIC_TOSS_TENANT_KEY || DEFAULT_TOSS_TENANT_KEY;
   const tossClientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || DEFAULT_TOSS_CLIENT_KEY;
 
   // helper: subscriptions + user_subscriptions 병합 조회
@@ -148,6 +143,12 @@ export default function SubscriptionPageKo() {
           return;
         }
         if (active) setUserId(user.id);
+        if (active) setUserEmail(user.email || '');
+        if (active) {
+          const displayName =
+            user.user_metadata?.full_name || user.user_metadata?.name || (user.email ? user.email.split('@')[0] : '') || '사용자';
+          setUserName(displayName);
+        }
         const merged = await fetchSubAndUserSub(user.id);
         if (active) setSubscription(merged);
       } catch (err) {
@@ -165,6 +166,28 @@ export default function SubscriptionPageKo() {
 
   useEffect(() => {
     loadInvoices();
+  }, [userId]);
+
+  const loadBillingStatus = async () => {
+    if (!userId) return;
+    setBillingLoading(true);
+    setBillingError('');
+    try {
+      const res = await fetch('/api/payments/toss/billing/status', {
+        headers: jsonHeaders({ 'x-user-id': userId })
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.detail || payload.error || '빌링 상태 조회 실패');
+      setBillingStatus(payload);
+    } catch (err) {
+      setBillingError(err?.message || '빌링 상태 조회 실패');
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBillingStatus();
   }, [userId]);
 
   const paypalPlans = usePaypalPlans({ returnUrl, cancelUrl, userId });
@@ -325,8 +348,6 @@ export default function SubscriptionPageKo() {
       } catch (err) {
         console.warn('토스 결제 설정 조회 실패:', err?.message || err);
         if (active) setTossPlanConfig(FALLBACK_TOSS_PLAN_CONFIG);
-      } finally {
-        if (active) setTossConfigReady(true);
       }
     };
     loadTossPlanConfig();
@@ -368,124 +389,75 @@ export default function SubscriptionPageKo() {
     };
   }, [userId, isUpgradeFlow]);
 
-  // 한글 주석: 업그레이드 차액이 준비되면 Pro 버튼을 재초기화합니다.
-  useEffect(() => {
-    if (!isUpgradeFlow) return;
-    if (upgradeLoading) return;
-    if (!upgradeQuote?.amount) return;
-    // 한글 주석: 기존 Pro 버튼 초기화를 해제하고 차액 금액으로 다시 설정합니다.
-    tossInitRef.current.pro = false;
-    tossRetryRef.current.pro = 0;
-    initTossButtons();
-  }, [isUpgradeFlow, upgradeLoading, upgradeQuote]);
+  const handleStartBilling = async (planSlug) => {
+    if (!userId) return;
+    setPlanError('');
+    setBillingError('');
+    setPaymentStatus('');
 
-  // 한글 주석: 토스 결제 버튼을 실제로 초기화합니다.
-  const initTossButtons = () => {
-    if (typeof window === 'undefined') return;
-    if (!window.TossPaymentWindow?.init) return;
-    if (plansLoading) return;
-    const baseConfig = {
-      apiBase: tossApiBase,
-      tenantKey: tossTenantKey,
-      clientKey: tossClientKey,
-      method: 'CARD'
-    };
-    ['basic', 'pro'].forEach((slug) => {
-      if (tossInitRef.current[slug]) return;
-      const plan = tossPlanConfig?.[slug];
-      if (!plan?.amount) return;
-      if (slug === 'pro' && isUpgradeFlow && upgradeLoading) return;
-      const upgradeAmount = isUpgradeFlow && slug === 'pro' ? upgradeQuote?.amount : null;
-      const upgradeOrderName = isUpgradeFlow && slug === 'pro' ? upgradeQuote?.order_name : null;
-      const buttonSelector = `#toss-pay-${slug}`;
-      const buttonElement = document.querySelector(buttonSelector);
-      if (!buttonElement) {
-        // 한글 주석: 버튼 DOM이 아직 없으면 잠시 후 재시도합니다.
-        if (tossRetryRef.current[slug] < 5) {
-          tossRetryRef.current[slug] += 1;
-          setTimeout(initTossButtons, 300);
-        }
-        return;
-      }
-      // 한글 주석: 결제 성공 페이지에서 플랜을 찾을 수 있도록 sessionStorage에 저장합니다.
-      if (buttonElement && !buttonElement.dataset.tossPlanBound) {
-        buttonElement.dataset.tossPlanBound = 'true';
-        buttonElement.addEventListener('click', () => {
-          try {
-            sessionStorage.setItem('toss_target_plan', slug);
-            if (isUpgradeFlow && slug === 'pro' && upgradeAmount) {
-              sessionStorage.setItem('toss_upgrade_amount', String(upgradeAmount));
-            }
-          } catch (err) {
-            console.warn('toss plan storage failed:', err);
-          }
-        });
-      }
+    const planAmount = planSlug === 'pro' && isUpgradeFlow ? upgradeQuote?.amount : tossPlanConfig?.[planSlug]?.amount;
 
-      const config = {
-        ...baseConfig,
-        amount: upgradeAmount || plan.amount,
-        orderName: upgradeOrderName || plan.orderName,
-        payButtonSelector: buttonSelector,
-        customerKey: userId || undefined,
-        metadata: {
-          planSlug: slug,
-          userId: userId || null,
-          locale: 'ko',
-          upgradeFrom: isUpgradeFlow && slug === 'pro' ? 'basic' : null,
-          upgradeProrated: Boolean(upgradeAmount)
-        }
-      };
-      try {
-        window.TossPaymentWindow.init(config);
-        tossInitRef.current[slug] = true;
-      } catch (err) {
-        console.error('토스 결제 버튼 초기화 실패:', err);
-        setTossScriptError('토스 결제 버튼 초기화에 실패했습니다. 콘솔 로그를 확인해주세요.');
-      }
-    });
-  };
-
-  // 한글 주석: 토스페이먼츠 결제 스니펫을 클라이언트에서만 로드합니다.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!tossConfigReady) return;
-    if (plansLoading) return;
-    if (tossScriptLoadedRef.current) {
-      initTossButtons();
+    if (!planAmount) {
+      setPlanError('결제 금액을 확인할 수 없습니다.');
       return;
     }
-    const script = document.createElement('script');
-    // 한글 주석: public/에 배포된 정적 스니펫을 현재 도메인 기준으로 로드합니다.
-    script.src = `${origin}/toss-billing-snippet-payment-window.js`;
-    script.onload = () => {
-      tossScriptLoadedRef.current = true;
-      initTossButtons();
-    };
-    script.onerror = () => {
-      // 한글 주석: 스니펫 로딩 실패 시 안내 메시지를 노출합니다.
-      setTossScriptError('토스 결제 스니펫 로딩에 실패했습니다. 파일 경로/배포 상태를 확인해주세요.');
-    };
-    document.body.appendChild(script);
-    return () => {
-      if (script && script.parentNode) {
-        script.parentNode.removeChild(script);
+
+    // 한글 주석: 이미 빌링키가 있으면 즉시 결제(업그레이드 포함)
+    if (billingStatus?.has_billing_key) {
+      setPaymentStatus('정기결제를 진행하는 중입니다...');
+      try {
+        const resp = await fetch('/api/payments/toss/billing/charge', {
+          method: 'POST',
+          headers: jsonHeaders({ 'x-user-id': userId }),
+          body: JSON.stringify({
+            plan_slug: planSlug,
+            amount: planAmount,
+            order_name:
+              planSlug === 'pro' && isUpgradeFlow
+                ? 'GoatPBN Pro 업그레이드'
+                : tossPlanConfig?.[planSlug]?.orderName || `GoatPBN ${planSlug} 1개월`,
+            customer_email: userEmail || undefined,
+            customer_name: userName || undefined
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data?.detail || data?.error || '정기결제 승인 실패');
+        }
+        setPaymentStatus('정기결제가 완료되었습니다.');
+        await loadBillingStatus();
+        const merged = await fetchSubAndUserSub(userId);
+        setSubscription(merged);
+        scheduleRefresh();
+        return;
+      } catch (err) {
+        setPlanError(err?.message || '정기결제 승인 실패');
+        setPaymentStatus('');
+        return;
       }
-      tossScriptLoadedRef.current = false;
-    };
-  }, [
-    origin,
-    tossPlanConfig,
-    userId,
-    tossApiBase,
-    tossTenantKey,
-    tossClientKey,
-    tossConfigReady,
-    plansLoading,
-    isUpgradeFlow,
-    upgradeQuote,
-    upgradeLoading
-  ]);
+    }
+
+    // 한글 주석: 빌링키가 없으면 카드 등록(빌링 인증)부터 진행
+    if (!tossSdkReady || typeof window === 'undefined' || !window.TossPayments) {
+      setBillingError('토스 결제 SDK가 아직 준비되지 않았습니다.');
+      return;
+    }
+
+    try {
+      const tossPayments = window.TossPayments(tossClientKey);
+      const payment = tossPayments.payment({ customerKey: userId });
+      await payment.requestBillingAuth({
+        method: 'CARD',
+        successUrl: `${origin}/ko/subscription/billing/success?plan=${planSlug}&amount=${planAmount}`,
+        failUrl: `${origin}/ko/subscription/billing/fail?plan=${planSlug}`,
+        customerEmail: userEmail || undefined,
+        customerName: userName || undefined
+      });
+    } catch (err) {
+      console.error('토스 빌링 등록 실패:', err);
+      setBillingError(err?.message || '카드 등록에 실패했습니다.');
+    }
+  };
 
   const handleScheduleDowngrade = async () => {
     if (!userId) return;
@@ -542,6 +514,12 @@ export default function SubscriptionPageKo() {
 
   return (
     <div className="space-y-6">
+      <Script
+        src="https://js.tosspayments.com/v2/standard"
+        strategy="afterInteractive"
+        onLoad={() => setTossSdkReady(true)}
+        onError={() => setBillingError('토스 SDK 로딩에 실패했습니다.')}
+      />
       <MainCard title="구독 요약">
         {loading ? (
           <p className="text-sm text-gray-600">구독 정보를 불러오는 중입니다...</p>
@@ -612,14 +590,12 @@ export default function SubscriptionPageKo() {
           </div>
         )}
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          한국어 페이지는 토스페이먼츠 결제만 지원합니다. (PayPal 결제는 영문 페이지 이용)
+          한국어 페이지는 토스페이먼츠 카드 정기결제만 지원합니다. (PayPal 결제는 영문 페이지 이용)
         </div>
-        {tossScriptError && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{tossScriptError}</div>
-        )}
         {paymentStatus && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
         )}
+        {billingError && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{billingError}</div>}
         {plansFetchError && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">{plansFetchError}</div>
         )}
@@ -691,19 +667,19 @@ export default function SubscriptionPageKo() {
                     )
                   ) : ['basic', 'pro'].includes(plan.slug) ? (
                     <TailwindButton
-                      id={`toss-pay-${plan.slug}`}
                       size="lg"
                       variant="primary"
                       className="mt-auto"
+                      onClick={() => handleStartBilling(plan.slug)}
                       disabled={
-                        !!tossScriptError ||
-                        !tossPlanConfig?.[plan.slug]?.amount ||
-                        (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
+                        !tossPlanConfig?.[plan.slug]?.amount || billingLoading || (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
                       }
                     >
                       {plan.slug === 'pro' && isUpgradeFlow
                         ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
-                        : '간편결제하기'}
+                        : billingStatus?.has_billing_key
+                          ? '정기결제 시작하기'
+                          : '카드 등록 후 정기결제'}
                     </TailwindButton>
                   ) : (
                     <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
