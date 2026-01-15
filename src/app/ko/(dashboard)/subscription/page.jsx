@@ -1,6 +1,6 @@
 'use client';
 
-// v1.6 - 토스 업그레이드/다운그레이드 연동 (2026.01.15)
+// v1.7 - 토스 업그레이드 버튼 라벨/플랜 저장 (2026.01.15)
 // 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -230,7 +230,6 @@ export default function SubscriptionPageKo() {
 
   // 한글 주석: 화면에 표시할 토스 금액을 계산합니다.
   const getPlanDisplayAmount = (plan) => {
-    if (plan.slug === 'pro' && isUpgradeFlow && upgradeQuote?.amount) return upgradeQuote.amount;
     if (['basic', 'pro'].includes(plan.slug)) return tossPlanConfig?.[plan.slug]?.amount;
     return plan.price;
   };
@@ -408,6 +407,21 @@ export default function SubscriptionPageKo() {
         }
         return;
       }
+      // 한글 주석: 결제 성공 페이지에서 플랜을 찾을 수 있도록 sessionStorage에 저장합니다.
+      if (buttonElement && !buttonElement.dataset.tossPlanBound) {
+        buttonElement.dataset.tossPlanBound = 'true';
+        buttonElement.addEventListener('click', () => {
+          try {
+            sessionStorage.setItem('toss_target_plan', slug);
+            if (isUpgradeFlow && slug === 'pro' && upgradeAmount) {
+              sessionStorage.setItem('toss_upgrade_amount', String(upgradeAmount));
+            }
+          } catch (err) {
+            console.warn('toss plan storage failed:', err);
+          }
+        });
+      }
+
       const config = {
         ...baseConfig,
         amount: upgradeAmount || plan.amount,
@@ -687,7 +701,9 @@ export default function SubscriptionPageKo() {
                         (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
                       }
                     >
-                      간편결제하기
+                      {plan.slug === 'pro' && isUpgradeFlow
+                        ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
+                        : '간편결제하기'}
                     </TailwindButton>
                   ) : (
                     <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>

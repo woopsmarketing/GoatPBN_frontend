@@ -1,4 +1,4 @@
-// v1.2 - 결제 성공 후 구독/크레딧 후처리 (2026.01.15)
+// v1.3 - 결제 성공 후 구독/크레딧 후처리 + 플랜 저장값 사용 (2026.01.15)
 // 기능 요약: successUrl 쿼리(paymentKey/orderId/amount)로 confirm 호출 후 구독 활성화 처리까지 수행
 // 사용 예시: /ko/subscription/success?paymentKey=...&orderId=...&amount=10000
 
@@ -10,6 +10,14 @@ import Link from 'next/link';
 import { authAPI, supabase } from '../../../../../lib/supabase';
 
 const buildPlanSlugFromConfirm = async (amount, confirmData) => {
+  // 한글 주석: 0) sessionStorage에 저장된 플랜 우선 사용
+  try {
+    const storedPlan = sessionStorage.getItem('toss_target_plan');
+    if (storedPlan) return storedPlan;
+  } catch (err) {
+    console.warn('toss plan storage read failed:', err);
+  }
+
   // 한글 주석: 1) confirm 응답 메타데이터 우선
   const metadataPlan = confirmData?.metadata?.planSlug || confirmData?.metadata?.plan_slug;
   if (metadataPlan) return metadataPlan;
