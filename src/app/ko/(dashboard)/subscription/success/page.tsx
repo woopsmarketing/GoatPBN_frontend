@@ -1,16 +1,102 @@
-// v1.1 - 결제 성공 확인/요약/다음 행동 제공 (2026.01.15)
-// 기능 요약: successUrl 쿼리(paymentKey/orderId/amount)로 confirm 호출 후 결과/요약/이동 버튼 제공
+// v1.2 - 결제 성공 후 구독/크레딧 후처리 (2026.01.15)
+// 기능 요약: successUrl 쿼리(paymentKey/orderId/amount)로 confirm 호출 후 구독 활성화 처리까지 수행
 // 사용 예시: /ko/subscription/success?paymentKey=...&orderId=...&amount=10000
 
 'use client';
 
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+
+import { authAPI, supabase } from '../../../../../lib/supabase';
+
+// 한글 주석: 플랜별 기본 크레딧 총량 (백엔드 기준과 동일)
+const PLAN_CREDITS_TOTAL = {
+  basic: 2000,
+  pro: 10000
+};
+
+const getPlanCreditsTotal = (planSlug) => {
+  return Number(PLAN_CREDITS_TOTAL[planSlug] || 100);
+};
+
+const buildPlanSlugFromConfirm = async (amount, confirmData) => {
+  // 한글 주석: 1) confirm 응답 메타데이터 우선
+  const metadataPlan = confirmData?.metadata?.planSlug || confirmData?.metadata?.plan_slug;
+  if (metadataPlan) return metadataPlan;
+
+  // 한글 주석: 2) orderName에 Basic/Pro 포함 여부로 판단
+  const orderName = String(confirmData?.orderName || confirmData?.order_name || '');
+  if (/basic/i.test(orderName)) return 'basic';
+  if (/pro/i.test(orderName)) return 'pro';
+
+  // 한글 주석: 3) billing_plans metadata의 금액 매칭
+  try {
+    const { data, error } = await supabase.from('billing_plans').select('slug, metadata').in('slug', ['basic', 'pro']);
+    if (error) throw error;
+    const matched = (data || []).find((row) => Number(row?.metadata?.toss_amount_krw) === Number(amount));
+    if (matched?.slug) return matched.slug;
+  } catch (err) {
+    console.warn('플랜 매칭 조회 실패:', err?.message || err);
+  }
+
+  // 한글 주석: 4) 안전한 금액 하드코딩 매칭 (최후의 fallback)
+  if (Number(amount) === 20000) return 'basic';
+  if (Number(amount) === 50000) return 'pro';
+
+  return '';
+};
+
+const applySubscriptionForUser = async (userId, planSlug) => {
+  if (!userId) throw new Error('사용자 정보를 찾을 수 없습니다.');
+  if (!planSlug) throw new Error('플랜 정보를 확인할 수 없습니다.');
+
+  const now = new Date();
+  const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const creditsTotal = getPlanCreditsTotal(planSlug);
+
+  const { data: existingRow, error: existingError } = await supabase
+    .from('subscriptions')
+    .select('user_id, credits_used, start_date')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  const existingUsedRaw = Number(existingRow?.credits_used || 0);
+  const existingUsed = Math.min(existingUsedRaw, creditsTotal);
+  const creditsRemaining = Math.max(0, creditsTotal - existingUsed);
+
+  const payload = {
+    user_id: userId,
+    plan: planSlug,
+    status: 'active',
+    credits_total: creditsTotal,
+    credits_used: existingUsed,
+    credits_remaining: creditsRemaining,
+    start_date: existingRow?.start_date || now.toISOString(),
+    expiry_date: expiry.toISOString(),
+    last_credit_update: now.toISOString(),
+    updated_at: now.toISOString()
+  };
+
+  if (existingRow?.user_id) {
+    const { error: updateError } = await supabase.from('subscriptions').update(payload).eq('user_id', userId);
+    if (updateError) throw updateError;
+    return 'updated';
+  }
+
+  const { error: insertError } = await supabase.from('subscriptions').insert({ ...payload, created_at: now.toISOString() });
+  if (insertError) throw insertError;
+  return 'inserted';
+};
 
 export default function SubscriptionSuccessPage() {
   const [statusMessage, setStatusMessage] = useState('결제 확인 중입니다...');
   const [errorMessage, setErrorMessage] = useState('');
-  const [confirmResult, setConfirmResult] = useState(null);
+  const [confirmResult, setConfirmResult] = useState<Record<string, any> | null>(null);
+  const [postProcessMessage, setPostProcessMessage] = useState('');
+  const [postProcessError, setPostProcessError] = useState('');
+  const postProcessDoneRef = useRef(false);
 
   // 한글 주석: 쿼리에서 결제 정보를 안전하게 파싱합니다.
   const queryInfo = useMemo(() => {
@@ -55,13 +141,40 @@ export default function SubscriptionSuccessPage() {
         setConfirmResult(data);
         if (data?.status === 'CONFIRMED' || data?.status === 'ALREADY_CONFIRMED') {
           setStatusMessage('결제가 완료되었습니다.');
+          return data;
+        }
+        throw new Error(data?.message || '결제 확인에 실패했습니다. 다시 시도해주세요.');
+      })
+      .then(async (data) => {
+        // 한글 주석: 결제 확인 완료 후 구독/크레딧 후처리
+        if (postProcessDoneRef.current) return;
+        postProcessDoneRef.current = true;
+        setPostProcessMessage('구독 정보를 반영하는 중입니다...');
+
+        const { data: authData, error: authError } = await authAPI.getCurrentUser();
+        if (authError || !authData?.user?.id) {
+          throw new Error('로그인 정보를 찾을 수 없습니다.');
+        }
+
+        const planSlug = await buildPlanSlugFromConfirm(queryInfo.amount, data);
+        if (!planSlug) {
+          throw new Error('플랜 정보를 확인할 수 없습니다. 고객센터에 문의해주세요.');
+        }
+
+        await applySubscriptionForUser(authData.user.id, planSlug);
+        setPostProcessMessage(`구독이 활성화되었습니다. (${planSlug.toUpperCase()})`);
+        setPostProcessError('');
+        return null;
+      })
+      .catch((err) => {
+        if (postProcessMessage) {
+          setPostProcessError(err?.message || '구독 반영 중 오류가 발생했습니다.');
           return;
         }
-        setErrorMessage(data?.message || '결제 확인에 실패했습니다. 다시 시도해주세요.');
+        setErrorMessage(err?.message || '결제 확인 중 오류가 발생했습니다.');
       })
       .catch((err) => {
         console.error('confirm 호출 실패:', err);
-        setErrorMessage('결제 확인 중 오류가 발생했습니다.');
       });
   }, [queryInfo]);
 
@@ -125,6 +238,16 @@ export default function SubscriptionSuccessPage() {
           <p className="mt-3 text-xs text-gray-500">승인 상태가 반영되기까지 잠시 시간이 걸릴 수 있습니다.</p>
         )}
       </div>
+
+      {(postProcessMessage || postProcessError) && (
+        <div
+          className={`mt-6 rounded-lg border p-4 text-sm ${
+            postProcessError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+        >
+          {postProcessError || postProcessMessage}
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
