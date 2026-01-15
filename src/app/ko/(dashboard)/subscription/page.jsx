@@ -284,10 +284,10 @@ export default function SubscriptionPageKo() {
     if (typeof window === 'undefined') return;
     if (tossScriptLoadedRef.current) return;
     const script = document.createElement('script');
-    script.src = 'https://your.cdn.com/toss-billing-snippet-payment-window.js';
+    script.src = 'https://app.goatpbn.com/assets/toss-billing-snippet-payment-window.js';
     script.dataset.apiBase = 'https://jjqugwegnpbwsxgclywg.supabase.co/functions/v1';
     script.dataset.tenantKey = 'tenant_key_goatpbn_ko';
-    script.dataset.clientKey = 'test_ck_여기에_클라이언트키';
+    script.dataset.clientKey = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
     script.dataset.amount = '10000';
     script.dataset.orderName = '구독 결제 1개월';
     script.dataset.payButtonSelector = '#pay-button';
