@@ -1,6 +1,6 @@
 'use client';
 
-// v1.2 - 토스페이먼츠 버튼 삽입 및 PayPal CTA 비활성화 (2026.01.15)
+// v1.3 - 토스 스니펫 로딩 오류 가시화 및 URL 자동화 (2026.01.15)
 // 기능 요약: Supabase 구독 상태 표시 + 인보이스 목록, 한국어 페이지는 토스페이먼츠 결제 버튼 사용 (PayPal CTA 숨김)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -34,6 +34,7 @@ export default function SubscriptionPageKo() {
   const [invoices, setInvoices] = useState([]);
   const [invoiceError, setInvoiceError] = useState('');
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [tossScriptError, setTossScriptError] = useState('');
   // 한글 주석: 토스페이먼츠 스니펫 중복 삽입을 막기 위한 플래그
   const tossScriptLoadedRef = useRef(false);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -284,7 +285,8 @@ export default function SubscriptionPageKo() {
     if (typeof window === 'undefined') return;
     if (tossScriptLoadedRef.current) return;
     const script = document.createElement('script');
-    script.src = 'https://app.goatpbn.com/toss-billing-snippet-payment-window.js';
+    // 한글 주석: public/에 배포된 정적 스니펫을 현재 도메인 기준으로 로드합니다.
+    script.src = `${origin}/toss-billing-snippet-payment-window.js`;
     script.dataset.apiBase = 'https://jjqugwegnpbwsxgclywg.supabase.co/functions/v1';
     script.dataset.tenantKey = 'tenant_key_goatpbn_ko';
     script.dataset.clientKey = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
@@ -292,6 +294,10 @@ export default function SubscriptionPageKo() {
     script.dataset.orderName = '구독 결제 1개월';
     script.dataset.payButtonSelector = '#pay-button';
     script.dataset.method = 'CARD';
+    script.onerror = () => {
+      // 한글 주석: 스니펫 로딩 실패 시 안내 메시지를 노출합니다.
+      setTossScriptError('토스 결제 스니펫 로딩에 실패했습니다. 파일 경로/배포 상태를 확인해주세요.');
+    };
     document.body.appendChild(script);
     tossScriptLoadedRef.current = true;
     return () => {
@@ -385,6 +391,9 @@ export default function SubscriptionPageKo() {
           </button>
           <p className="text-xs text-gray-600">결제 창이 새 창/팝업으로 열립니다.</p>
         </div>
+        {tossScriptError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{tossScriptError}</div>
+        )}
         {paymentStatus && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
         )}
