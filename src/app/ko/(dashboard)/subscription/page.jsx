@@ -369,6 +369,17 @@ export default function SubscriptionPageKo() {
     };
   }, [userId, isUpgradeFlow]);
 
+  // 한글 주석: 업그레이드 차액이 준비되면 Pro 버튼을 재초기화합니다.
+  useEffect(() => {
+    if (!isUpgradeFlow) return;
+    if (upgradeLoading) return;
+    if (!upgradeQuote?.amount) return;
+    // 한글 주석: 기존 Pro 버튼 초기화를 해제하고 차액 금액으로 다시 설정합니다.
+    tossInitRef.current.pro = false;
+    tossRetryRef.current.pro = 0;
+    initTossButtons();
+  }, [isUpgradeFlow, upgradeLoading, upgradeQuote]);
+
   // 한글 주석: 토스 결제 버튼을 실제로 초기화합니다.
   const initTossButtons = () => {
     if (typeof window === 'undefined') return;
