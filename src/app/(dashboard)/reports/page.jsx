@@ -129,6 +129,8 @@ export default function ReportsPage() {
   const [successLogs, setSuccessLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // 한글 주석: CSV 내보내기 중복 클릭 방지용 상태
+  const [exportingCampaignId, setExportingCampaignId] = useState(null);
 
   // Supabase에서 데이터 로드
   const fetchReportsData = useCallback(async () => {
@@ -192,23 +194,34 @@ export default function ReportsPage() {
   }, [campaigns]);
 
   // 개별 CSV
-  const handleExportCampaign = (campaign) => {
-    const logs = successLogs
-      .filter((l) => l.campaignId === campaign.id)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 200);
+  const handleExportCampaign = async (campaign) => {
+    try {
+      setExportingCampaignId(campaign.id);
+      // 한글 주석: 캠페인별 전체 로그를 다시 조회해 CSV에 모두 포함합니다.
+      const { data, error: logError } = await logsAPI.getLogsByCampaign(campaign.id);
+      if (logError) throw new Error(logError);
+      const logs = (data || [])
+        .map(normalizeLog)
+        .filter((l) => l.status === 'success')
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    const rows = logs.map((l, index) => ({
-      no: index + 1,
-      time: new Date(l.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-      campaign: campaign.name,
-      target_site: l.targetSite || '',
-      keyword: l.keyword || '',
-      uploaded_url: l.uploadedUrl || '',
-      status: l.status
-    }));
+      const rows = logs.map((l, index) => ({
+        no: index + 1,
+        time: new Date(l.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        campaign: campaign.name,
+        target_site: l.targetSite || '',
+        keyword: l.keyword || '',
+        uploaded_url: l.uploadedUrl || '',
+        status: l.status
+      }));
 
-    exportToCsv(`campaign_${campaign.id}_report.csv`, rows.length ? rows : [{ 안내: '데이터 없음' }]);
+      exportToCsv(`campaign_${campaign.id}_report.csv`, rows.length ? rows : [{ 안내: '데이터 없음' }]);
+    } catch (exportError) {
+      console.error('캠페인 CSV 내보내기 실패:', exportError);
+      alert('CSV 다운로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setExportingCampaignId(null);
+    }
   };
 
   // 전체 CSV
@@ -340,8 +353,13 @@ export default function ReportsPage() {
                         >
                           {expanded[c.id] ? '간단히' : '자세히'}
                         </TailwindButton>
-                        <TailwindButton variant="primary" onClick={() => handleExportCampaign(c)} className="whitespace-nowrap">
-                          📥 캠페인 다운로드(CSV)
+                        <TailwindButton
+                          variant="primary"
+                          onClick={() => handleExportCampaign(c)}
+                          className="whitespace-nowrap"
+                          disabled={exportingCampaignId === c.id}
+                        >
+                          {exportingCampaignId === c.id ? '내보내는 중...' : '📥 캠페인 다운로드(CSV)'}
                         </TailwindButton>
                       </div>
                     </td>
