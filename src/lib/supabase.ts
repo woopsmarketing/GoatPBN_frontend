@@ -6,8 +6,9 @@
 // @ts-ignore - JS 모듈 타입 선언 부재로 인한 경고 무시
 import * as supabaseModule from './supabase.js';
 
-export const supabase = supabaseModule.supabase;
-export const authAPI = supabaseModule.authAPI;
-export const dbAPI = supabaseModule.dbAPI;
-export const realtimeAPI = supabaseModule.realtimeAPI;
-export const notificationAPI = supabaseModule.notificationAPI;
+// 한글 주석: JS 모듈 타입이 없어도 빌드가 통과하도록 명시적 any 타입을 부여합니다.
+export const supabase: any = supabaseModule.supabase;
+export const authAPI: any = supabaseModule.authAPI;
+export const dbAPI: any = supabaseModule.dbAPI;
+export const realtimeAPI: any = supabaseModule.realtimeAPI;
+export const notificationAPI: any = supabaseModule.notificationAPI;
