@@ -9,7 +9,12 @@ import Link from 'next/link';
 
 import { authAPI, supabase } from '../../../../../lib/supabase';
 
-const buildPlanSlugFromConfirm = async (amount, confirmData) => {
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+};
+
+const buildPlanSlugFromConfirm = async (amount: number | null, confirmData: Record<string, any> | null): Promise<string> => {
   // 한글 주석: 0) sessionStorage에 저장된 플랜 우선 사용
   try {
     const storedPlan = sessionStorage.getItem('toss_target_plan');
@@ -34,7 +39,7 @@ const buildPlanSlugFromConfirm = async (amount, confirmData) => {
     const matched = (data || []).find((row) => Number(row?.metadata?.toss_amount_krw) === Number(amount));
     if (matched?.slug) return matched.slug;
   } catch (err) {
-    console.warn('플랜 매칭 조회 실패:', err?.message || err);
+    console.warn('플랜 매칭 조회 실패:', getErrorMessage(err, '플랜 매칭 실패'));
   }
 
   // 한글 주석: 4) 안전한 금액 하드코딩 매칭 (최후의 fallback)
@@ -146,10 +151,10 @@ export default function SubscriptionSuccessPage() {
       })
       .catch((err) => {
         if (postProcessMessage) {
-          setPostProcessError(err?.message || '구독 반영 중 오류가 발생했습니다.');
+          setPostProcessError(getErrorMessage(err, '구독 반영 중 오류가 발생했습니다.'));
           return;
         }
-        setErrorMessage(err?.message || '결제 확인 중 오류가 발생했습니다.');
+        setErrorMessage(getErrorMessage(err, '결제 확인 중 오류가 발생했습니다.'));
       })
       .catch((err) => {
         console.error('confirm 호출 실패:', err);
