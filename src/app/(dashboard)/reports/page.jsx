@@ -198,12 +198,16 @@ export default function ReportsPage() {
     try {
       setExportingCampaignId(campaign.id);
       // 한글 주석: 캠페인별 전체 로그를 다시 조회해 CSV에 모두 포함합니다.
-      const { data, error: logError } = await logsAPI.getAllLogsByCampaign(campaign.id);
+      const { data, error: logError, count } = await logsAPI.getAllLogsByCampaign(campaign.id);
       if (logError) throw new Error(logError);
       const logs = (data || [])
         .map(normalizeLog)
         .filter((l) => l.status === 'success')
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (Number.isFinite(count) && logs.length < count) {
+        console.warn('CSV 로그 수가 전체 건수보다 적습니다.', { count, rows: logs.length });
+      }
 
       const rows = logs.map((l, index) => ({
         no: index + 1,
