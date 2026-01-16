@@ -616,9 +616,7 @@ export default function SubscriptionPageKo() {
             취소할 수 있습니다.
           </div>
         )}
-        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          한국어 페이지는 토스페이먼츠 카드 정기결제만 지원합니다. (PayPal 결제는 영문 페이지 이용)
-        </div>
+        {/* 한글 주석: 요청에 따라 PG 안내 문구 제거 */}
         {paymentStatus && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
         )}
