@@ -9,6 +9,14 @@ import Link from 'next/link';
 
 import { authAPI, supabase } from '../../../../../lib/supabase';
 
+// 한글 주석: billing_plans 조회 결과 타입 정의
+type BillingPlanRow = {
+  slug?: string;
+  metadata?: {
+    toss_amount_krw?: number;
+  };
+};
+
 const getErrorMessage = (err: unknown, fallback: string) => {
   if (err instanceof Error) return err.message || fallback;
   return fallback;
@@ -36,7 +44,8 @@ const buildPlanSlugFromConfirm = async (amount: number | null, confirmData: Reco
   try {
     const { data, error } = await supabase.from('billing_plans').select('slug, metadata').in('slug', ['basic', 'pro']);
     if (error) throw error;
-    const matched = (data || []).find((row) => Number(row?.metadata?.toss_amount_krw) === Number(amount));
+    const rows = (data || []) as BillingPlanRow[];
+    const matched = rows.find((row: BillingPlanRow) => Number(row?.metadata?.toss_amount_krw) === Number(amount));
     if (matched?.slug) return matched.slug;
   } catch (err) {
     console.warn('플랜 매칭 조회 실패:', getErrorMessage(err, '플랜 매칭 실패'));
