@@ -60,6 +60,9 @@ export default function SubscriptionPageKo() {
   const [tossSdkReady, setTossSdkReady] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
+  const [upgradeConfirmOpen, setUpgradeConfirmOpen] = useState(false);
+  const [upgradeConfirmChecked, setUpgradeConfirmChecked] = useState(false);
+  const [pendingUpgradePlan, setPendingUpgradePlan] = useState(null);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
@@ -257,13 +260,18 @@ export default function SubscriptionPageKo() {
     return `${Number(amount).toLocaleString('ko-KR')}원`;
   };
 
-  // 한글 주석: 빌링키로 즉시 결제되는 경우 사용자 확인을 한 번 더 받습니다.
-  const confirmImmediateCharge = (planSlug, amount) => {
-    if (typeof window === 'undefined') return false;
-    const planName = PLAN_LABELS[planSlug] || planSlug.toUpperCase();
-    return window.confirm(
-      `이미 등록된 카드로 즉시 결제가 진행됩니다.\n플랜: ${planName}\n결제 금액: ${formatAmountKRW(amount)}\n진행할까요?`
-    );
+  // 한글 주석: 업그레이드 즉시 결제 안내 모달을 띄웁니다.
+  const openUpgradeConfirm = (planSlug) => {
+    setPendingUpgradePlan(planSlug);
+    setUpgradeConfirmChecked(false);
+    setUpgradeConfirmOpen(true);
+  };
+
+  // 한글 주석: 모달에서 확인을 눌렀을 때 결제를 진행합니다.
+  const confirmUpgradeCharge = async () => {
+    if (!pendingUpgradePlan) return;
+    setUpgradeConfirmOpen(false);
+    await handleStartBilling(pendingUpgradePlan, { skipConfirm: true });
   };
 
   // 한글 주석: 화면에 표시할 토스 금액을 계산합니다.
@@ -404,7 +412,7 @@ export default function SubscriptionPageKo() {
     };
   }, [userId, isUpgradeFlow]);
 
-  const handleStartBilling = async (planSlug) => {
+  const handleStartBilling = async (planSlug, options = {}) => {
     if (!userId) return;
     setPlanError('');
     setBillingError('');
@@ -419,8 +427,8 @@ export default function SubscriptionPageKo() {
 
     // 한글 주석: 이미 빌링키가 있으면 즉시 결제(업그레이드 포함)
     if (billingStatus?.has_billing_key) {
-      if (!confirmImmediateCharge(planSlug, planAmount)) {
-        setPaymentStatus('');
+      if (planSlug === 'pro' && isUpgradeFlow && !options.skipConfirm) {
+        openUpgradeConfirm(planSlug);
         return;
       }
       setPaymentStatus('정기결제를 진행하는 중입니다...');
@@ -701,8 +709,8 @@ export default function SubscriptionPageKo() {
                             ? '정기결제 시작하기'
                             : '카드 등록 후 정기결제'}
                       </TailwindButton>
-                      {plan.slug === 'pro' && isUpgradeFlow && billingStatus?.has_billing_key && (
-                        <p className="mt-2 text-xs text-gray-500">업그레이드 시 즉시 차액이 결제됩니다.</p>
+                      {plan.slug === 'pro' && isUpgradeFlow && (
+                        <p className="mt-2 text-xs text-gray-500">업그레이드 시 차액이 즉시 결제되며, 잔여 일수 기준으로 계산됩니다.</p>
                       )}
                     </>
                   ) : (
@@ -717,6 +725,52 @@ export default function SubscriptionPageKo() {
           )}
         </div>
       </MainCard>
+      {upgradeConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">업그레이드 결제 확인</h3>
+            <p className="mt-2 text-sm text-gray-600">등록된 카드로 즉시 차액이 결제됩니다. 아래 내용을 확인해주세요.</p>
+            <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <p>
+                플랜: <span className="font-semibold">프로</span>
+              </p>
+              <p>
+                결제 금액: <span className="font-semibold">{formatAmountKRW(upgradeQuote?.amount)}</span>
+              </p>
+              <p>
+                남은 기간: <span className="font-semibold">{Number.isFinite(daysRemaining) ? `${daysRemaining}일` : '확인 중'}</span>
+              </p>
+              <p className="mt-2 text-xs text-gray-500">잔여 기간 기준으로 차액이 계산되며, 결제 즉시 프로 플랜이 적용됩니다.</p>
+            </div>
+            <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-gray-300"
+                checked={upgradeConfirmChecked}
+                onChange={(e) => setUpgradeConfirmChecked(e.target.checked)}
+              />
+              <span>업그레이드 시 즉시 결제됨을 확인했습니다.</span>
+            </label>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() => setUpgradeConfirmOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={confirmUpgradeCharge}
+                disabled={!upgradeConfirmChecked || upgradeLoading}
+              >
+                {upgradeLoading ? '처리 중...' : '결제 진행'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <MainCard title="인보이스">
         {invoiceLoading ? (
           <p className="text-sm text-gray-600">인보이스를 불러오는 중입니다...</p>
