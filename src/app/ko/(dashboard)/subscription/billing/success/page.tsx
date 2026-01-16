@@ -69,7 +69,9 @@ export default function TossBillingSuccessPage() {
         setResultPayload(data);
         setStatusMessage('정기결제가 완료되었습니다.');
       } catch (err) {
-        setErrorMessage(err?.message || '정기결제 등록에 실패했습니다.');
+        // 한글 주석: Error 여부를 안전하게 판단해 사용자에게 메시지를 보여줍니다.
+        const safeErrorMessage = err instanceof Error ? err.message : '정기결제 등록에 실패했습니다.';
+        setErrorMessage(safeErrorMessage);
       }
     })();
   }, [queryInfo]);
