@@ -154,6 +154,40 @@ export const logsAPI = {
   },
 
   /**
+   * 특정 캠페인의 로그를 페이지네이션으로 모두 가져오기
+   */
+  async getAllLogsByCampaign(campaignId, pageSize = 200, maxRows = 5000) {
+    try {
+      if (!campaignId) throw new Error('campaignId가 필요합니다.');
+      const rows = [];
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore && rows.length < maxRows) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        const { data, error } = await supabase
+          .from('logs')
+          .select('*')
+          .eq('campaign_id', campaignId)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+        const chunk = data || [];
+        rows.push(...chunk);
+        hasMore = chunk.length === pageSize;
+        page += 1;
+      }
+
+      return { data: rows, error: null };
+    } catch (error) {
+      console.error('캠페인 전체 로그 로드 오류:', error);
+      return { data: null, error: error.message };
+    }
+  },
+
+  /**
    * 로그 통계 가져오기
    */
   async getLogStats() {

@@ -198,7 +198,7 @@ export default function ReportsPage() {
     try {
       setExportingCampaignId(campaign.id);
       // 한글 주석: 캠페인별 전체 로그를 다시 조회해 CSV에 모두 포함합니다.
-      const { data, error: logError } = await logsAPI.getLogsByCampaign(campaign.id);
+      const { data, error: logError } = await logsAPI.getAllLogsByCampaign(campaign.id);
       if (logError) throw new Error(logError);
       const logs = (data || [])
         .map(normalizeLog)
