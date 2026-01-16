@@ -202,7 +202,8 @@ export default function ReportsPage() {
       if (logError) throw new Error(logError);
       const logs = (data || [])
         .map(normalizeLog)
-        .filter((l) => l.status === 'success')
+        // 한글 주석: 업로드 URL이 없으면 실패로 간주하여 CSV에서 제외합니다.
+        .filter((l) => l.status === 'success' && !!l.uploadedUrl)
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       if (Number.isFinite(count) && logs.length < count) {
@@ -236,7 +237,7 @@ export default function ReportsPage() {
   // 캠페인별 성공 로그
   const getSuccessLogs = (campaignId) => {
     return successLogs
-      .filter((l) => l.campaignId === campaignId)
+      .filter((l) => l.campaignId === campaignId && !!l.uploadedUrl)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 20);
   };
