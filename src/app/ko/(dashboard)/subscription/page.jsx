@@ -251,6 +251,21 @@ export default function SubscriptionPageKo() {
 
   const isUpgradeFlow = currentPlanSlug === 'basic';
 
+  // 한글 주석: 결제 금액을 한국 원화 표시로 안전하게 포맷합니다.
+  const formatAmountKRW = (amount) => {
+    if (!Number.isFinite(amount)) return '—';
+    return `${Number(amount).toLocaleString('ko-KR')}원`;
+  };
+
+  // 한글 주석: 빌링키로 즉시 결제되는 경우 사용자 확인을 한 번 더 받습니다.
+  const confirmImmediateCharge = (planSlug, amount) => {
+    if (typeof window === 'undefined') return false;
+    const planName = PLAN_LABELS[planSlug] || planSlug.toUpperCase();
+    return window.confirm(
+      `이미 등록된 카드로 즉시 결제가 진행됩니다.\n플랜: ${planName}\n결제 금액: ${formatAmountKRW(amount)}\n진행할까요?`
+    );
+  };
+
   // 한글 주석: 화면에 표시할 토스 금액을 계산합니다.
   const getPlanDisplayAmount = (plan) => {
     if (['basic', 'pro'].includes(plan.slug)) return tossPlanConfig?.[plan.slug]?.amount;
@@ -404,6 +419,10 @@ export default function SubscriptionPageKo() {
 
     // 한글 주석: 이미 빌링키가 있으면 즉시 결제(업그레이드 포함)
     if (billingStatus?.has_billing_key) {
+      if (!confirmImmediateCharge(planSlug, planAmount)) {
+        setPaymentStatus('');
+        return;
+      }
       setPaymentStatus('정기결제를 진행하는 중입니다...');
       try {
         const resp = await fetch('/api/payments/toss/billing/charge', {
@@ -666,21 +685,26 @@ export default function SubscriptionPageKo() {
                       </TailwindButton>
                     )
                   ) : ['basic', 'pro'].includes(plan.slug) ? (
-                    <TailwindButton
-                      size="lg"
-                      variant="primary"
-                      className="mt-auto"
-                      onClick={() => handleStartBilling(plan.slug)}
-                      disabled={
-                        !tossPlanConfig?.[plan.slug]?.amount || billingLoading || (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
-                      }
-                    >
-                      {plan.slug === 'pro' && isUpgradeFlow
-                        ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
-                        : billingStatus?.has_billing_key
-                          ? '정기결제 시작하기'
-                          : '카드 등록 후 정기결제'}
-                    </TailwindButton>
+                    <>
+                      <TailwindButton
+                        size="lg"
+                        variant="primary"
+                        className="mt-auto"
+                        onClick={() => handleStartBilling(plan.slug)}
+                        disabled={
+                          !tossPlanConfig?.[plan.slug]?.amount || billingLoading || (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
+                        }
+                      >
+                        {plan.slug === 'pro' && isUpgradeFlow
+                          ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
+                          : billingStatus?.has_billing_key
+                            ? '정기결제 시작하기'
+                            : '카드 등록 후 정기결제'}
+                      </TailwindButton>
+                      {plan.slug === 'pro' && isUpgradeFlow && billingStatus?.has_billing_key && (
+                        <p className="mt-2 text-xs text-gray-500">업그레이드 시 즉시 차액이 결제됩니다.</p>
+                      )}
+                    </>
                   ) : (
                     <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
                       준비 중
