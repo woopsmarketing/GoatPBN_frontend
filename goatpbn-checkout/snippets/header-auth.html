@@ -1,0 +1,103 @@
+<!-- v1.0 - goatpbn.com 헤더 로그인 위젯 스니펫 (2026.01.21) -->
+<!-- 기능 요약: 로그인/비로그인 메뉴를 토글하는 헤더 UI -->
+<style>
+  .goatpbn-header-auth {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: flex-end;
+    width: 100%;
+    font-family: "Inter", "Noto Sans KR", sans-serif;
+  }
+  .goatpbn-hidden {
+    display: none !important;
+  }
+  .goatpbn-user-chip {
+    font-size: 12px;
+    color: #64748b;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .goatpbn-link {
+    font-size: 13px;
+    color: #111827;
+    text-decoration: none;
+  }
+  .goatpbn-link:hover {
+    color: #0f766e;
+  }
+  .goatpbn-btn {
+    background: #2bb673;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .goatpbn-btn:hover {
+    background: #1f9f73;
+  }
+  .goatpbn-btn-outline {
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #0f172a;
+    text-decoration: none;
+  }
+  .goatpbn-btn-outline:hover {
+    border-color: #2bb673;
+    color: #2bb673;
+  }
+</style>
+
+<!-- 한글 주석: 헤더에서도 로그인 상태를 인식해야 하므로 공용 설정을 주입합니다. -->
+<script>
+  window.GOATPBN_CHECKOUT_CONFIG = window.GOATPBN_CHECKOUT_CONFIG || {
+    supabaseUrl: "https://sfaxhhmfftlvykqmjklk.supabase.co",
+    supabaseAnonKey:
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmYXhoaG1mZnRsdnlrcW1qa2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4Njg4MTEsImV4cCI6MjA3NDQ0NDgxMX0.NlonZzIzX1DLoNWqiry-imewjvTzs41taoo5WsyXi-E",
+    homeUrl: "https://goatpbn.com/",
+    logoutRedirectUrl: "https://goatpbn.com/",
+    loginUrl: "https://goatpbn.com/login",
+    pricingUrl: "https://goatpbn.com/#pricing",
+    mypageUrl: "https://goatpbn.com/mypage"
+  };
+</script>
+
+<div class="goatpbn-header-auth">
+  <!-- 비로그인 메뉴 -->
+  <div data-goatpbn-header-guest>
+    <a class="goatpbn-link" href="https://goatpbn.com/login">로그인</a>
+    <a class="goatpbn-btn-outline" href="https://goatpbn.com/register">회원가입</a>
+  </div>
+
+  <!-- 로그인 메뉴 -->
+  <div class="goatpbn-hidden" data-goatpbn-header-logged style="display:flex;gap:10px;align-items:center;">
+    <span class="goatpbn-user-chip" data-goatpbn-user-email>user@email.com</span>
+    <a class="goatpbn-link" href="https://goatpbn.com/mypage">마이페이지</a>
+    <a
+      class="goatpbn-btn-outline"
+      href="https://app.goatpbn.com/ko/dashboard"
+      target="_blank"
+      rel="noopener noreferrer"
+      data-goatpbn-sso
+      data-goatpbn-newtab="1"
+      data-goatpbn-target="https://app.goatpbn.com/ko/dashboard"
+    >
+      대시보드
+    </a>
+    <button class="goatpbn-btn" type="button" data-goatpbn-logout>로그아웃</button>
+  </div>
+</div>
+
+<!-- 한글 주석: 헤더 위젯 스크립트 로드 -->
+<script type="module" src="/assets/header-auth.js?v=8"></script>

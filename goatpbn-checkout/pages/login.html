@@ -1,23 +1,122 @@
-<!-- v1.0 - goatpbn.com 로그인 페이지 (2026.01.20) -->
-<!-- 기능 요약: 구글 로그인 후 결제 페이지로 복귀 -->
+<!-- v1.4 - goatpbn.com 로그인 페이지 (2026.01.21) -->
+<!-- 기능 요약: Tailwind 템플릿 기반 로그인 UI 제공 -->
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // 한글 주석: 로그인 페이지는 Supabase 공개 키만 필요합니다. (secret key 금지)
+      window.GOATPBN_CHECKOUT_CONFIG = {
+        supabaseUrl: "https://sfaxhhmfftlvykqmjklk.supabase.co",
+        supabaseAnonKey:
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmYXhoaG1mZnRsdnlrcW1qa2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4Njg4MTEsImV4cCI6MjA3NDQ0NDgxMX0.NlonZzIzX1DLoNWqiry-imewjvTzs41taoo5WsyXi-E",
+        apiBaseUrl: "https://app.goatpbn.com",
+        loginUrl: "https://goatpbn.com/login",
+        pricingUrl: "https://goatpbn.com/#pricing",
+        tossClientKey: "test_ck_kYG57Eba3G9KALol59k6rpWDOxmA",
+        mypageUrl: "https://goatpbn.com/mypage"
+      };
+    </script>
     <title>GoatPBN 로그인</title>
     <link rel="stylesheet" href="/assets/style.css" />
+    <!-- 한글 주석: Tailwind 템플릿 사용을 위한 CDN 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* 한글 주석: 메시지 상태별 컬러를 Tailwind와 함께 보정합니다. */
+      [data-goatpbn-message][data-type='error'] {
+        background: #fef2f2;
+        color: #b91c1c;
+      }
+      [data-goatpbn-message][data-type='info'] {
+        background: #ecfeff;
+        color: #0369a1;
+      }
+    </style>
   </head>
-  <body>
-    <main class="goatpbn-container">
-      <h1 class="goatpbn-title">로그인 후 결제를 진행하세요</h1>
-      <p class="goatpbn-text">구글 계정으로 로그인하면 결제창이 바로 열립니다.</p>
-      <div style="margin-top: 20px;">
-        <button class="goatpbn-button" data-goatpbn-login>Google로 로그인</button>
-        <button class="goatpbn-button secondary" data-goatpbn-continue style="margin-left: 8px;">이미 로그인함</button>
-      </div>
-      <div class="goatpbn-message" data-goatpbn-message></div>
+  <body class="bg-slate-50">
+    <main class="min-h-screen px-4 py-14" data-goatpbn-auth data-goatpbn-view="login">
+      <section class="mx-auto w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-200">
+        <div data-goatpbn-login-view>
+          <div class="space-y-2">
+            <h1 class="text-2xl font-semibold text-slate-900">로그인</h1>
+            <p class="text-sm text-slate-500">로그인 후 결제를 진행하세요.</p>
+          </div>
+
+          <button
+            class="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-[#4285F4] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3367D6]"
+            type="button"
+            data-goatpbn-login
+          >
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold">G</span>
+            3초 구글로 로그인
+          </button>
+
+          <div class="my-6 flex items-center gap-3 text-xs text-slate-400">
+            <span class="h-px flex-1 bg-slate-200"></span>
+            또는 이메일 로그인
+            <span class="h-px flex-1 bg-slate-200"></span>
+          </div>
+
+          <form class="space-y-4" data-goatpbn-login-form>
+            <div>
+              <label class="text-xs font-semibold text-slate-600" for="goatpbn-email">이메일</label>
+              <input
+                id="goatpbn-email"
+                class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                type="email"
+                data-goatpbn-email
+                placeholder="email@goatpbn.com"
+                autocomplete="email"
+                required
+              />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600" for="goatpbn-password">비밀번호</label>
+              <input
+                id="goatpbn-password"
+                class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                type="password"
+                data-goatpbn-password
+                placeholder="비밀번호를 입력하세요"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <label class="inline-flex items-center gap-2 text-xs text-slate-500">
+                <input class="h-4 w-4 rounded border-slate-300 text-emerald-500" type="checkbox" data-goatpbn-remember checked />
+                로그인 유지
+              </label>
+              <button class="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600" type="submit">
+                로그인
+              </button>
+            </div>
+          </form>
+
+          <div class="goatpbn-message mt-4 text-xs" data-goatpbn-message></div>
+
+          <div class="mt-6 flex items-center justify-between text-sm text-slate-500">
+            <span>아직 계정이 없나요?</span>
+            <a class="font-semibold text-emerald-600 hover:text-emerald-700" href="/register">회원가입</a>
+          </div>
+        </div>
+
+        <div class="hidden" data-goatpbn-logged-view>
+          <div class="space-y-2">
+            <h1 class="text-2xl font-semibold text-slate-900">이미 로그인되어 있습니다</h1>
+            <p class="text-sm text-slate-500" data-goatpbn-logged-message>계속 진행하려면 아래 버튼을 눌러주세요.</p>
+          </div>
+          <button
+            class="mt-6 w-full rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+            type="button"
+            data-goatpbn-continue
+          >
+            계속 진행하기
+          </button>
+        </div>
+      </section>
     </main>
-    <script type="module" src="/assets/login.js"></script>
+    <script type="module" src="/assets/login.js?v=12"></script>
   </body>
 </html>

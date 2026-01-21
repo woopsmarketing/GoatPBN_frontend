@@ -11,13 +11,13 @@
   <body>
     <main class="goatpbn-container">
       <h1 class="goatpbn-title">결제가 완료되지 않았습니다</h1>
-      <p class="goatpbn-text">다시 시도하거나 고객센터로 문의해주세요.</p>
-      <p class="goatpbn-text" data-goatpbn-fail-detail></p>
-      <div style="margin-top: 20px;">
+      <p class="goatpbn-text">결제 승인에 실패했거나 사용자가 취소했습니다.</p>
+      <div class="goatpbn-message" data-goatpbn-fail-detail>사유를 확인 중입니다...</div>
+      <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="goatpbn-button" data-goatpbn-retry>다시 시도</button>
+        <button class="goatpbn-button secondary" onclick="window.location.href='https://goatpbn.com/contact'">문의하기</button>
       </div>
-      <div class="goatpbn-message" data-goatpbn-message></div>
     </main>
-    <script type="module" src="/assets/fail.js"></script>
+    <script type="module" src="/assets/fail.js?v=12"></script>
   </body>
 </html>

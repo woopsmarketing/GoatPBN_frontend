@@ -5,6 +5,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // 한글 주석: 성공 페이지는 Supabase 공개 키와 API 주소가 필요합니다.
+      window.GOATPBN_CHECKOUT_CONFIG = {
+        supabaseUrl: "https://sfaxhhmfftlvykqmjklk.supabase.co",
+        supabaseAnonKey:
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmYXhoaG1mZnRsdnlrcW1qa2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4Njg4MTEsImV4cCI6MjA3NDQ0NDgxMX0.NlonZzIzX1DLoNWqiry-imewjvTzs41taoo5WsyXi-E",
+        apiBaseUrl: "https://app.goatpbn.com",
+        pricingUrl: "https://goatpbn.com/#pricing",
+        // 한글 주석: 결제 완료 후 goatpbn.com에 머물게 하려면 mypage로 이동합니다.
+        afterSuccessRedirectUrl: "https://goatpbn.com/mypage",
+        planMap: {
+          basic: { amount: 20000, orderName: "GoatPBN Basic 1개월" },
+          pro: { amount: 50000, orderName: "GoatPBN Pro 1개월" }
+        }
+      };
+    </script>
     <title>결제 완료</title>
     <link rel="stylesheet" href="/assets/style.css" />
   </head>
@@ -20,6 +36,6 @@
         </button>
       </div>
     </main>
-    <script type="module" src="/assets/success.js"></script>
+    <script type="module" src="/assets/success.js?v=11"></script>
   </body>
 </html>

@@ -14,6 +14,7 @@
 1. `assets/`와 `pages/`를 워드프레스 호스팅 경로에 업로드합니다.
 2. 워드프레스 페이지를 아래 경로로 생성합니다.
    - `https://goatpbn.com/login`
+- `https://goatpbn.com/register` (선택)
    - `https://goatpbn.com/success`
    - `https://goatpbn.com/fail`
    - `https://goatpbn.com/refund`
@@ -54,7 +55,13 @@
 
 ## 로그인 흐름
 - 로그인 페이지는 `pages/login.html`을 워드프레스 페이지 템플릿에 넣습니다.
+- 회원가입 전용 페이지는 `pages/register.html`을 워드프레스 페이지 템플릿에 넣습니다.
 - 로그인 성공 후 `return_to` 쿼리로 돌아가며, `auto_checkout=1`이 있으면 결제창을 자동으로 띄웁니다.
+
+## 헤더 로그인 위젯 (선택)
+- 헤더 우측 메뉴에 로그인/마이페이지/대시보드 링크를 노출하려면 아래 스니펫을 사용하세요.
+- `snippets/header-auth.html`을 복사해서 헤더 영역(예: Elementor 헤더)에 붙여넣습니다.
+- 스크립트 로드는 `assets/header-auth.js`입니다.
 
 ## 결제 성공 처리
 - `pages/success.html`은 `authKey/customerKey`를 받아 `billing/issue` API를 호출합니다.

@@ -29,6 +29,8 @@ export default function AuthGuard({ children }) {
 
   const checkAuth = useCallback(async () => {
     try {
+      // 한글 주석: SSO 해시 토큰이 있으면 먼저 세션으로 동기화합니다.
+      await authAPI.syncSessionFromUrlHash();
       const {
         data: { session }
       } = await authAPI.getSession();

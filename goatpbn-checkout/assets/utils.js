@@ -1,4 +1,4 @@
-// v1.0 - goatpbn.com 결제 공통 유틸 (2026.01.20)
+// v1.6 - goatpbn.com 결제 공통 유틸 (2026.01.21)
 // 기능 요약: 설정 병합/검증, Supabase 로더, 토스 SDK 로더, 계획 조회 공통 제공
 // 사용 예시:
 //   import { resolveConfig, validateConfig } from './utils.js';
@@ -13,6 +13,7 @@ const DEFAULT_CONFIG = {
   supabaseAnonKey: '',
   tossClientKey: '',
   apiBaseUrl: 'https://app.goatpbn.com',
+  homeUrl: 'https://goatpbn.com/',
   loginUrl: 'https://goatpbn.com/login',
   pricingUrl: 'https://goatpbn.com/#pricing',
   billingSuccessUrl: 'https://goatpbn.com/success',
@@ -24,6 +25,8 @@ const DEFAULT_CONFIG = {
     messageBox: '[data-goatpbn-message]'
   }
 };
+
+const DEFAULT_REQUIRED_KEYS = ['supabaseUrl', 'supabaseAnonKey', 'tossClientKey', 'apiBaseUrl'];
 
 // 한글 주석: 기본 설정과 사용자 설정을 병합합니다.
 export const resolveConfig = (userConfig = {}) => {
@@ -41,20 +44,23 @@ export const resolveConfig = (userConfig = {}) => {
   };
 };
 
-// 한글 주석: 필수 설정 누락 여부를 점검합니다.
-export const validateConfig = (config) => {
-  const requiredKeys = ['supabaseUrl', 'supabaseAnonKey', 'tossClientKey', 'apiBaseUrl'];
-  const missing = requiredKeys.filter((key) => !String(config?.[key] || '').trim());
+// 한글 주석: 지정한 필수 키 기준으로 설정 누락 여부를 점검합니다.
+export const validateConfigWithKeys = (config, requiredKeys = []) => {
+  const keys = requiredKeys.length ? requiredKeys : DEFAULT_REQUIRED_KEYS;
+  const missing = keys.filter((key) => !String(config?.[key] || '').trim());
   return { ok: missing.length === 0, missing };
 };
 
+// 한글 주석: 기본 필수 키로 설정 누락 여부를 점검합니다.
+export const validateConfig = (config) => validateConfigWithKeys(config, DEFAULT_REQUIRED_KEYS);
+
 // 한글 주석: Supabase 모듈을 동적으로 로드해 클라이언트를 생성합니다(테스트 주입 가능).
-export const createSupabaseClient = async (config, deps = {}) => {
+export const createSupabaseClient = async (config, deps = {}, options = {}) => {
   const importer =
     deps.importSupabase ||
     (() => import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'));
   const { createClient } = await importer();
-  return createClient(config.supabaseUrl, config.supabaseAnonKey);
+  return createClient(config.supabaseUrl, config.supabaseAnonKey, options);
 };
 
 // 한글 주석: 현재 로그인 세션을 조회합니다.
@@ -62,6 +68,130 @@ export const getSessionUser = async (supabaseClient) => {
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) throw error;
   return data?.session?.user || null;
+};
+
+// 한글 주석: 사용할 수 있는 스토리지 목록을 안전하게 수집합니다.
+// 한글 주석: 세션 스토리지를 먼저 확인해 "현재 탭" 로그인을 우선합니다.
+const resolveAvailableStorages = () => {
+  const storages = [];
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      storages.push({ type: 'session', storage: window.sessionStorage });
+    }
+  } catch (err) {
+    console.warn('sessionStorage 접근 실패:', err);
+  }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      storages.push({ type: 'local', storage: window.localStorage });
+    }
+  } catch (err) {
+    console.warn('localStorage 접근 실패:', err);
+  }
+  return storages;
+};
+
+// 한글 주석: 스토리지 옵션을 반영한 Supabase 클라이언트를 생성합니다.
+export const createSupabaseClientWithStorage = async (config, deps = {}, storage, options = {}) => {
+  const authOptions = {
+    storage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    ...(options.auth || {})
+  };
+  return createSupabaseClient(config, deps, {
+    ...options,
+    auth: authOptions
+  });
+};
+
+// 한글 주석: localStorage/sessionStorage 중 존재하는 세션을 탐색합니다.
+export const getSessionFromAnyStorage = async (config, deps = {}) => {
+  const storages = resolveAvailableStorages();
+  for (const item of storages) {
+    try {
+      const supabase = await createSupabaseClientWithStorage(config, deps, item.storage);
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      const session = data?.session || null;
+      if (session?.user) {
+        return { user: session.user, session, storageType: item.type, supabase };
+      }
+    } catch (err) {
+      console.warn(`세션 확인 실패(${item.type}):`, err);
+    }
+  }
+  return { user: null, session: null, storageType: null, supabase: null };
+};
+
+// 한글 주석: 모든 스토리지에서 로그아웃을 수행합니다.
+export const signOutFromAllStorages = async (config, deps = {}) => {
+  const storages = resolveAvailableStorages();
+  const results = [];
+  for (const item of storages) {
+    try {
+      const supabase = await createSupabaseClientWithStorage(config, deps, item.storage);
+      await supabase.auth.signOut();
+      results.push({ type: item.type, ok: true });
+    } catch (err) {
+      console.warn(`로그아웃 실패(${item.type}):`, err);
+      results.push({ type: item.type, ok: false, error: err });
+    }
+  }
+  return { ok: results.every((r) => r.ok), results };
+};
+
+// 한글 주석: SSO 링크에 접근 토큰을 포함한 URL을 생성합니다.
+export const buildSsoUrl = (targetUrl, session) => {
+  if (!session?.access_token) return targetUrl;
+  const hashParams = new URLSearchParams({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token || '',
+    expires_in: String(session.expires_in || ''),
+    token_type: session.token_type || 'bearer'
+  });
+  return `${targetUrl}#${hashParams.toString()}`;
+};
+
+// 한글 주석: data-goatpbn-sso 링크에 SSO 동작을 연결합니다.
+export const bindSsoLinks = async (config, deps = {}, selector = '[data-goatpbn-sso]') => {
+  if (typeof document === 'undefined') return;
+  const ssoLinks = document.querySelectorAll(selector);
+  if (!ssoLinks.length) return;
+
+  const { session: cachedSession } = await getSessionFromAnyStorage(config, deps);
+
+  ssoLinks.forEach((link) => {
+    if (link.getAttribute('data-goatpbn-sso-bound') === '1') return;
+    link.setAttribute('data-goatpbn-sso-bound', '1');
+
+    const handleClick = (event) => {
+      if (event.type === 'auxclick' && event.button !== 1) return;
+      event.preventDefault();
+      const target = link.getAttribute('data-goatpbn-target') || link.getAttribute('href') || '';
+      if (!target) return;
+
+      const isModifier =
+        event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1 || link.getAttribute('target') === '_blank';
+      const forceNewTab = config?.ssoOpenNewTab === true || link.getAttribute('data-goatpbn-newtab') === '1';
+      const openInNewTab = forceNewTab || isModifier;
+
+      const finalUrl = cachedSession?.access_token ? buildSsoUrl(target, cachedSession) : config.loginUrl || '/login';
+
+      if (openInNewTab) {
+        const nextWindow = window.open(finalUrl, '_blank', 'noopener,noreferrer');
+        if (!nextWindow) {
+          console.warn('팝업이 차단되어 새 탭을 열지 못했습니다.');
+        }
+        return;
+      }
+      window.location.href = finalUrl;
+    };
+
+    link.addEventListener('click', handleClick);
+    link.addEventListener('auxclick', handleClick);
+  });
 };
 
 // 한글 주석: 토스 SDK를 로드하고 초기화 가능한 함수를 반환합니다.

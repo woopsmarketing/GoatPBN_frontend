@@ -1,4 +1,4 @@
-// v1.1 - Google OAuth 리다이렉트 동적 옵션 지원 (2025.11.17)
+// v1.2 - SSO URL 해시 세션 동기화 지원 (2026.01.21)
 // 한글 주석: Supabase 클라이언트 설정 및 인증 관리
 // 목적: 프론트엔드에서 Supabase 데이터베이스와 통신하기 위한 연결 설정
 
@@ -33,6 +33,31 @@ export const authAPI = {
 
   // 현재 세션 확인
   getSession: () => supabase.auth.getSession(),
+
+  // 한글 주석: URL 해시의 토큰을 감지해 세션을 강제로 동기화합니다(SSO 대응).
+  syncSessionFromUrlHash: async () => {
+    try {
+      if (typeof window === 'undefined') return { synced: false };
+      const hash = window.location.hash || '';
+      if (!hash.includes('access_token')) return { synced: false };
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (!accessToken || !refreshToken) return { synced: false };
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+      if (error) throw error;
+      // 한글 주석: URL 해시를 제거해 재실행을 방지합니다.
+      const cleanUrl = `${window.location.pathname}${window.location.search}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+      return { synced: true, session: data?.session || null };
+    } catch (err) {
+      console.warn('SSO 세션 동기화 실패:', err);
+      return { synced: false, error: err };
+    }
+  },
 
   // 인증 상태 변화 감지
   onAuthStateChange: (callback) => supabase.auth.onAuthStateChange(callback)

@@ -1,4 +1,4 @@
-// v1.0 - goatpbn.com 결제 진입 스크립트 (2026.01.20)
+// v1.3 - goatpbn.com 결제 진입 스크립트 (2026.01.21)
 // 기능 요약: Try out 클릭 → 로그인 확인 → 토스 결제창 요청
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
@@ -6,14 +6,14 @@ import {
   resolveConfig,
   validateConfig,
   createSupabaseClient,
-  getSessionUser,
+  getSessionFromAnyStorage,
   ensureTossPayments,
   resolvePlanConfig,
   getDataAttr,
   parseQuery,
   renderMessage,
   fallbackString
-} from './utils.js';
+} from './utils.js?v=11';
 
 // 한글 주석: 외부 의존성 주입으로 테스트 가능하게 구성합니다.
 const createCheckoutController = (userConfig = {}, deps = {}) => {
@@ -41,8 +41,8 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
         return;
       }
 
-      const supabase = await getSupabase();
-      const user = await getSessionUser(supabase);
+      await getSupabase();
+      const { user } = await getSessionFromAnyStorage(config, deps);
       if (!user) {
         redirectToLogin(planSlug);
         return;
@@ -50,6 +50,16 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
 
       await requestBillingAuth(user, planSlug, triggerElement);
     } catch (err) {
+      const message = String(err?.message || '');
+      const isCanceled =
+        err?.code === 'USER_CANCEL' ||
+        err?.code === 'USER_CANCELLED' ||
+        message.includes('취소') ||
+        message.toLowerCase().includes('cancel');
+      if (isCanceled) {
+        renderMessage(config.selectors.messageBox, '결제가 취소되었습니다.', 'info');
+        return;
+      }
       console.error('결제 시작 실패:', err);
       renderMessage(config.selectors.messageBox, '결제창 호출에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
     }

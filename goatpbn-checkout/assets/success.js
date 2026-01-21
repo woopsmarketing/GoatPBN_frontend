@@ -1,21 +1,21 @@
-// v1.0 - goatpbn.com 결제 성공 처리 스크립트 (2026.01.20)
+// v1.2 - goatpbn.com 결제 성공 처리 스크립트 (2026.01.21)
 // 기능 요약: authKey/customerKey로 빌링 발급 및 구독 반영 요청
 // 사용 예시: <script type="module" src="/assets/success.js"></script>
 
 import {
   resolveConfig,
-  validateConfig,
+  validateConfigWithKeys,
   createSupabaseClient,
-  getSessionUser,
+  getSessionFromAnyStorage,
   parseQuery,
   renderMessage,
   fallbackString
-} from './utils.js';
+} from './utils.js?v=11';
 
 // 한글 주석: 결제 성공 후 서버에 후처리를 요청합니다.
 const createSuccessController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
-  const { ok, missing } = validateConfig(config);
+  const { ok, missing } = validateConfigWithKeys(config, ['supabaseUrl', 'supabaseAnonKey', 'apiBaseUrl']);
   let supabaseClient = null;
 
   const getSupabase = async () => {
@@ -73,7 +73,7 @@ const createSuccessController = (userConfig = {}, deps = {}) => {
     setStatus('결제 정보를 확인하는 중입니다...');
     try {
       const supabase = await getSupabase();
-      const user = await getSessionUser(supabase);
+      const { user } = await getSessionFromAnyStorage(config, deps);
       const userId = user?.id || customerKey;
 
       const planConfig = config?.planMap?.[finalPlanSlug] || {};
