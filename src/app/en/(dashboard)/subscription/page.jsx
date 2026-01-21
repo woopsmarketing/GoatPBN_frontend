@@ -1,7 +1,7 @@
 'use client';
 
-// v1.0 - Subscription overview (English)
-// Displays Supabase subscription data with English copy
+// v1.1 - 메인 도메인 결제 전환 (2026.01.20)
+// 기능 요약: 결제는 goatpbn.com에서 처리하고 앱에서는 상태만 표시
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -12,6 +12,11 @@ import { authAPI, supabase } from '@/lib/supabase';
 import { formatToUserTimeZone } from '@/lib/utils/userTimeZone';
 import { usePaypalPlans } from '@/hooks/usePaypalPlans';
 import { jsonHeaders } from '@/lib/api/httpClient';
+
+// 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
+const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
+const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
+const MAIN_PAYMENT_URL = process.env.NEXT_PUBLIC_MAIN_PAYMENT_URL || DEFAULT_MAIN_PAYMENT_URL;
 
 const PLAN_LABELS = {
   free: 'Free plan',
@@ -37,6 +42,8 @@ export default function SubscriptionPageEn() {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundMessage, setRefundMessage] = useState('');
   const [refundError, setRefundError] = useState('');
+  // 한글 주석: 메인 도메인 결제 모드일 때 앱 내 결제 흐름을 비활성화합니다.
+  const isExternalPayment = PAYMENT_MODE === 'external';
 
   // helper: subscriptions + user_subscriptions 병합 조회
   const fetchSubAndUserSub = async (uid) => {
@@ -91,6 +98,43 @@ export default function SubscriptionPageEn() {
         console.error('Subscription refresh failed:', err);
       }
     }, delayMs);
+  };
+
+  // 한글 주석: 메인 도메인 결제 URL을 안전하게 구성합니다.
+  const buildExternalPaymentUrl = (planSlug) => {
+    try {
+      if (!MAIN_PAYMENT_URL) return '';
+      const url = new URL(MAIN_PAYMENT_URL);
+      if (planSlug) url.searchParams.set('plan', String(planSlug));
+      url.searchParams.set('source', 'app');
+      if (origin) {
+        url.searchParams.set('return_to', externalReturnUrl);
+        url.searchParams.set('cancel_to', externalCancelUrl);
+      }
+      return url.toString();
+    } catch (err) {
+      console.error('외부 결제 URL 생성 실패:', err);
+      return '';
+    }
+  };
+
+  // 한글 주석: 메인 도메인 결제 페이지로 이동(팝업 차단 포함 예외 처리).
+  const openExternalPayment = (planSlug) => {
+    try {
+      setPlanError('');
+      const targetUrl = buildExternalPaymentUrl(planSlug);
+      if (!targetUrl) {
+        setPlanError('Unable to resolve the checkout URL. Please contact support.');
+        return;
+      }
+      const nextWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      if (!nextWindow) {
+        setPlanError('Popup blocked. Please allow popups and try again.');
+      }
+    } catch (err) {
+      console.error('외부 결제 이동 실패:', err);
+      setPlanError('Unable to open the main checkout page. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -182,6 +226,9 @@ export default function SubscriptionPageEn() {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/en/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/en/subscription?paypal_status=cancel`;
+  // 한글 주석: 메인 도메인 결제 완료 후 돌아올 주소(WordPress 측 리다이렉트용)
+  const externalReturnUrl = `${origin}/en/subscription?payment_status=success`;
+  const externalCancelUrl = `${origin}/en/subscription?payment_status=cancel`;
   const {
     plans,
     loading: plansLoading,
@@ -255,8 +302,163 @@ export default function SubscriptionPageEn() {
     });
   }, [plans]);
 
+  // 한글 주석: 외부 결제 모드에서 버튼 라벨을 일관되게 결정합니다.
+  const getExternalActionLabel = (planSlug) => {
+    if (currentPlanSlug === 'pro' && planSlug === 'basic') return 'Downgrade on main site';
+    if (currentPlanSlug === 'basic' && planSlug === 'pro') return 'Upgrade on main site';
+    return 'Checkout on main site';
+  };
+
+  // 한글 주석: 플랜별 CTA 버튼 렌더링을 함수로 분리해 가독성을 높입니다.
+  const renderPlanActionButton = (plan) => {
+    if (plan.slug === currentPlanSlug) {
+      return (
+        <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+          Current plan
+        </TailwindButton>
+      );
+    }
+
+    const isPaidPlan = ['basic', 'pro'].includes(plan.slug);
+
+    if (isExternalPayment) {
+      if (!isPaidPlan) {
+        return (
+          <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+            Coming soon
+          </TailwindButton>
+        );
+      }
+      return (
+        <TailwindButton size="lg" variant="primary" className="mt-auto" onClick={() => openExternalPayment(plan.slug)}>
+          {getExternalActionLabel(plan.slug)}
+        </TailwindButton>
+      );
+    }
+
+    if (currentPlanSlug && currentPlanSlug !== 'free' && plan.slug === 'pro') {
+      return (
+        <TailwindButton
+          size="lg"
+          variant="primary"
+          className="mt-auto"
+          onClick={async () => {
+            try {
+              const subId = subscription?.provider_subscription_id;
+              if (!subId) throw new Error('No provider subscription id');
+              setPlanError('');
+              setPaymentStatus('Upgrading (prorated) via PayPal...');
+              await upgradeSubscription(subId, plan.slug);
+              setPaymentStatus('Upgrade requested. PayPal will prorate the difference.');
+              const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+              if (data) setSubscription(data);
+            } catch (e) {
+              setPlanError(e.message || 'Upgrade failed');
+              setPaymentStatus('');
+            }
+          }}
+          disabled={processing === 'upgrade'}
+        >
+          {processing === 'upgrade' ? 'Upgrading...' : 'Upgrade (pro-rated)'}
+        </TailwindButton>
+      );
+    }
+
+    if (currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic') {
+      return isReserved ? (
+        <TailwindButton
+          size="lg"
+          variant="secondary"
+          className="mt-auto"
+          onClick={async () => {
+            const prevSnapshot = subscription;
+            try {
+              const subId = subscription?.provider_subscription_id;
+              if (!subId) throw new Error('No provider subscription id');
+              setPlanError('');
+              setPaymentStatus('Cancelling scheduled downgrade...');
+              // 한글 주석: 낙관적 업데이트 - 즉시 "예약 취소" 상태를 해제하고 버튼/배너를 원복합니다.
+              setSubscription((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  reserved_plan_id: prev.current_plan_id || null,
+                  reserved_status: 'active'
+                };
+              });
+              await cancelDowngrade(subId);
+              const merged = await fetchSubAndUserSub(userId);
+              if (merged) setSubscription(merged);
+              setPaymentStatus('Downgrade cancellation requested. Syncing...');
+              scheduleRefresh();
+            } catch (e) {
+              if (prevSnapshot) setSubscription(prevSnapshot);
+              setPlanError(e.message || 'Cancel downgrade failed');
+              setPaymentStatus('');
+            }
+          }}
+          disabled={processing === 'cancel-downgrade'}
+        >
+          {processing === 'cancel-downgrade' ? 'Cancelling...' : 'Cancel scheduled downgrade'}
+        </TailwindButton>
+      ) : (
+        <TailwindButton
+          size="lg"
+          variant="secondary"
+          className="mt-auto"
+          onClick={async () => {
+            const prevSnapshot = subscription;
+            try {
+              const subId = subscription?.provider_subscription_id;
+              if (!subId) throw new Error('No provider subscription id');
+              setPlanError('');
+              setPaymentStatus('Downgrade will apply next cycle. (Syncing...)');
+              // 한글 주석: 낙관적 업데이트 - 즉시 "예약됨" 상태로 토글하여 UX를 개선합니다.
+              setSubscription((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  reserved_plan_id: `__optimistic__${plan.slug}__`,
+                  reserved_status: 'active'
+                };
+              });
+              await downgradeSubscription(subId, plan.slug);
+              const merged = await fetchSubAndUserSub(userId);
+              if (merged) setSubscription(merged);
+              scheduleRefresh();
+            } catch (e) {
+              if (prevSnapshot) setSubscription(prevSnapshot);
+              setPlanError(e.message || 'Downgrade failed');
+              setPaymentStatus('');
+            }
+          }}
+          disabled={processing === 'downgrade'}
+        >
+          {processing === 'downgrade' ? 'Processing...' : 'Downgrade next cycle'}
+        </TailwindButton>
+      );
+    }
+
+    return (
+      <TailwindButton
+        size="lg"
+        variant="primary"
+        className="mt-auto"
+        onClick={() => handleSubscribe(plan.slug)}
+        disabled={subscribing === plan.slug}
+      >
+        {subscribing === plan.slug ? 'Redirecting to PayPal...' : 'Subscribe with PayPal'}
+      </TailwindButton>
+    );
+  };
+
   const handleSubscribe = async (planSlug) => {
     setPlanError('');
+    // 한글 주석: 외부 결제 모드에서는 메인 도메인으로 이동합니다.
+    if (isExternalPayment) {
+      openExternalPayment(planSlug);
+      return;
+    }
     try {
       await subscribeToPlan(planSlug);
     } catch (err) {
@@ -264,6 +466,24 @@ export default function SubscriptionPageEn() {
       setPlanError(err?.message || 'Unable to start PayPal checkout.');
     }
   };
+
+  useEffect(() => {
+    if (!userId) return;
+    const status = searchParams?.get('payment_status') || '';
+    if (!status) return;
+    if (status === 'cancel') {
+      setPaymentStatus('Main site checkout was cancelled.');
+      return;
+    }
+    if (status === 'fail') {
+      setPlanError('Main site checkout failed. Please try again.');
+      return;
+    }
+    if (status === 'success') {
+      setPaymentStatus('Main site checkout completed. Syncing subscription...');
+      scheduleRefresh(6000);
+    }
+  }, [searchParams, userId]);
 
   useEffect(() => {
     // 한글 주석: PayPal 승인 후 returnUrl로 돌아오면 subscription_id가 query string에 붙습니다.
@@ -461,6 +681,16 @@ export default function SubscriptionPageEn() {
             the scheduled downgrade below.
           </div>
         )}
+        {isExternalPayment && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+            Checkout happens on the main site (goatpbn.com). Use the button below to continue.
+            <div className="mt-3">
+              <TailwindButton size="lg" variant="primary" onClick={() => openExternalPayment('basic')}>
+                Go to main checkout
+              </TailwindButton>
+            </div>
+          </div>
+        )}
         {paymentStatus && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
         )}
@@ -506,121 +736,7 @@ export default function SubscriptionPageEn() {
                       </li>
                     ))}
                   </ul>
-                  {/* 다운그레이드/예약 상태 판단 */}
-                  {plan.slug === currentPlanSlug ? (
-                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
-                      Current plan
-                    </TailwindButton>
-                  ) : currentPlanSlug && currentPlanSlug !== 'free' && plan.slug === 'pro' ? (
-                    <TailwindButton
-                      size="lg"
-                      variant="primary"
-                      className="mt-auto"
-                      onClick={async () => {
-                        try {
-                          const subId = subscription?.provider_subscription_id;
-                          if (!subId) throw new Error('No provider subscription id');
-                          setPlanError('');
-                          setPaymentStatus('Upgrading (prorated) via PayPal...');
-                          await upgradeSubscription(subId, plan.slug);
-                          setPaymentStatus('Upgrade requested. PayPal will prorate the difference.');
-                          const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
-                          if (data) setSubscription(data);
-                        } catch (e) {
-                          setPlanError(e.message || 'Upgrade failed');
-                          setPaymentStatus('');
-                        }
-                      }}
-                      disabled={processing === 'upgrade'}
-                    >
-                      {processing === 'upgrade' ? 'Upgrading...' : 'Upgrade (pro-rated)'}
-                    </TailwindButton>
-                  ) : currentPlanSlug && currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
-                    (() => {
-                      return isReserved ? (
-                        <TailwindButton
-                          size="lg"
-                          variant="secondary"
-                          className="mt-auto"
-                          onClick={async () => {
-                            const prevSnapshot = subscription;
-                            try {
-                              const subId = subscription?.provider_subscription_id;
-                              if (!subId) throw new Error('No provider subscription id');
-                              setPlanError('');
-                              setPaymentStatus('Cancelling scheduled downgrade...');
-                              // 한글 주석: 낙관적 업데이트 - 즉시 "예약 취소" 상태를 해제하고 버튼/배너를 원복합니다.
-                              setSubscription((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  reserved_plan_id: prev.current_plan_id || null,
-                                  reserved_status: 'active'
-                                };
-                              });
-                              await cancelDowngrade(subId);
-                              const merged = await fetchSubAndUserSub(userId);
-                              if (merged) setSubscription(merged);
-                              setPaymentStatus('Downgrade cancellation requested. Syncing...');
-                              scheduleRefresh();
-                            } catch (e) {
-                              if (prevSnapshot) setSubscription(prevSnapshot);
-                              setPlanError(e.message || 'Cancel downgrade failed');
-                              setPaymentStatus('');
-                            }
-                          }}
-                          disabled={processing === 'cancel-downgrade'}
-                        >
-                          {processing === 'cancel-downgrade' ? 'Cancelling...' : 'Cancel scheduled downgrade'}
-                        </TailwindButton>
-                      ) : (
-                        <TailwindButton
-                          size="lg"
-                          variant="secondary"
-                          className="mt-auto"
-                          onClick={async () => {
-                            const prevSnapshot = subscription;
-                            try {
-                              const subId = subscription?.provider_subscription_id;
-                              if (!subId) throw new Error('No provider subscription id');
-                              setPlanError('');
-                              setPaymentStatus('Downgrade will apply next cycle. (Syncing...)');
-                              // 한글 주석: 낙관적 업데이트 - 즉시 "예약됨" 상태로 토글하여 UX를 개선합니다.
-                              setSubscription((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  reserved_plan_id: `__optimistic__${plan.slug}__`,
-                                  reserved_status: 'active'
-                                };
-                              });
-                              await downgradeSubscription(subId, plan.slug);
-                              const merged = await fetchSubAndUserSub(userId);
-                              if (merged) setSubscription(merged);
-                              scheduleRefresh();
-                            } catch (e) {
-                              if (prevSnapshot) setSubscription(prevSnapshot);
-                              setPlanError(e.message || 'Downgrade failed');
-                              setPaymentStatus('');
-                            }
-                          }}
-                          disabled={processing === 'downgrade'}
-                        >
-                          {processing === 'downgrade' ? 'Processing...' : 'Downgrade next cycle'}
-                        </TailwindButton>
-                      );
-                    })()
-                  ) : (
-                    <TailwindButton
-                      size="lg"
-                      variant="primary"
-                      className="mt-auto"
-                      onClick={() => handleSubscribe(plan.slug)}
-                      disabled={subscribing === plan.slug}
-                    >
-                      {subscribing === plan.slug ? 'Redirecting to PayPal...' : 'Subscribe with PayPal'}
-                    </TailwindButton>
-                  )}
+                  {renderPlanActionButton(plan)}
                 </div>
               ))}
           {!plansLoading && plans.length === 0 && (

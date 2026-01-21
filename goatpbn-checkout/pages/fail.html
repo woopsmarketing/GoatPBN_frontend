@@ -1,0 +1,23 @@
+<!-- v1.0 - goatpbn.com 결제 실패 페이지 (2026.01.20) -->
+<!-- 기능 요약: 결제 실패 사유 안내 및 재시도 제공 -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>결제 실패</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <main class="goatpbn-container">
+      <h1 class="goatpbn-title">결제가 완료되지 않았습니다</h1>
+      <p class="goatpbn-text">다시 시도하거나 고객센터로 문의해주세요.</p>
+      <p class="goatpbn-text" data-goatpbn-fail-detail></p>
+      <div style="margin-top: 20px;">
+        <button class="goatpbn-button" data-goatpbn-retry>다시 시도</button>
+      </div>
+      <div class="goatpbn-message" data-goatpbn-message></div>
+    </main>
+    <script type="module" src="/assets/fail.js"></script>
+  </body>
+</html>

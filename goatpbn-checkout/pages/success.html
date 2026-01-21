@@ -1,0 +1,25 @@
+<!-- v1.0 - goatpbn.com 결제 성공 페이지 (2026.01.20) -->
+<!-- 기능 요약: 결제 성공 후 구독 반영을 처리 -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>결제 완료</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <main class="goatpbn-container">
+      <h1 class="goatpbn-title">결제 확인 중입니다</h1>
+      <p class="goatpbn-text" data-goatpbn-status>토스 결제 정보를 확인하고 있습니다.</p>
+      <div class="goatpbn-message" data-goatpbn-error></div>
+      <div class="goatpbn-message" data-goatpbn-summary></div>
+      <div style="margin-top: 20px;">
+        <button class="goatpbn-button secondary" onclick="window.location.href='https://goatpbn.com/#pricing'">
+          돌아가기
+        </button>
+      </div>
+    </main>
+    <script type="module" src="/assets/success.js"></script>
+  </body>
+</html>

@@ -1,0 +1,73 @@
+/* v1.0 - goatpbn.com 결제 페이지 기본 스타일 (2026.01.20) */
+/* 기능 요약: 로그인/성공/실패/환불 페이지에 사용할 기본 UI 스타일 */
+
+:root {
+  --goatpbn-primary: #10b981;
+  --goatpbn-danger: #ef4444;
+  --goatpbn-gray: #6b7280;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Noto Sans KR', sans-serif;
+  color: #111827;
+  background: #f9fafb;
+}
+
+.goatpbn-container {
+  max-width: 640px;
+  margin: 40px auto;
+  background: #fff;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+}
+
+.goatpbn-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.goatpbn-text {
+  font-size: 14px;
+  color: var(--goatpbn-gray);
+  line-height: 1.6;
+}
+
+.goatpbn-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  background: var(--goatpbn-primary);
+  color: #fff;
+}
+
+.goatpbn-button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.goatpbn-message {
+  margin-top: 16px;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.goatpbn-message[data-type='error'] {
+  background: #fef2f2;
+  color: var(--goatpbn-danger);
+}
+
+.goatpbn-message[data-type='info'] {
+  background: #ecfeff;
+  color: #0369a1;
+}

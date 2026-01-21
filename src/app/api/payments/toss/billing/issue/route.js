@@ -1,17 +1,22 @@
-// v1.0 - 토스 빌링키 발급/첫 결제 프록시 (2026.01.15)
-// 기능 요약: FastAPI /api/payments/toss/billing/issue 로 전달
+// v1.1 - 토스 빌링키 발급/첫 결제 프록시 (2026.01.20)
+// 기능 요약: FastAPI /api/payments/toss/billing/issue 로 전달 + CORS 허용
 
 import { jsonHeaders } from '@/lib/api/httpClient';
+import { buildCorsHeaders, handleCorsPreflight, withCors } from '@/app/api/_utils/cors';
 
 const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_SERVER_URL;
 const API_URL = (RAW_API_URL || '').replace(/\/+$/, '');
 
 export async function POST(request) {
+  const corsHeaders = buildCorsHeaders(request);
   if (!API_URL) {
-    return new Response(JSON.stringify({ error: 'API url not configured' }), {
-      status: 500,
-      headers: jsonHeaders()
-    });
+    return withCors(
+      new Response(JSON.stringify({ error: 'API url not configured' }), {
+        status: 500,
+        headers: jsonHeaders()
+      }),
+      corsHeaders
+    );
   }
 
   try {
@@ -34,14 +39,25 @@ export async function POST(request) {
       data = { error: text || 'Unable to parse backend response' };
     }
 
-    return new Response(JSON.stringify(data), {
-      status: resp.status,
-      headers: jsonHeaders()
-    });
+    return withCors(
+      new Response(JSON.stringify(data), {
+        status: resp.status,
+        headers: jsonHeaders()
+      }),
+      corsHeaders
+    );
   } catch (error) {
-    return new Response(JSON.stringify({ error: error?.message || 'Unknown error' }), {
-      status: 500,
-      headers: jsonHeaders()
-    });
+    return withCors(
+      new Response(JSON.stringify({ error: error?.message || 'Unknown error' }), {
+        status: 500,
+        headers: jsonHeaders()
+      }),
+      corsHeaders
+    );
   }
+}
+
+// 한글 주석: goatpbn.com에서 호출할 수 있도록 프리플라이트를 허용합니다.
+export async function OPTIONS(request) {
+  return handleCorsPreflight(request);
 }

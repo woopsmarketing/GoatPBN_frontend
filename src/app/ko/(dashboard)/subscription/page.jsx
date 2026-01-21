@@ -1,7 +1,7 @@
 'use client';
 
-// v2.0 - 토스 정기결제(빌링) 전환 (2026.01.15)
-// 기능 요약: 카드 등록(빌링키) 후 정기결제 승인 + 구독/인보이스 반영
+// v2.1 - 메인 도메인 결제 전환 (2026.01.20)
+// 기능 요약: 결제는 goatpbn.com에서 진행하고 앱에서는 상태/플랜만 표시
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
@@ -36,6 +36,10 @@ const FALLBACK_TOSS_PLAN_CONFIG = {
 };
 
 const DEFAULT_TOSS_CLIENT_KEY = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
+// 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
+const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
+const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
+const MAIN_PAYMENT_URL = process.env.NEXT_PUBLIC_MAIN_PAYMENT_URL || DEFAULT_MAIN_PAYMENT_URL;
 
 export default function SubscriptionPageKo() {
   const [loading, setLoading] = useState(true);
@@ -63,9 +67,14 @@ export default function SubscriptionPageKo() {
   const [upgradeConfirmOpen, setUpgradeConfirmOpen] = useState(false);
   const [upgradeConfirmChecked, setUpgradeConfirmChecked] = useState(false);
   const [pendingUpgradePlan, setPendingUpgradePlan] = useState(null);
+  // 한글 주석: 메인 도메인 결제 모드일 때 앱 내 결제 흐름을 비활성화합니다.
+  const isExternalPayment = PAYMENT_MODE === 'external';
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const returnUrl = `${origin}/ko/subscription?paypal_status=success`;
   const cancelUrl = `${origin}/ko/subscription?paypal_status=cancel`;
+  // 한글 주석: 메인 도메인 결제 완료 후 돌아올 주소(WordPress 측 리다이렉트용)
+  const externalReturnUrl = `${origin}/ko/subscription?payment_status=success`;
+  const externalCancelUrl = `${origin}/ko/subscription?payment_status=cancel`;
   const tossClientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || DEFAULT_TOSS_CLIENT_KEY;
 
   // helper: subscriptions + user_subscriptions 병합 조회
@@ -127,6 +136,43 @@ export default function SubscriptionPageKo() {
     }, delayMs);
   };
 
+  // 한글 주석: 메인 도메인 결제 URL을 안전하게 구성합니다.
+  const buildExternalPaymentUrl = (planSlug) => {
+    try {
+      if (!MAIN_PAYMENT_URL) return '';
+      const url = new URL(MAIN_PAYMENT_URL);
+      if (planSlug) url.searchParams.set('plan', String(planSlug));
+      url.searchParams.set('source', 'app');
+      if (origin) {
+        url.searchParams.set('return_to', externalReturnUrl);
+        url.searchParams.set('cancel_to', externalCancelUrl);
+      }
+      return url.toString();
+    } catch (err) {
+      console.error('외부 결제 URL 생성 실패:', err);
+      return '';
+    }
+  };
+
+  // 한글 주석: 메인 도메인 결제 페이지로 이동(팝업 차단 포함 예외 처리).
+  const openExternalPayment = (planSlug) => {
+    try {
+      setPlanError('');
+      const targetUrl = buildExternalPaymentUrl(planSlug);
+      if (!targetUrl) {
+        setPlanError('결제 페이지 URL을 확인할 수 없습니다. 관리자에게 문의해주세요.');
+        return;
+      }
+      const nextWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      if (!nextWindow) {
+        setPlanError('팝업이 차단되었습니다. 브라우저에서 새 창 허용 후 다시 시도해주세요.');
+      }
+    } catch (err) {
+      console.error('외부 결제 이동 실패:', err);
+      setPlanError('외부 결제 페이지로 이동하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -171,6 +217,25 @@ export default function SubscriptionPageKo() {
     loadInvoices();
   }, [userId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!userId) return;
+    const status = new URLSearchParams(window.location.search).get('payment_status') || '';
+    if (!status) return;
+    if (status === 'cancel') {
+      setPaymentStatus('메인 도메인 결제가 취소되었습니다.');
+      return;
+    }
+    if (status === 'fail') {
+      setPlanError('메인 도메인 결제에 실패했습니다. 다시 시도해주세요.');
+      return;
+    }
+    if (status === 'success') {
+      setPaymentStatus('메인 도메인 결제가 완료되었습니다. 구독 정보를 동기화 중입니다...');
+      scheduleRefresh(6000);
+    }
+  }, [userId]);
+
   const loadBillingStatus = async () => {
     if (!userId) return;
     setBillingLoading(true);
@@ -190,8 +255,9 @@ export default function SubscriptionPageKo() {
   };
 
   useEffect(() => {
+    if (isExternalPayment) return;
     loadBillingStatus();
-  }, [userId]);
+  }, [userId, isExternalPayment]);
 
   const paypalPlans = usePaypalPlans({ returnUrl, cancelUrl, userId });
   const plans = paypalPlans.plans;
@@ -313,6 +379,82 @@ export default function SubscriptionPageKo() {
     });
   }, [plans]);
 
+  // 한글 주석: 외부 결제 모드에서 버튼 라벨을 일관되게 결정합니다.
+  const getExternalActionLabel = (planSlug) => {
+    if (currentPlanSlug === 'pro' && planSlug === 'basic') return '메인 사이트에서 다운그레이드';
+    if (currentPlanSlug === 'basic' && planSlug === 'pro') return '메인 사이트에서 업그레이드';
+    return '메인 사이트에서 결제';
+  };
+
+  // 한글 주석: 플랜별 CTA 버튼 렌더링을 함수로 분리해 가독성을 높입니다.
+  const renderPlanActionButton = (plan) => {
+    if (plan.slug === currentPlanSlug) {
+      return (
+        <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+          현재 플랜
+        </TailwindButton>
+      );
+    }
+
+    const isPaidPlan = ['basic', 'pro'].includes(plan.slug);
+
+    if (isExternalPayment) {
+      if (!isPaidPlan) {
+        return (
+          <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+            준비 중
+          </TailwindButton>
+        );
+      }
+      return (
+        <TailwindButton size="lg" variant="primary" className="mt-auto" onClick={() => openExternalPayment(plan.slug)}>
+          {getExternalActionLabel(plan.slug)}
+        </TailwindButton>
+      );
+    }
+
+    if (currentPlanSlug === 'pro' && plan.slug === 'basic') {
+      return isReserved ? (
+        <TailwindButton size="lg" variant="secondary" className="mt-auto" onClick={handleCancelDowngrade} disabled={downgradeLoading}>
+          {downgradeLoading ? '취소 중...' : '다운그레이드 예약 취소'}
+        </TailwindButton>
+      ) : (
+        <TailwindButton size="lg" variant="secondary" className="mt-auto" onClick={handleScheduleDowngrade} disabled={downgradeLoading}>
+          {downgradeLoading ? '예약 중...' : '다음 달부터 다운그레이드'}
+        </TailwindButton>
+      );
+    }
+
+    if (isPaidPlan) {
+      return (
+        <>
+          <TailwindButton
+            size="lg"
+            variant="primary"
+            className="mt-auto"
+            onClick={() => handleStartBilling(plan.slug)}
+            disabled={!tossPlanConfig?.[plan.slug]?.amount || billingLoading || (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)}
+          >
+            {plan.slug === 'pro' && isUpgradeFlow
+              ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
+              : billingStatus?.has_billing_key
+                ? '정기결제 시작하기'
+                : '카드 등록 후 정기결제'}
+          </TailwindButton>
+          {plan.slug === 'pro' && isUpgradeFlow && (
+            <p className="mt-2 text-xs text-gray-500">업그레이드 시 차액이 즉시 결제되며, 잔여 일수 기준으로 계산됩니다.</p>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
+        준비 중
+      </TailwindButton>
+    );
+  };
+
   useEffect(() => {
     const paypalStatus = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('paypal_status') || '' : '';
     const subscriptionId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('subscription_id') || '' : '';
@@ -417,6 +559,11 @@ export default function SubscriptionPageKo() {
     setPlanError('');
     setBillingError('');
     setPaymentStatus('');
+    // 한글 주석: 외부 결제 모드에서는 메인 도메인으로 이동합니다.
+    if (isExternalPayment) {
+      openExternalPayment(planSlug);
+      return;
+    }
 
     const planAmount = planSlug === 'pro' && isUpgradeFlow ? upgradeQuote?.amount : tossPlanConfig?.[planSlug]?.amount;
 
@@ -541,12 +688,14 @@ export default function SubscriptionPageKo() {
 
   return (
     <div className="space-y-6">
-      <Script
-        src="https://js.tosspayments.com/v2/standard"
-        strategy="afterInteractive"
-        onLoad={() => setTossSdkReady(true)}
-        onError={() => setBillingError('토스 SDK 로딩에 실패했습니다.')}
-      />
+      {!isExternalPayment && (
+        <Script
+          src="https://js.tosspayments.com/v2/standard"
+          strategy="afterInteractive"
+          onLoad={() => setTossSdkReady(true)}
+          onError={() => setBillingError('토스 SDK 로딩에 실패했습니다.')}
+        />
+      )}
       <MainCard title="구독 요약">
         {loading ? (
           <p className="text-sm text-gray-600">구독 정보를 불러오는 중입니다...</p>
@@ -616,6 +765,16 @@ export default function SubscriptionPageKo() {
             취소할 수 있습니다.
           </div>
         )}
+        {isExternalPayment && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+            결제는 메인 도메인(goatpbn.com)에서 진행됩니다. 아래 버튼을 눌러 결제를 진행해주세요.
+            <div className="mt-3">
+              <TailwindButton size="lg" variant="primary" onClick={() => openExternalPayment('basic')}>
+                메인 사이트에서 결제하기
+              </TailwindButton>
+            </div>
+          </div>
+        )}
         {/* 한글 주석: 요청에 따라 PG 안내 문구 제거 */}
         {paymentStatus && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">{paymentStatus}</div>
@@ -664,58 +823,7 @@ export default function SubscriptionPageKo() {
                       </li>
                     ))}
                   </ul>
-                  {plan.slug === currentPlanSlug ? (
-                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
-                      현재 플랜
-                    </TailwindButton>
-                  ) : currentPlanSlug === 'pro' && plan.slug === 'basic' ? (
-                    isReserved ? (
-                      <TailwindButton
-                        size="lg"
-                        variant="secondary"
-                        className="mt-auto"
-                        onClick={handleCancelDowngrade}
-                        disabled={downgradeLoading}
-                      >
-                        {downgradeLoading ? '취소 중...' : '다운그레이드 예약 취소'}
-                      </TailwindButton>
-                    ) : (
-                      <TailwindButton
-                        size="lg"
-                        variant="secondary"
-                        className="mt-auto"
-                        onClick={handleScheduleDowngrade}
-                        disabled={downgradeLoading}
-                      >
-                        {downgradeLoading ? '예약 중...' : '다음 달부터 다운그레이드'}
-                      </TailwindButton>
-                    )
-                  ) : ['basic', 'pro'].includes(plan.slug) ? (
-                    <>
-                      <TailwindButton
-                        size="lg"
-                        variant="primary"
-                        className="mt-auto"
-                        onClick={() => handleStartBilling(plan.slug)}
-                        disabled={
-                          !tossPlanConfig?.[plan.slug]?.amount || billingLoading || (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)
-                        }
-                      >
-                        {plan.slug === 'pro' && isUpgradeFlow
-                          ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
-                          : billingStatus?.has_billing_key
-                            ? '정기결제 시작하기'
-                            : '카드 등록 후 정기결제'}
-                      </TailwindButton>
-                      {plan.slug === 'pro' && isUpgradeFlow && (
-                        <p className="mt-2 text-xs text-gray-500">업그레이드 시 차액이 즉시 결제되며, 잔여 일수 기준으로 계산됩니다.</p>
-                      )}
-                    </>
-                  ) : (
-                    <TailwindButton size="lg" variant="secondary" className="mt-auto" disabled>
-                      준비 중
-                    </TailwindButton>
-                  )}
+                  {renderPlanActionButton(plan)}
                 </div>
               ))}
           {!plansLoading && plans.length === 0 && (

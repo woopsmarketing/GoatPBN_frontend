@@ -1,0 +1,23 @@
+<!-- v1.0 - goatpbn.com 로그인 페이지 (2026.01.20) -->
+<!-- 기능 요약: 구글 로그인 후 결제 페이지로 복귀 -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GoatPBN 로그인</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <main class="goatpbn-container">
+      <h1 class="goatpbn-title">로그인 후 결제를 진행하세요</h1>
+      <p class="goatpbn-text">구글 계정으로 로그인하면 결제창이 바로 열립니다.</p>
+      <div style="margin-top: 20px;">
+        <button class="goatpbn-button" data-goatpbn-login>Google로 로그인</button>
+        <button class="goatpbn-button secondary" data-goatpbn-continue style="margin-left: 8px;">이미 로그인함</button>
+      </div>
+      <div class="goatpbn-message" data-goatpbn-message></div>
+    </main>
+    <script type="module" src="/assets/login.js"></script>
+  </body>
+</html>

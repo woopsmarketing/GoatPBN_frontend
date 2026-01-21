@@ -1,0 +1,67 @@
+<!-- v0.1 - goatpbn.com pricing 페이지 (2026.01.20) -->
+<!-- 기능 요약: Try out 버튼에서 결제를 시작하고 심사 도메인을 유지 -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoatPBN Pricing</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="headline">
+        <span class="badge">PRICING</span>
+        <h1>Best Plans for Your PBN Growth</h1>
+        <p>로그인 후 Try out을 클릭하면 결제가 시작됩니다.</p>
+      </div>
+
+      <div id="status-box" class="notice hidden">
+        <strong id="status-message">결제 상태 안내</strong>
+      </div>
+      <div id="error-box" class="notice error hidden">
+        <strong id="error-message">에러 메시지</strong>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Basic</h3>
+          <p>핵심 자동화 기능과 기본 리포트를 제공합니다.</p>
+          <div class="price" data-plan-price="basic">—</div>
+          <ul>
+            <li>최대 10개 캠페인</li>
+            <li>사이트 20개 등록</li>
+            <li>기본 자동화 & 스케줄링</li>
+          </ul>
+          <button class="button" data-plan="basic">Try out</button>
+        </div>
+
+        <div class="card">
+          <h3>Pro</h3>
+          <p>대규모 자동화와 우선 지원을 제공합니다.</p>
+          <div class="price" data-plan-price="pro">—</div>
+          <ul>
+            <li>최대 100개 캠페인</li>
+            <li>사이트 무제한</li>
+            <li>고급 자동화 & 우선 지원</li>
+          </ul>
+          <button class="button" data-plan="pro">Try out</button>
+        </div>
+      </div>
+
+      <div class="footer-links">
+        <a href="./refund.html">환불규정</a>
+        ·
+        <a href="./login.html">로그인/회원가입</a>
+      </div>
+    </div>
+
+    <!-- 한글 주석: Supabase/Toss SDK 로딩 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://js.tosspayments.com/v2/standard"></script>
+    <script src="./assets/config.js"></script>
+    <script src="./assets/utils.js"></script>
+    <script src="./assets/auth.js"></script>
+    <script src="./assets/checkout.js"></script>
+  </body>
+</html>
