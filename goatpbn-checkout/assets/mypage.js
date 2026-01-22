@@ -1,5 +1,5 @@
-// v1.4 - goatpbn.com 마이페이지 스크립트 (2026.01.21)
-// 기능 요약: 로그인 사용자 정보 및 구독 상태 조회
+// v1.7 - goatpbn.com 마이페이지 스크립트 (2026.01.22)
+// 기능 요약: 구독 취소 처리 및 상태별 버튼 제어
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
 import {
@@ -68,6 +68,9 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     return normalized.toUpperCase();
   };
 
+  // 한글 주석: 상태 문자열을 표준화합니다.
+  const normalizeStatus = (status) => String(status || '').toLowerCase();
+
   const updatePlanButtons = (currentPlanSlug) => {
     const normalized = String(currentPlanSlug || '').toLowerCase();
     const planButtons = document.querySelectorAll('[data-goatpbn-plan-action]');
@@ -85,6 +88,60 @@ const createMypageController = (userConfig = {}, deps = {}) => {
         btn.textContent = normalized === 'pro' ? '다음 달부터 베이직으로 변경' : '베이직으로 변경';
       }
     });
+  };
+
+  // 한글 주석: 다운그레이드 예약 안내 문구를 표시합니다.
+  const updateDowngradeNotice = (currentPlan, reservedPlan, nextBillingDate) => {
+    const noticeEl = document.querySelector('[data-goatpbn-downgrade]');
+    if (!noticeEl) return;
+    const normalizedCurrent = String(currentPlan || '').toLowerCase();
+    const normalizedReserved = String(reservedPlan || '').toLowerCase();
+    const isScheduled = normalizedCurrent && normalizedReserved && normalizedCurrent !== normalizedReserved;
+
+    if (!isScheduled) {
+      noticeEl.textContent = '';
+      noticeEl.classList.add('hidden');
+      updateCancelButton(false);
+      return;
+    }
+
+    let dateLabel = '';
+    if (nextBillingDate) {
+      try {
+        const date = new Date(nextBillingDate);
+        if (!Number.isNaN(date.getTime())) {
+          dateLabel = ` (적용 예정일: ${date.toLocaleDateString('ko-KR')})`;
+        }
+      } catch (err) {
+        console.warn('다운그레이드 예정일 파싱 실패:', err);
+      }
+    }
+
+    const planLabel = resolvePlanLabel(normalizedReserved);
+    noticeEl.textContent = `다음 결제부터 ${planLabel} 예정입니다.${dateLabel}`;
+    noticeEl.classList.remove('hidden');
+    updateCancelButton(true);
+  };
+
+  // 한글 주석: 다운그레이드 예약 취소 버튼을 제어합니다.
+  const updateCancelButton = (isVisible) => {
+    const cancelButton = document.querySelector('[data-goatpbn-cancel-downgrade]');
+    if (!cancelButton) return;
+    cancelButton.classList.toggle('hidden', !isVisible);
+    cancelButton.disabled = !isVisible;
+  };
+
+  // 한글 주석: 구독 취소 버튼 노출 여부를 제어합니다.
+  const updateCancelSubscriptionButton = (planSlug, status) => {
+    const cancelButton = document.querySelector('[data-goatpbn-cancel-subscription]');
+    if (!cancelButton) return;
+    const normalizedPlan = String(planSlug || '').toLowerCase();
+    const normalizedStatus = normalizeStatus(status);
+    const isPaidPlan = normalizedPlan === 'basic' || normalizedPlan === 'pro';
+    const isCanceled = normalizedStatus === 'canceled' || normalizedStatus === 'cancelled';
+    const shouldShow = isPaidPlan && !isCanceled;
+    cancelButton.classList.toggle('hidden', !shouldShow);
+    cancelButton.disabled = !shouldShow;
   };
 
   const startCheckoutFlow = (planSlug) => {
@@ -123,6 +180,62 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     }
   };
 
+  // 한글 주석: 다운그레이드 예약을 취소합니다.
+  const cancelDowngrade = async () => {
+    if (!currentUserId) return;
+    renderMessage(config.selectors.messageBox, '다운그레이드 예약을 취소하는 중입니다...', 'info');
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
+      const resp = await fetch(`${apiBase}/api/payments/toss/cancel-downgrade`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUserId
+        }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || '다운그레이드 예약 취소 실패');
+      }
+      renderMessage(config.selectors.messageBox, '다운그레이드 예약이 취소되었습니다.', 'info');
+      if (activeSupabase) {
+        await loadSubscriptionSummary(currentUserId, activeSupabase);
+      }
+    } catch (err) {
+      renderMessage(config.selectors.messageBox, err?.message || '다운그레이드 예약 취소 실패', 'error');
+    }
+  };
+
+  // 한글 주석: 구독 취소 요청을 처리합니다.
+  const cancelSubscription = async () => {
+    if (!currentUserId) return;
+    const confirmed = window.confirm('구독을 취소하시겠습니까? 결제 갱신이 중단됩니다.');
+    if (!confirmed) return;
+    renderMessage(config.selectors.messageBox, '구독 취소를 진행하는 중입니다...', 'info');
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
+      const resp = await fetch(`${apiBase}/api/payments/toss/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUserId
+        }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || '구독 취소 실패');
+      }
+      renderMessage(config.selectors.messageBox, '구독 취소가 완료되었습니다.', 'info');
+      if (activeSupabase) {
+        await loadSubscriptionSummary(currentUserId, activeSupabase);
+      }
+    } catch (err) {
+      renderMessage(config.selectors.messageBox, err?.message || '구독 취소 실패', 'error');
+    }
+  };
+
   const bindPlanActionButtons = () => {
     const planButtons = document.querySelectorAll('[data-goatpbn-plan-action]');
     planButtons.forEach((btn) => {
@@ -146,6 +259,37 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     });
   };
 
+  const bindCancelButton = () => {
+    const cancelButton = document.querySelector('[data-goatpbn-cancel-downgrade]');
+    if (!cancelButton || cancelButton.getAttribute('data-goatpbn-cancel-bound') === '1') return;
+    cancelButton.setAttribute('data-goatpbn-cancel-bound', '1');
+    cancelButton.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        cancelDowngrade();
+      },
+      true
+    );
+  };
+
+  // 한글 주석: 구독 취소 버튼 클릭을 연결합니다.
+  const bindCancelSubscriptionButton = () => {
+    const cancelButton = document.querySelector('[data-goatpbn-cancel-subscription]');
+    if (!cancelButton || cancelButton.getAttribute('data-goatpbn-cancel-subscription-bound') === '1') return;
+    cancelButton.setAttribute('data-goatpbn-cancel-subscription-bound', '1');
+    cancelButton.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        cancelSubscription();
+      },
+      true
+    );
+  };
+
   const loadSubscriptionSummary = async (userId, supabase) => {
     try {
       const subscriptionRow = await fetchSubscriptionRow(userId, supabase);
@@ -153,6 +297,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       const planSlugFromUserSub = await fetchPlanSlugById(userSubRow?.plan_id, supabase);
       const resolvedPlanSlug = String(subscriptionRow?.plan || planSlugFromUserSub || 'free').toLowerCase();
       const resolvedStatus = subscriptionRow?.status || userSubRow?.status || '구독 정보가 없습니다.';
+      const reservedPlanSlug = String(planSlugFromUserSub || '').toLowerCase();
       currentPlanSlug = resolvedPlanSlug;
 
       setText('[data-goatpbn-plan]', resolvePlanLabel(resolvedPlanSlug));
@@ -166,7 +311,11 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       setText('[data-goatpbn-credits-remaining]', remaining.toLocaleString());
 
       updatePlanButtons(resolvedPlanSlug);
+      updateDowngradeNotice(resolvedPlanSlug, reservedPlanSlug, userSubRow?.next_billing_date);
+      updateCancelSubscriptionButton(resolvedPlanSlug, resolvedStatus);
       bindPlanActionButtons();
+      bindCancelButton();
+      bindCancelSubscriptionButton();
     } catch (err) {
       console.warn('구독 정보 조회 실패:', err);
       renderMessage(config.selectors.messageBox, '구독 정보를 불러오지 못했습니다.', 'error');
@@ -191,6 +340,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
         planButtons.forEach((btn) => btn.classList.add('hidden'));
         const ssoLinks = document.querySelectorAll('[data-goatpbn-sso]');
         ssoLinks.forEach((link) => link.classList.add('hidden'));
+      updateCancelSubscriptionButton('', 'canceled');
         return;
       }
       currentUserId = user.id;

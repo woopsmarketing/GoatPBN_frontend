@@ -1,7 +1,7 @@
 'use client';
 
-// v2.1 - 메인 도메인 결제 전환 (2026.01.20)
-// 기능 요약: 결제는 goatpbn.com에서 진행하고 앱에서는 상태/플랜만 표시
+// v2.2 - 업그레이드 차액 결제 강제 (2026.01.22)
+// 기능 요약: 업그레이드 시 차액 금액 로딩 전에는 결제를 막고 오류를 안내
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
@@ -433,7 +433,11 @@ export default function SubscriptionPageKo() {
             variant="primary"
             className="mt-auto"
             onClick={() => handleStartBilling(plan.slug)}
-            disabled={!tossPlanConfig?.[plan.slug]?.amount || billingLoading || (plan.slug === 'pro' && isUpgradeFlow && upgradeLoading)}
+            disabled={
+              !tossPlanConfig?.[plan.slug]?.amount ||
+              billingLoading ||
+              (plan.slug === 'pro' && isUpgradeFlow && (upgradeLoading || !upgradeQuote?.amount))
+            }
           >
             {plan.slug === 'pro' && isUpgradeFlow
               ? `${upgradeQuote?.amount?.toLocaleString() ?? '차액'}원 PRO 업그레이드`
@@ -566,6 +570,12 @@ export default function SubscriptionPageKo() {
     }
 
     const planAmount = planSlug === 'pro' && isUpgradeFlow ? upgradeQuote?.amount : tossPlanConfig?.[planSlug]?.amount;
+
+    // 한글 주석: 업그레이드 차액이 아직 로딩되지 않았으면 결제를 막습니다.
+    if (planSlug === 'pro' && isUpgradeFlow && !upgradeQuote?.amount) {
+      setPlanError('업그레이드 차액을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     if (!planAmount) {
       setPlanError('결제 금액을 확인할 수 없습니다.');

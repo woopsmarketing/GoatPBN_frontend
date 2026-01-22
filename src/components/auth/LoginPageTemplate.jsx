@@ -5,7 +5,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/supabase';
-import { buildApiUrl } from '@/lib/api/httpClient';
 
 // 한글 주석: locale별 로그인 텍스트와 메시지를 정의
 const LOGIN_LOCALE_CONFIG = {
@@ -68,28 +67,6 @@ export default function LoginPageTemplate({ locale = 'en' }) {
   useEffect(() => {
     let subscription;
 
-    const notifySignupIfNew = async () => {
-      try {
-        const {
-          data: { session }
-        } = await authAPI.getSession();
-        const user = session?.user;
-        if (!user) return;
-        // 한글 주석: 로그인 성공 시마다 관리자에게 가입 알림을 보냅니다.
-        await fetch(buildApiUrl('/api/events/user-signed-up'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: user.id,
-            email: user.email,
-            name: user.user_metadata?.name || user.user_metadata?.full_name || ''
-          })
-        });
-      } catch (error) {
-        console.error('Signup notification failed:', error);
-      }
-    };
-
     const initializeAuthState = async () => {
       try {
         // 한글 주석: 기존 세션이 있다면 locale에 맞는 대시보드로 이동
@@ -112,7 +89,6 @@ export default function LoginPageTemplate({ locale = 'en' }) {
       // 한글 주석: 로그인 상태가 SIGNED_IN으로 변경되면 locale별 대시보드로 이동
       subscription = authAPI.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN') {
-          notifySignupIfNew();
           if (typeof window !== 'undefined' && window.location.hash) {
             window.location.hash = '';
           }

@@ -1,5 +1,5 @@
-<!-- v1.0 - goatpbn.com 마이페이지 (2026.01.21) -->
-<!-- 기능 요약: 로그인 사용자 정보/구독 요약 표시 -->
+<!-- v1.1 - goatpbn.com 마이페이지 (2026.01.22) -->
+<!-- 기능 요약: 구독 취소 버튼 추가 및 플랜/상태 표시 -->
 <!doctype html>
 <html lang="ko">
   <head>
@@ -77,6 +77,12 @@
           <p class="mt-2 text-sm text-slate-700" data-goatpbn-status>확인 중...</p>
         </div>
 
+        <!-- 한글 주석: 다운그레이드 예약 상태를 표시합니다. -->
+        <div
+          class="mt-3 hidden rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700"
+          data-goatpbn-downgrade
+        ></div>
+
         <div class="goatpbn-message mt-4 text-xs" data-goatpbn-message></div>
 
         <div class="mt-6 flex flex-wrap gap-3">
@@ -95,6 +101,20 @@
             data-plan="pro"
           >
             프로로 업그레이드
+          </button>
+          <button
+            class="hidden rounded-lg border border-emerald-200 px-5 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+            type="button"
+            data-goatpbn-cancel-downgrade
+          >
+            다운그레이드 예약 취소
+          </button>
+          <button
+            class="hidden rounded-lg border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+            type="button"
+            data-goatpbn-cancel-subscription
+          >
+            구독 취소
           </button>
           <a
             class="rounded-lg border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -121,7 +141,7 @@
         </div>
       </section>
     </main>
-    <script type="module" src="/assets/checkout.js?v=13"></script>
-    <script type="module" src="/assets/mypage.js?v=14"></script>
+    <script type="module" src="/assets/checkout.js?v=14"></script>
+    <script type="module" src="/assets/mypage.js?v=17"></script>
   </body>
 </html>

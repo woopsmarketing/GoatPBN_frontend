@@ -1,5 +1,5 @@
-// v1.3 - goatpbn.com 결제 진입 스크립트 (2026.01.21)
-// 기능 요약: Try out 클릭 → 로그인 확인 → 토스 결제창 요청
+// v1.5 - goatpbn.com 결제 진입 스크립트 (2026.01.22)
+// 기능 요약: 플랜 상태별 안내 팝업 추가 및 결제 진입 흐름 개선
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
 import {
@@ -20,12 +20,84 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
   const { ok, missing } = validateConfig(config);
   let supabaseClient = null;
+  let cachedPlanSlug = '';
+  let cachedPlanFetchedAt = 0;
+  const PLAN_CACHE_TTL_MS = 30000;
 
   // 한글 주석: Supabase 클라이언트를 재사용합니다.
   const getSupabase = async () => {
     if (supabaseClient) return supabaseClient;
     supabaseClient = await createSupabaseClient(config, deps);
     return supabaseClient;
+  };
+
+  // 한글 주석: 현재 로그인 사용자의 플랜을 조회합니다.
+  const getCurrentPlanSlug = async (userId) => {
+    const now = Date.now();
+    if (cachedPlanSlug && now - cachedPlanFetchedAt < PLAN_CACHE_TTL_MS) return cachedPlanSlug;
+    try {
+      const supabase = await getSupabase();
+      const { data: subscriptionRow, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select('plan')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (subscriptionError) throw subscriptionError;
+      let planSlug = String(subscriptionRow?.plan || '').toLowerCase();
+
+      if (!planSlug) {
+        const { data: userSubRows, error: userSubError } = await supabase
+          .from('user_subscriptions')
+          .select('plan_id, status')
+          .eq('user_id', userId)
+          .in('status', ['active', 'approval_pending'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (userSubError) throw userSubError;
+        const planId = Array.isArray(userSubRows) ? userSubRows[0]?.plan_id : '';
+        if (planId) {
+          const { data: planRows, error: planError } = await supabase.from('billing_plans').select('slug').eq('id', planId).limit(1);
+          if (planError) throw planError;
+          planSlug = String(Array.isArray(planRows) ? planRows[0]?.slug || '' : '').toLowerCase();
+        }
+      }
+
+      cachedPlanSlug = planSlug;
+      cachedPlanFetchedAt = now;
+      return planSlug;
+    } catch (err) {
+      console.warn('현재 플랜 조회 실패:', err);
+      return '';
+    }
+  };
+
+  // 한글 주석: 현재 플랜에 따른 확인/안내 팝업을 처리합니다.
+  const confirmPlanAction = async (currentPlanSlug, targetPlanSlug) => {
+    const normalizedCurrent = String(currentPlanSlug || '').toLowerCase();
+    const normalizedTarget = String(targetPlanSlug || '').toLowerCase();
+    if (!normalizedTarget) return true;
+
+    const planLabel = (slug) => {
+      if (slug === 'basic') return '베이직';
+      if (slug === 'pro') return '프로';
+      return slug ? slug.toUpperCase() : 'FREE';
+    };
+
+    if (normalizedCurrent && normalizedCurrent === normalizedTarget) {
+      window.alert(`현재 ${planLabel(normalizedTarget)} 플랜입니다.`);
+      return false;
+    }
+
+    if (normalizedCurrent === 'pro' && normalizedTarget === 'basic') {
+      window.alert('이미 프로 플랜입니다. 베이직 변경은 마이페이지에서 다운그레이드 예약을 진행해주세요.');
+      return false;
+    }
+
+    if (normalizedCurrent === 'basic' && normalizedTarget === 'pro') {
+      return window.confirm('프로 플랜으로 업그레이드하시겠습니까? 결제창이 바로 열립니다.');
+    }
+
+    return true;
   };
 
   // 한글 주석: 로그인 여부 확인 후 결제창을 호출합니다.
@@ -47,6 +119,10 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
         redirectToLogin(planSlug);
         return;
       }
+
+      const currentPlanSlug = await getCurrentPlanSlug(user.id);
+      const shouldProceed = await confirmPlanAction(currentPlanSlug, planSlug);
+      if (!shouldProceed) return;
 
       await requestBillingAuth(user, planSlug, triggerElement);
     } catch (err) {
