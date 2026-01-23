@@ -1,3 +1,4 @@
+// v1.1 - 무료 쿠폰 자동 오픈/프리필 지원 (2026.01.23)
 /**
  * 📊 대시보드 페이지 (MVP)
  * 최근 현황을 한눈에 보는 KPI/최근 활동/진행률/알림 패널을 표시
@@ -6,8 +7,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import MainCard from '../../../components/MainCard';
 import TailwindButton from '../../../components/ui/TailwindButton';
 import CouponLauncher from '@/layout/DashboardLayout/Header/HeaderContent/CouponLauncher';
@@ -30,10 +31,36 @@ function ProgressBar({ value }) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { locale } = useDashboardLocale();
   const isEnglish = locale === 'en';
   const dateLocale = isEnglish ? 'en-US' : 'ko-KR';
   const localizePath = (path) => (isEnglish ? `/en${path}` : path);
+
+  // 한글 주석: URL 쿼리에서 쿠폰 자동 오픈 정보를 추출합니다.
+  const autoCouponConfig = useMemo(() => {
+    try {
+      const autoOpen = searchParams?.get('auto_coupon') === '1';
+      const couponCode = String(searchParams?.get('coupon') || '').trim();
+      return { autoOpen, couponCode };
+    } catch (error) {
+      console.warn('쿠폰 쿼리 파싱 실패:', error);
+      return { autoOpen: false, couponCode: '' };
+    }
+  }, [searchParams]);
+
+  // 한글 주석: 쿠폰 자동 오픈 후 URL 파라미터를 정리합니다.
+  const handleAutoCouponHandled = useCallback(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('auto_coupon');
+      url.searchParams.delete('coupon');
+      window.history.replaceState({}, document.title, url.toString());
+    } catch (error) {
+      console.warn('쿠폰 파라미터 정리 실패:', error);
+    }
+  }, []);
 
   // 상태 관리
   const [dashboardData, setDashboardData] = useState({
@@ -235,6 +262,9 @@ export default function DashboardPage() {
             submitText={isEnglish ? 'Apply coupon' : '쿠폰 적용'}
             inputLabel={isEnglish ? 'Coupon code' : '쿠폰 코드'}
             processingText={isEnglish ? 'Submitting...' : '등록 중...'}
+            autoOpen={autoCouponConfig.autoOpen}
+            defaultCouponCode={autoCouponConfig.couponCode}
+            onAutoOpenHandled={handleAutoCouponHandled}
           />
         </div>
       </div>

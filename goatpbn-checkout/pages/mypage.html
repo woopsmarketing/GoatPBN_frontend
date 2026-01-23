@@ -1,4 +1,4 @@
-<!-- v1.1 - goatpbn.com 마이페이지 (2026.01.22) -->
+<!-- v1.3 - /en 다국어 마이페이지 텍스트 대응 (2026.01.23) -->
 <!-- 기능 요약: 구독 취소 버튼 추가 및 플랜/상태 표시 -->
 <!doctype html>
 <html lang="ko">
@@ -42,39 +42,39 @@
     <main class="min-h-screen px-4 py-14" data-goatpbn-mypage>
       <section class="mx-auto w-full max-w-2xl rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-200">
         <div class="space-y-2">
-          <h1 class="text-2xl font-semibold text-slate-900">마이페이지</h1>
-          <p class="text-sm text-slate-500">구독 상태와 기본 정보를 확인하세요.</p>
+          <h1 class="text-2xl font-semibold text-slate-900" data-goatpbn-i18n="mypageTitle">마이페이지</h1>
+          <p class="text-sm text-slate-500" data-goatpbn-i18n="mypageSubtitle">구독 상태와 기본 정보를 확인하세요.</p>
         </div>
 
         <div class="mt-6 grid gap-4 md:grid-cols-2">
           <div class="rounded-xl border border-slate-200 p-4">
-            <p class="text-xs font-semibold text-slate-500">로그인 계정</p>
-            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-email>확인 중...</p>
+            <p class="text-xs font-semibold text-slate-500" data-goatpbn-i18n="loginAccountLabel">로그인 계정</p>
+            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-email data-goatpbn-i18n="checking">확인 중...</p>
           </div>
           <div class="rounded-xl border border-slate-200 p-4">
-            <p class="text-xs font-semibold text-slate-500">현재 플랜</p>
-            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-plan>확인 중...</p>
+            <p class="text-xs font-semibold text-slate-500" data-goatpbn-i18n="currentPlanLabel">현재 플랜</p>
+            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-plan data-goatpbn-i18n="checking">확인 중...</p>
           </div>
         </div>
 
         <div class="mt-4 grid gap-4 md:grid-cols-3">
           <div class="rounded-xl border border-slate-200 p-4">
-            <p class="text-xs font-semibold text-slate-500">전체 크레딧</p>
-            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-credits-total>확인 중...</p>
+            <p class="text-xs font-semibold text-slate-500" data-goatpbn-i18n="totalCreditsLabel">전체 크레딧</p>
+            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-credits-total data-goatpbn-i18n="checking">확인 중...</p>
           </div>
           <div class="rounded-xl border border-slate-200 p-4">
-            <p class="text-xs font-semibold text-slate-500">사용한 크레딧</p>
-            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-credits-used>확인 중...</p>
+            <p class="text-xs font-semibold text-slate-500" data-goatpbn-i18n="usedCreditsLabel">사용한 크레딧</p>
+            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-credits-used data-goatpbn-i18n="checking">확인 중...</p>
           </div>
           <div class="rounded-xl border border-slate-200 p-4">
-            <p class="text-xs font-semibold text-slate-500">남은 크레딧</p>
-            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-credits-remaining>확인 중...</p>
+            <p class="text-xs font-semibold text-slate-500" data-goatpbn-i18n="remainingCreditsLabel">남은 크레딧</p>
+            <p class="mt-2 text-sm font-medium text-slate-800" data-goatpbn-credits-remaining data-goatpbn-i18n="checking">확인 중...</p>
           </div>
         </div>
 
         <div class="mt-4 rounded-xl border border-slate-200 p-4">
-          <p class="text-xs font-semibold text-slate-500">구독 상태</p>
-          <p class="mt-2 text-sm text-slate-700" data-goatpbn-status>확인 중...</p>
+          <p class="text-xs font-semibold text-slate-500" data-goatpbn-i18n="subscriptionStatusLabel">구독 상태</p>
+          <p class="mt-2 text-sm text-slate-700" data-goatpbn-status data-goatpbn-i18n="checking">확인 중...</p>
         </div>
 
         <!-- 한글 주석: 다운그레이드 예약 상태를 표시합니다. -->
@@ -92,7 +92,7 @@
             data-goatpbn-plan-action
             data-plan="basic"
           >
-            베이직으로 변경
+            <span data-goatpbn-i18n="changeBasicButton">베이직으로 변경</span>
           </button>
           <button
             class="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
@@ -100,21 +100,21 @@
             data-goatpbn-plan-action
             data-plan="pro"
           >
-            프로로 업그레이드
+            <span data-goatpbn-i18n="upgradeProButton">프로로 업그레이드</span>
           </button>
           <button
             class="hidden rounded-lg border border-emerald-200 px-5 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
             type="button"
             data-goatpbn-cancel-downgrade
           >
-            다운그레이드 예약 취소
+            <span data-goatpbn-i18n="cancelDowngradeButton">다운그레이드 예약 취소</span>
           </button>
           <button
             class="hidden rounded-lg border border-rose-200 px-5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
             type="button"
             data-goatpbn-cancel-subscription
           >
-            구독 취소
+            <span data-goatpbn-i18n="cancelSubscriptionButton">구독 취소</span>
           </button>
           <a
             class="rounded-lg border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -125,7 +125,7 @@
             data-goatpbn-newtab="1"
             data-goatpbn-target="https://app.goatpbn.com/ko/dashboard"
           >
-            대시보드로 이동
+            <span data-goatpbn-i18n="dashboardLink">대시보드로 이동</span>
           </a>
           <a
             class="rounded-lg border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -136,12 +136,12 @@
             data-goatpbn-newtab="1"
             data-goatpbn-target="https://app.goatpbn.com/ko/dashboard"
           >
-            앱에서 상세 보기
+            <span data-goatpbn-i18n="appDetailLink">앱에서 상세 보기</span>
           </a>
         </div>
       </section>
     </main>
-    <script type="module" src="/assets/checkout.js?v=14"></script>
-    <script type="module" src="/assets/mypage.js?v=17"></script>
+    <script type="module" src="/assets/checkout.js?v=16"></script>
+    <script type="module" src="/assets/mypage.js?v=18"></script>
   </body>
 </html>

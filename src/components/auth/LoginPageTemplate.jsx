@@ -1,10 +1,11 @@
-// v1.0 - 다국어 로그인 템플릿 추가 (2025.11.17)
+// v1.1 - 외부 회원가입 리다이렉트 지원 (2026.01.23)
 // 기능 요약: locale에 맞는 로그인 화면을 제공하며 구글 OAuth 리다이렉트 경로를 관리
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/supabase';
+import { buildSignupRedirectUrl } from '@/utils/route-guard/marketingRedirect';
 
 // 한글 주석: locale별 로그인 텍스트와 메시지를 정의
 const LOGIN_LOCALE_CONFIG = {
@@ -69,6 +70,9 @@ export default function LoginPageTemplate({ locale = 'en' }) {
 
     const initializeAuthState = async () => {
       try {
+        // 한글 주석: SSO 해시 토큰이 있으면 먼저 세션으로 동기화합니다.
+        await authAPI.syncSessionFromUrlHash();
+
         // 한글 주석: 기존 세션이 있다면 locale에 맞는 대시보드로 이동
         const {
           data: { session }
@@ -80,6 +84,15 @@ export default function LoginPageTemplate({ locale = 'en' }) {
           }
           router.replace(dashboardPath);
           return;
+        }
+
+        // 한글 주석: 로그인되지 않은 경우 외부 회원가입 페이지로 이동합니다.
+        if (typeof window !== 'undefined') {
+          const redirectUrl = buildSignupRedirectUrl(window.location.href);
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+            return;
+          }
         }
       } catch (error) {
         console.error('세션 확인 오류:', error);

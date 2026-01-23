@@ -1,4 +1,4 @@
-// v1.6 - goatpbn.com 결제 공통 유틸 (2026.01.21)
+// v1.8 - locale 감지 및 무료 플랜 설정 보강 (2026.01.23)
 // 기능 요약: 설정 병합/검증, Supabase 로더, 토스 SDK 로더, 계획 조회 공통 제공
 // 사용 예시:
 //   import { resolveConfig, validateConfig } from './utils.js';
@@ -15,10 +15,14 @@ const DEFAULT_CONFIG = {
   apiBaseUrl: 'https://app.goatpbn.com',
   homeUrl: 'https://goatpbn.com/',
   loginUrl: 'https://goatpbn.com/login',
+  signupUrl: 'https://goatpbn.com/register',
   pricingUrl: 'https://goatpbn.com/#pricing',
   billingSuccessUrl: 'https://goatpbn.com/success',
   billingFailUrl: 'https://goatpbn.com/fail',
   afterSuccessRedirectUrl: 'https://app.goatpbn.com/ko/subscription?payment_status=success',
+  appDashboardUrlKo: 'https://app.goatpbn.com/ko/dashboard',
+  appDashboardUrlEn: 'https://ap9p.goatpbn.com/en/dashboard',
+  freeCouponCode: 'BHWFREECREDIT',
   planMap: DEFAULT_PLAN_MAP,
   selectors: {
     checkoutButton: '[data-goatpbn-checkout]',
@@ -268,6 +272,24 @@ export const parseQuery = () => {
   });
   return result;
 };
+
+// 한글 주석: URL 기반으로 locale을 판별합니다. (lang/locale 쿼리 우선)
+export const resolveLocale = () => {
+  try {
+    if (typeof window === 'undefined') return 'ko';
+    const query = parseQuery();
+    const queryLocale = String(query?.lang || query?.locale || '').toLowerCase();
+    if (queryLocale === 'en') return 'en';
+    if (window.location.pathname.startsWith('/en')) return 'en';
+    return 'ko';
+  } catch (err) {
+    console.warn('locale 감지 실패:', err);
+    return 'ko';
+  }
+};
+
+// 한글 주석: 영어 locale 여부를 반환합니다.
+export const isEnglishLocale = () => resolveLocale() === 'en';
 
 // 한글 주석: 안내 메시지를 화면에 표기합니다.
 export const renderMessage = (selector, message, type = 'info') => {

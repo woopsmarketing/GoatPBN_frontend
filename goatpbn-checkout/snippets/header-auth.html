@@ -1,4 +1,4 @@
-<!-- v1.0 - goatpbn.com 헤더 로그인 위젯 스니펫 (2026.01.21) -->
+<!-- v1.2 - /en 경로 다국어 헤더 텍스트 업데이트 (2026.01.23) -->
 <!-- 기능 요약: 로그인/비로그인 메뉴를 토글하는 헤더 UI -->
 <style>
   .goatpbn-header-auth {
@@ -68,22 +68,25 @@
     homeUrl: "https://goatpbn.com/",
     logoutRedirectUrl: "https://goatpbn.com/",
     loginUrl: "https://goatpbn.com/login",
+    signupUrl: "https://goatpbn.com/register",
     pricingUrl: "https://goatpbn.com/#pricing",
-    mypageUrl: "https://goatpbn.com/mypage"
+    mypageUrl: "https://goatpbn.com/mypage",
+    appDashboardUrlKo: "https://app.goatpbn.com/ko/dashboard",
+    appDashboardUrlEn: "https://app.goatpbn.com/en/dashboard"
   };
 </script>
 
 <div class="goatpbn-header-auth">
   <!-- 비로그인 메뉴 -->
   <div data-goatpbn-header-guest>
-    <a class="goatpbn-link" href="https://goatpbn.com/login">로그인</a>
-    <a class="goatpbn-btn-outline" href="https://goatpbn.com/register">회원가입</a>
+    <a class="goatpbn-link" href="https://goatpbn.com/login" data-goatpbn-login-link>로그인</a>
+    <a class="goatpbn-btn-outline" href="https://goatpbn.com/register" data-goatpbn-signup-link>회원가입</a>
   </div>
 
   <!-- 로그인 메뉴 -->
   <div class="goatpbn-hidden" data-goatpbn-header-logged style="display:flex;gap:10px;align-items:center;">
     <span class="goatpbn-user-chip" data-goatpbn-user-email>user@email.com</span>
-    <a class="goatpbn-link" href="https://goatpbn.com/mypage">마이페이지</a>
+    <a class="goatpbn-link" href="https://goatpbn.com/mypage" data-goatpbn-mypage-link>마이페이지</a>
     <a
       class="goatpbn-btn-outline"
       href="https://app.goatpbn.com/ko/dashboard"
@@ -92,6 +95,7 @@
       data-goatpbn-sso
       data-goatpbn-newtab="1"
       data-goatpbn-target="https://app.goatpbn.com/ko/dashboard"
+      data-goatpbn-dashboard-link
     >
       대시보드
     </a>
@@ -100,4 +104,4 @@
 </div>
 
 <!-- 한글 주석: 헤더 위젯 스크립트 로드 -->
-<script type="module" src="/assets/header-auth.js?v=8"></script>
+<script type="module" src="/assets/header-auth.js?v=10"></script>

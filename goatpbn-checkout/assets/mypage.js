@@ -1,4 +1,4 @@
-// v1.7 - goatpbn.com 마이페이지 스크립트 (2026.01.22)
+// v1.8 - /en 경로 다국어 마이페이지 지원 (2026.01.23)
 // 기능 요약: 구독 취소 처리 및 상태별 버튼 제어
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
@@ -8,8 +8,9 @@ import {
   createSupabaseClient,
   getSessionFromAnyStorage,
   renderMessage,
-  bindSsoLinks
-} from './utils.js?v=11';
+  bindSsoLinks,
+  resolveLocale
+} from './utils.js?v=13';
 
 const createMypageController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
@@ -18,6 +19,112 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   let currentPlanSlug = '';
   let currentUserId = '';
   let activeSupabase = null;
+  const locale = resolveLocale();
+  const isEnglish = locale === 'en';
+  const localeTextMap = {
+    ko: {
+      mypageTitle: '마이페이지',
+      mypageSubtitle: '구독 상태와 기본 정보를 확인하세요.',
+      loginAccountLabel: '로그인 계정',
+      currentPlanLabel: '현재 플랜',
+      totalCreditsLabel: '전체 크레딧',
+      usedCreditsLabel: '사용한 크레딧',
+      remainingCreditsLabel: '남은 크레딧',
+      subscriptionStatusLabel: '구독 상태',
+      changeBasicButton: '베이직으로 변경',
+      changeBasicNext: '다음 달부터 베이직으로 변경',
+      upgradeProButton: '프로로 업그레이드',
+      cancelDowngradeButton: '다운그레이드 예약 취소',
+      cancelSubscriptionButton: '구독 취소',
+      dashboardLink: '대시보드로 이동',
+      appDetailLink: '앱에서 상세 보기',
+      checking: '확인 중...',
+      loginRequired: '로그인이 필요합니다.',
+      loginRequiredDetail: '로그인 후 이용 가능합니다.',
+      planLabelFree: '무료',
+      planLabelBasic: '베이직',
+      planLabelPro: '프로',
+      downgradeSchedule: (planLabel, dateLabel) => `다음 결제부터 ${planLabel} 예정입니다.${dateLabel}`,
+      downgradeDateLabel: (date) => ` (적용 예정일: ${date})`,
+      downgradePending: '다운그레이드를 예약하는 중입니다...',
+      downgradeDone: '다음 결제 주기부터 베이직으로 변경됩니다.',
+      downgradeFail: '다운그레이드 예약 실패',
+      downgradeCancelPending: '다운그레이드 예약을 취소하는 중입니다...',
+      downgradeCancelDone: '다운그레이드 예약이 취소되었습니다.',
+      downgradeCancelFail: '다운그레이드 예약 취소 실패',
+      cancelConfirm: '구독을 취소하시겠습니까? 결제 갱신이 중단됩니다.',
+      cancelPending: '구독 취소를 진행하는 중입니다...',
+      cancelDone: '구독 취소가 완료되었습니다.',
+      cancelFail: '구독 취소 실패',
+      subscriptionLoadFail: '구독 정보를 불러오지 못했습니다.',
+      initFail: '마이페이지 초기화 중 오류가 발생했습니다.',
+      missingConfig: (items) => `설정 누락: ${items.join(', ')}`
+    },
+    en: {
+      mypageTitle: 'My page',
+      mypageSubtitle: 'Review your subscription and account details.',
+      loginAccountLabel: 'Account',
+      currentPlanLabel: 'Current plan',
+      totalCreditsLabel: 'Total credits',
+      usedCreditsLabel: 'Used credits',
+      remainingCreditsLabel: 'Remaining credits',
+      subscriptionStatusLabel: 'Subscription status',
+      changeBasicButton: 'Switch to Basic',
+      changeBasicNext: 'Switch to Basic next cycle',
+      upgradeProButton: 'Upgrade to Pro',
+      cancelDowngradeButton: 'Cancel downgrade',
+      cancelSubscriptionButton: 'Cancel subscription',
+      dashboardLink: 'Go to dashboard',
+      appDetailLink: 'View in app',
+      checking: 'Checking...',
+      loginRequired: 'Login required.',
+      loginRequiredDetail: 'Please sign in to continue.',
+      planLabelFree: 'Free',
+      planLabelBasic: 'Basic',
+      planLabelPro: 'Pro',
+      downgradeSchedule: (planLabel, dateLabel) => `Scheduled to switch to ${planLabel}.${dateLabel}`,
+      downgradeDateLabel: (date) => ` (Effective: ${date})`,
+      downgradePending: 'Scheduling downgrade...',
+      downgradeDone: 'Basic will apply from the next billing cycle.',
+      downgradeFail: 'Failed to schedule downgrade.',
+      downgradeCancelPending: 'Canceling downgrade schedule...',
+      downgradeCancelDone: 'Downgrade schedule canceled.',
+      downgradeCancelFail: 'Failed to cancel downgrade schedule.',
+      cancelConfirm: 'Cancel subscription? Billing will stop.',
+      cancelPending: 'Canceling subscription...',
+      cancelDone: 'Subscription canceled.',
+      cancelFail: 'Failed to cancel subscription.',
+      subscriptionLoadFail: 'Unable to load subscription details.',
+      initFail: 'Failed to initialize my page.',
+      missingConfig: (items) => `Missing config: ${items.join(', ')}`
+    }
+  };
+
+  // 한글 주석: locale 텍스트를 반환합니다.
+  const getTexts = () => localeTextMap[locale] || localeTextMap.ko;
+
+  // 한글 주석: data-goatpbn-i18n 키 기준으로 텍스트를 교체합니다.
+  const applyLocaleTexts = () => {
+    if (typeof document === 'undefined') return;
+    const texts = getTexts();
+    document.documentElement.setAttribute('lang', locale);
+    document.querySelectorAll('[data-goatpbn-i18n]').forEach((el) => {
+      const key = el.getAttribute('data-goatpbn-i18n');
+      if (key && texts[key]) el.textContent = texts[key];
+    });
+  };
+
+  // 한글 주석: locale에 맞는 대시보드 링크를 설정합니다.
+  const applyLocaleLinks = () => {
+    const dashboardUrl = isEnglish
+      ? config.appDashboardUrlEn || 'https://ap9p.goatpbn.com/en/dashboard'
+      : config.appDashboardUrlKo || 'https://app.goatpbn.com/ko/dashboard';
+    const links = document.querySelectorAll('[data-goatpbn-sso]');
+    links.forEach((link) => {
+      link.setAttribute('href', dashboardUrl);
+      link.setAttribute('data-goatpbn-target', dashboardUrl);
+    });
+  };
 
   const getSupabase = async () => {
     if (supabaseClient) return supabaseClient;
@@ -64,7 +171,10 @@ const createMypageController = (userConfig = {}, deps = {}) => {
 
   const resolvePlanLabel = (planSlug) => {
     const normalized = String(planSlug || '').toLowerCase();
-    if (!normalized || normalized === 'free') return '무료';
+    const texts = getTexts();
+    if (!normalized || normalized === 'free') return texts.planLabelFree;
+    if (normalized === 'basic') return texts.planLabelBasic;
+    if (normalized === 'pro') return texts.planLabelPro;
     return normalized.toUpperCase();
   };
 
@@ -74,6 +184,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   const updatePlanButtons = (currentPlanSlug) => {
     const normalized = String(currentPlanSlug || '').toLowerCase();
     const planButtons = document.querySelectorAll('[data-goatpbn-plan-action]');
+    const texts = getTexts();
     planButtons.forEach((btn) => {
       const plan = String(btn.getAttribute('data-plan') || '').toLowerCase();
       if (!plan) return;
@@ -83,9 +194,9 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       }
       btn.classList.remove('hidden');
       if (plan === 'pro') {
-        btn.textContent = '프로로 업그레이드';
+        btn.textContent = texts.upgradeProButton;
       } else if (plan === 'basic') {
-        btn.textContent = normalized === 'pro' ? '다음 달부터 베이직으로 변경' : '베이직으로 변경';
+        btn.textContent = normalized === 'pro' ? texts.changeBasicNext : texts.changeBasicButton;
       }
     });
   };
@@ -97,6 +208,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     const normalizedCurrent = String(currentPlan || '').toLowerCase();
     const normalizedReserved = String(reservedPlan || '').toLowerCase();
     const isScheduled = normalizedCurrent && normalizedReserved && normalizedCurrent !== normalizedReserved;
+    const texts = getTexts();
 
     if (!isScheduled) {
       noticeEl.textContent = '';
@@ -110,7 +222,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       try {
         const date = new Date(nextBillingDate);
         if (!Number.isNaN(date.getTime())) {
-          dateLabel = ` (적용 예정일: ${date.toLocaleDateString('ko-KR')})`;
+          const formatted = date.toLocaleDateString(isEnglish ? 'en-US' : 'ko-KR');
+          dateLabel = texts.downgradeDateLabel(formatted);
         }
       } catch (err) {
         console.warn('다운그레이드 예정일 파싱 실패:', err);
@@ -118,7 +231,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     }
 
     const planLabel = resolvePlanLabel(normalizedReserved);
-    noticeEl.textContent = `다음 결제부터 ${planLabel} 예정입니다.${dateLabel}`;
+    noticeEl.textContent = texts.downgradeSchedule(planLabel, dateLabel);
     noticeEl.classList.remove('hidden');
     updateCancelButton(true);
   };
@@ -155,7 +268,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
 
   const scheduleDowngrade = async () => {
     if (!currentUserId) return;
-    renderMessage(config.selectors.messageBox, '다운그레이드를 예약하는 중입니다...', 'info');
+    renderMessage(config.selectors.messageBox, getTexts().downgradePending, 'info');
     try {
       const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
       if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
@@ -171,19 +284,19 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       if (!resp.ok) {
         throw new Error(data?.detail || data?.error || '다운그레이드 예약 실패');
       }
-      renderMessage(config.selectors.messageBox, '다음 결제 주기부터 베이직으로 변경됩니다.', 'info');
+      renderMessage(config.selectors.messageBox, getTexts().downgradeDone, 'info');
       if (activeSupabase) {
         await loadSubscriptionSummary(currentUserId, activeSupabase);
       }
     } catch (err) {
-      renderMessage(config.selectors.messageBox, err?.message || '다운그레이드 예약 실패', 'error');
+      renderMessage(config.selectors.messageBox, err?.message || getTexts().downgradeFail, 'error');
     }
   };
 
   // 한글 주석: 다운그레이드 예약을 취소합니다.
   const cancelDowngrade = async () => {
     if (!currentUserId) return;
-    renderMessage(config.selectors.messageBox, '다운그레이드 예약을 취소하는 중입니다...', 'info');
+    renderMessage(config.selectors.messageBox, getTexts().downgradeCancelPending, 'info');
     try {
       const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
       if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
@@ -198,21 +311,21 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       if (!resp.ok) {
         throw new Error(data?.detail || data?.error || '다운그레이드 예약 취소 실패');
       }
-      renderMessage(config.selectors.messageBox, '다운그레이드 예약이 취소되었습니다.', 'info');
+      renderMessage(config.selectors.messageBox, getTexts().downgradeCancelDone, 'info');
       if (activeSupabase) {
         await loadSubscriptionSummary(currentUserId, activeSupabase);
       }
     } catch (err) {
-      renderMessage(config.selectors.messageBox, err?.message || '다운그레이드 예약 취소 실패', 'error');
+      renderMessage(config.selectors.messageBox, err?.message || getTexts().downgradeCancelFail, 'error');
     }
   };
 
   // 한글 주석: 구독 취소 요청을 처리합니다.
   const cancelSubscription = async () => {
     if (!currentUserId) return;
-    const confirmed = window.confirm('구독을 취소하시겠습니까? 결제 갱신이 중단됩니다.');
+    const confirmed = window.confirm(getTexts().cancelConfirm);
     if (!confirmed) return;
-    renderMessage(config.selectors.messageBox, '구독 취소를 진행하는 중입니다...', 'info');
+    renderMessage(config.selectors.messageBox, getTexts().cancelPending, 'info');
     try {
       const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
       if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
@@ -227,12 +340,12 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       if (!resp.ok) {
         throw new Error(data?.detail || data?.error || '구독 취소 실패');
       }
-      renderMessage(config.selectors.messageBox, '구독 취소가 완료되었습니다.', 'info');
+      renderMessage(config.selectors.messageBox, getTexts().cancelDone, 'info');
       if (activeSupabase) {
         await loadSubscriptionSummary(currentUserId, activeSupabase);
       }
     } catch (err) {
-      renderMessage(config.selectors.messageBox, err?.message || '구독 취소 실패', 'error');
+      renderMessage(config.selectors.messageBox, err?.message || getTexts().cancelFail, 'error');
     }
   };
 
@@ -318,24 +431,27 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       bindCancelSubscriptionButton();
     } catch (err) {
       console.warn('구독 정보 조회 실패:', err);
-      renderMessage(config.selectors.messageBox, '구독 정보를 불러오지 못했습니다.', 'error');
+      renderMessage(config.selectors.messageBox, getTexts().subscriptionLoadFail, 'error');
     }
   };
 
   const init = async () => {
     if (!ok) {
-      renderMessage(config.selectors.messageBox, `설정 누락: ${missing.join(', ')}`, 'error');
+      renderMessage(config.selectors.messageBox, getTexts().missingConfig(missing), 'error');
       return;
     }
     try {
+      applyLocaleTexts();
+      applyLocaleLinks();
       await bindSsoLinks(config, deps);
       const { user, supabase: sessionSupabase } = await getSessionFromAnyStorage(config, deps);
       const supabase = sessionSupabase || (await getSupabase());
       activeSupabase = supabase;
       if (!user) {
-        setText('[data-goatpbn-email]', '로그인이 필요합니다.');
+        const texts = getTexts();
+        setText('[data-goatpbn-email]', texts.loginRequired);
         setText('[data-goatpbn-plan]', '—');
-        setText('[data-goatpbn-status]', '로그인 후 이용 가능합니다.');
+        setText('[data-goatpbn-status]', texts.loginRequiredDetail);
         const planButtons = document.querySelectorAll('[data-goatpbn-plan-action]');
         planButtons.forEach((btn) => btn.classList.add('hidden'));
         const ssoLinks = document.querySelectorAll('[data-goatpbn-sso]');
@@ -348,7 +464,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       await loadSubscriptionSummary(user.id, supabase);
     } catch (err) {
       console.error('마이페이지 초기화 실패:', err);
-      renderMessage(config.selectors.messageBox, '마이페이지 초기화 중 오류가 발생했습니다.', 'error');
+      renderMessage(config.selectors.messageBox, getTexts().initFail, 'error');
     }
   };
 

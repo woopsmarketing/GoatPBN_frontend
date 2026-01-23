@@ -1,7 +1,8 @@
 'use client';
+// v1.1 - 쿠폰 자동 오픈/프리필 지원 (2026.01.23)
 // v1.0 - 무료 구독자 전용 쿠폰 등록 UI(2026.01.09)
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -26,16 +27,41 @@ export default function CouponLauncher({
   closeText = '닫기',
   submitText = '쿠폰 적용',
   inputLabel = '쿠폰 코드',
-  processingText = '등록 중...'
+  processingText = '등록 중...',
+  autoOpen = false,
+  defaultCouponCode = '',
+  onAutoOpenHandled
 }) {
   const [open, setOpen] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [status, setStatus] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const autoOpenHandledRef = useRef(false);
+
+  // 한글 주석: 쿠폰 코드를 정규화합니다.
+  const normalizeCouponCode = (value) => String(value || '').trim();
+
+  // 한글 주석: 자동 오픈 요청을 1회만 실행합니다.
+  useEffect(() => {
+    try {
+      if (!autoOpen || autoOpenHandledRef.current) return;
+      autoOpenHandledRef.current = true;
+      if (defaultCouponCode) {
+        setCouponCode(normalizeCouponCode(defaultCouponCode));
+      }
+      setOpen(true);
+      if (typeof onAutoOpenHandled === 'function') {
+        onAutoOpenHandled();
+      }
+    } catch (error) {
+      console.warn('쿠폰 자동 오픈 처리 실패:', error);
+    }
+  }, [autoOpen, defaultCouponCode, onAutoOpenHandled]);
 
   const handleApply = async () => {
     setStatus(null);
-    if (!couponCode.trim()) {
+    const normalizedCode = normalizeCouponCode(couponCode);
+    if (!normalizedCode) {
       setStatus({ type: 'error', message: '쿠폰 코드를 입력해 주세요.' });
       return;
     }
@@ -50,7 +76,7 @@ export default function CouponLauncher({
 
       const payload = {
         user_id: user.id,
-        code: couponCode.trim()
+        code: normalizedCode
       };
 
       // 한글 주석: Next API 를 통해 FastAPI 쿠폰 엔드포인트로 요청을 전달합니다.

@@ -1,4 +1,4 @@
-// v1.5 - goatpbn.com 결제 진입 스크립트 (2026.01.22)
+// v1.7 - locale 감지 개선 및 무료 플랜 자동 쿠폰 이동 (2026.01.23)
 // 기능 요약: 플랜 상태별 안내 팝업 추가 및 결제 진입 흐름 개선
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
@@ -12,8 +12,10 @@ import {
   getDataAttr,
   parseQuery,
   renderMessage,
-  fallbackString
-} from './utils.js?v=11';
+  fallbackString,
+  buildSsoUrl,
+  resolveLocale
+} from './utils.js?v=13';
 
 // 한글 주석: 외부 의존성 주입으로 테스트 가능하게 구성합니다.
 const createCheckoutController = (userConfig = {}, deps = {}) => {
@@ -23,6 +25,36 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   let cachedPlanSlug = '';
   let cachedPlanFetchedAt = 0;
   const PLAN_CACHE_TTL_MS = 30000;
+
+  // 한글 주석: 플랜 슬러그를 소문자로 정규화합니다.
+  const normalizePlanSlug = (planSlug) =>
+    String(planSlug || '')
+      .trim()
+      .toLowerCase();
+
+  // 한글 주석: 현재 페이지가 영어 버전인지 판단합니다.
+  const isEnglishPage = () => resolveLocale() === 'en';
+
+  // 한글 주석: 무료 쿠폰 코드와 대시보드 URL을 구성합니다.
+  const resolveFreeCouponCode = () => fallbackString(config.freeCouponCode, 'BHWFREECREDIT');
+
+  const resolveAppDashboardUrl = () => {
+    const fallbackKo = fallbackString(config.appDashboardUrlKo, 'https://app.goatpbn.com/ko/dashboard');
+    const fallbackEn = fallbackString(config.appDashboardUrlEn, 'https://ap9p.goatpbn.com/en/dashboard');
+    return isEnglishPage() ? fallbackEn : fallbackKo;
+  };
+
+  const buildFreeDashboardUrl = () => {
+    try {
+      const url = new URL(resolveAppDashboardUrl());
+      url.searchParams.set('auto_coupon', '1');
+      url.searchParams.set('coupon', resolveFreeCouponCode());
+      return url.toString();
+    } catch (err) {
+      console.warn('무료 플랜 이동 URL 생성 실패:', err);
+      return resolveAppDashboardUrl();
+    }
+  };
 
   // 한글 주석: Supabase 클라이언트를 재사용합니다.
   const getSupabase = async () => {
@@ -100,6 +132,30 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     return true;
   };
 
+  // 한글 주석: 무료 플랜 진입(쿠폰 자동 입력)을 처리합니다.
+  const startFreeFlow = async () => {
+    try {
+      if (!ok) {
+        renderMessage(config.selectors.messageBox, `설정 누락: ${missing.join(', ')}`, 'error');
+        return;
+      }
+
+      await getSupabase();
+      const { user, session } = await getSessionFromAnyStorage(config, deps);
+      const destinationUrl = buildFreeDashboardUrl();
+      if (!user) {
+        redirectToLogin('free', { returnToOverride: destinationUrl, forceSignup: true });
+        return;
+      }
+
+      const ssoUrl = buildSsoUrl(destinationUrl, session);
+      window.location.href = ssoUrl;
+    } catch (err) {
+      console.error('무료 플랜 이동 실패:', err);
+      renderMessage(config.selectors.messageBox, '무료 플랜 이동에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+  };
+
   // 한글 주석: 로그인 여부 확인 후 결제창을 호출합니다.
   const startCheckout = async (planSlug, triggerElement) => {
     try {
@@ -108,23 +164,29 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
         return;
       }
 
-      if (!planSlug) {
+      const normalizedPlanSlug = normalizePlanSlug(planSlug);
+      if (!normalizedPlanSlug) {
         renderMessage(config.selectors.messageBox, '플랜 정보가 없습니다. data-plan 속성을 확인해주세요.', 'error');
+        return;
+      }
+
+      if (normalizedPlanSlug === 'free') {
+        await startFreeFlow();
         return;
       }
 
       await getSupabase();
       const { user } = await getSessionFromAnyStorage(config, deps);
       if (!user) {
-        redirectToLogin(planSlug);
+        redirectToLogin(normalizedPlanSlug);
         return;
       }
 
       const currentPlanSlug = await getCurrentPlanSlug(user.id);
-      const shouldProceed = await confirmPlanAction(currentPlanSlug, planSlug);
+      const shouldProceed = await confirmPlanAction(currentPlanSlug, normalizedPlanSlug);
       if (!shouldProceed) return;
 
-      await requestBillingAuth(user, planSlug, triggerElement);
+      await requestBillingAuth(user, normalizedPlanSlug, triggerElement);
     } catch (err) {
       const message = String(err?.message || '');
       const isCanceled =
@@ -141,14 +203,26 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     }
   };
 
-  // 한글 주석: 로그인 페이지로 이동하면서 리턴 URL과 플랜 정보를 전달합니다.
-  const redirectToLogin = (planSlug) => {
+  // 한글 주석: 로그인/회원가입 페이지로 이동하면서 리턴 URL과 플랜 정보를 전달합니다.
+  const redirectToLogin = (planSlug, options = {}) => {
     try {
-      const returnTo = new URL(window.location.href);
-      returnTo.searchParams.set('auto_checkout', '1');
-      returnTo.searchParams.set('plan', planSlug);
-      const loginUrl = new URL(config.loginUrl);
+      const normalizedPlanSlug = normalizePlanSlug(planSlug);
+      const returnTo = options?.returnToOverride ? new URL(options.returnToOverride) : new URL(window.location.href);
+
+      if (!options?.returnToOverride) {
+        returnTo.searchParams.set('auto_checkout', '1');
+        returnTo.searchParams.set('plan', normalizedPlanSlug);
+      }
+
+      const baseLoginUrl = options?.forceSignup ? config.signupUrl || config.loginUrl : config.loginUrl;
+      if (!baseLoginUrl) {
+        throw new Error('로그인 URL이 설정되어 있지 않습니다.');
+      }
+      const loginUrl = new URL(baseLoginUrl);
       loginUrl.searchParams.set('return_to', returnTo.toString());
+      if (options?.forceSignup && baseLoginUrl === config.loginUrl) {
+        loginUrl.searchParams.set('view', 'signup');
+      }
       window.location.href = loginUrl.toString();
     } catch (err) {
       console.error('로그인 이동 실패:', err);
@@ -233,7 +307,7 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   const handleAutoCheckout = async () => {
     const query = parseQuery();
     if (query?.auto_checkout !== '1') return;
-    const planSlug = String(query?.plan || '').trim();
+    const planSlug = normalizePlanSlug(query?.plan);
     if (!planSlug) return;
     await startCheckout(planSlug);
   };
@@ -247,14 +321,15 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     await handleAutoCheckout();
   };
 
-  return { init, startCheckout };
+  return { init, startCheckout, startFreeFlow };
 };
 
 // 한글 주석: 전역 초기화 (WordPress에서 바로 사용)
 const controller = createCheckoutController(window.GOATPBN_CHECKOUT_CONFIG || {});
 window.GoatPbnCheckout = {
   init: controller.init,
-  startCheckout: controller.startCheckout
+  startCheckout: controller.startCheckout,
+  startFreeFlow: controller.startFreeFlow
 };
 
 document.addEventListener('DOMContentLoaded', () => {

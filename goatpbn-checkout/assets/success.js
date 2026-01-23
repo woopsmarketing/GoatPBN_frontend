@@ -10,7 +10,7 @@ import {
   parseQuery,
   renderMessage,
   fallbackString
-} from './utils.js?v=11';
+} from './utils.js?v=13';
 
 // 한글 주석: 결제 성공 후 서버에 후처리를 요청합니다.
 const createSuccessController = (userConfig = {}, deps = {}) => {
