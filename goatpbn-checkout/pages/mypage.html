@@ -1,4 +1,4 @@
-<!-- v1.3 - /en 다국어 마이페이지 텍스트 대응 (2026.01.23) -->
+<!-- v1.6 - 라이브 키 안내 문구 추가 (2026.01.26) -->
 <!-- 기능 요약: 구독 취소 버튼 추가 및 플랜/상태 표시 -->
 <!doctype html>
 <html lang="ko">
@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script>
       // 한글 주석: 마이페이지는 Supabase 공개 키만 필요합니다. (secret key 금지)
+      // 한글 주석: tossClientKey는 라이브 클라이언트 키로 교체하세요.
       window.GOATPBN_CHECKOUT_CONFIG = {
         supabaseUrl: "https://sfaxhhmfftlvykqmjklk.supabase.co",
         supabaseAnonKey:
@@ -15,9 +16,11 @@
         loginUrl: "https://goatpbn.com/login",
         pricingUrl: "https://goatpbn.com/#pricing",
         mypageUrl: "https://goatpbn.com/mypage",
-        tossClientKey: "test_ck_kYG57Eba3G9KALol59k6rpWDOxmA",
+        tossClientKey: "live_ck_LlDJaYngrojJW2wA2nnlVezGdRpX",
         billingSuccessUrl: "https://goatpbn.com/success",
         billingFailUrl: "https://goatpbn.com/fail",
+        appDashboardUrlKo: "https://app.goatpbn.com/ko/dashboard",
+        appDashboardUrlEn: "https://app.goatpbn.com/en/dashboard",
         planMap: {
           basic: { amount: 20000, orderName: "GoatPBN Basic 1개월" },
           pro: { amount: 50000, orderName: "GoatPBN Pro 1개월" }
@@ -141,7 +144,7 @@
         </div>
       </section>
     </main>
-    <script type="module" src="/assets/checkout.js?v=16"></script>
-    <script type="module" src="/assets/mypage.js?v=18"></script>
+    <script type="module" src="/assets/checkout.js?v=19"></script>
+    <script type="module" src="/assets/mypage.js?v=19"></script>
   </body>
 </html>

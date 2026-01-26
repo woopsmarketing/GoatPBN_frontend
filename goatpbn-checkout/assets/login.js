@@ -1,4 +1,4 @@
-// v1.6 - /en 기본 리다이렉트 보강 (2026.01.23)
+// v1.8 - 로그인 상태에서 자동 이동 조건 보강 (2026.01.23)
 // 기능 요약: Google OAuth + 이메일/비밀번호 로그인/회원가입 지원
 // 사용 예시: <script type="module" src="/assets/login.js"></script>
 
@@ -11,7 +11,7 @@ import {
   renderMessage,
   buildSsoUrl,
   resolveLocale
-} from './utils.js?v=13';
+} from './utils.js?v=15';
 
 // 한글 주석: 의존성 주입을 고려한 로그인 컨트롤러
 const createLoginController = (userConfig = {}, deps = {}) => {
@@ -410,9 +410,10 @@ const createLoginController = (userConfig = {}, deps = {}) => {
       const storedReturnTo = readStoredReturnTo();
       const returnTo = storedReturnTo || buildReturnToUrl();
       const finalReturnTo = await buildSsoReturnUrl(returnTo);
-      const shouldAutoContinue =
-        storedReturnTo &&
-        (storedReturnTo.includes('auto_checkout=1') || storedReturnTo.includes('auto_coupon=1') || storedReturnTo.includes('coupon='));
+      // 한글 주석: return_to 파라미터가 있을 때도 자동 진행하도록 보강합니다.
+      const shouldAutoContinueByUrl = (targetUrl) =>
+        !!targetUrl && (targetUrl.includes('auto_checkout=1') || targetUrl.includes('auto_coupon=1') || targetUrl.includes('coupon='));
+      const shouldAutoContinue = shouldAutoContinueByUrl(storedReturnTo) || shouldAutoContinueByUrl(returnTo);
       const continueButton = document.querySelector('[data-goatpbn-continue]');
       const loggedMessage = document.querySelector('[data-goatpbn-logged-message]');
       if (shouldAutoContinue) {

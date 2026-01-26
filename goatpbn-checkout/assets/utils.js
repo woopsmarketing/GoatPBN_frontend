@@ -1,4 +1,4 @@
-// v1.8 - locale 감지 및 무료 플랜 설정 보강 (2026.01.23)
+// v2.0 - 무료 플랜 새 탭 옵션 추가 (2026.01.23)
 // 기능 요약: 설정 병합/검증, Supabase 로더, 토스 SDK 로더, 계획 조회 공통 제공
 // 사용 예시:
 //   import { resolveConfig, validateConfig } from './utils.js';
@@ -21,8 +21,9 @@ const DEFAULT_CONFIG = {
   billingFailUrl: 'https://goatpbn.com/fail',
   afterSuccessRedirectUrl: 'https://app.goatpbn.com/ko/subscription?payment_status=success',
   appDashboardUrlKo: 'https://app.goatpbn.com/ko/dashboard',
-  appDashboardUrlEn: 'https://ap9p.goatpbn.com/en/dashboard',
+  appDashboardUrlEn: 'https://app.goatpbn.com/en/dashboard',
   freeCouponCode: 'BHWFREECREDIT',
+  freeOpenNewTab: false,
   planMap: DEFAULT_PLAN_MAP,
   selectors: {
     checkoutButton: '[data-goatpbn-checkout]',
@@ -60,9 +61,7 @@ export const validateConfig = (config) => validateConfigWithKeys(config, DEFAULT
 
 // 한글 주석: Supabase 모듈을 동적으로 로드해 클라이언트를 생성합니다(테스트 주입 가능).
 export const createSupabaseClient = async (config, deps = {}, options = {}) => {
-  const importer =
-    deps.importSupabase ||
-    (() => import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'));
+  const importer = deps.importSupabase || (() => import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'));
   const { createClient } = await importer();
   return createClient(config.supabaseUrl, config.supabaseAnonKey, options);
 };
@@ -176,8 +175,7 @@ export const bindSsoLinks = async (config, deps = {}, selector = '[data-goatpbn-
       const target = link.getAttribute('data-goatpbn-target') || link.getAttribute('href') || '';
       if (!target) return;
 
-      const isModifier =
-        event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1 || link.getAttribute('target') === '_blank';
+      const isModifier = event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1 || link.getAttribute('target') === '_blank';
       const forceNewTab = config?.ssoOpenNewTab === true || link.getAttribute('data-goatpbn-newtab') === '1';
       const openInNewTab = forceNewTab || isModifier;
 
@@ -235,16 +233,11 @@ export const resolvePlanConfig = async (planSlug, config, supabaseClient) => {
   if (!supabaseClient) return fallback || null;
 
   try {
-    const { data, error } = await supabaseClient
-      .from('billing_plans')
-      .select('slug, metadata')
-      .eq('slug', planSlug)
-      .limit(1);
+    const { data, error } = await supabaseClient.from('billing_plans').select('slug, metadata').eq('slug', planSlug).limit(1);
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : null;
     const metadata = row?.metadata || {};
-    const amountFromMeta =
-      Number(metadata?.toss_amount_krw) || Number(metadata?.toss_price_krw) || Number(metadata?.toss_amount);
+    const amountFromMeta = Number(metadata?.toss_amount_krw) || Number(metadata?.toss_price_krw) || Number(metadata?.toss_amount);
     if (!Number.isFinite(amountFromMeta) || amountFromMeta <= 0) return fallback || null;
     return {
       amount: amountFromMeta,
@@ -290,6 +283,13 @@ export const resolveLocale = () => {
 
 // 한글 주석: 영어 locale 여부를 반환합니다.
 export const isEnglishLocale = () => resolveLocale() === 'en';
+
+// 한글 주석: 잘못된 app 도메인을 교정합니다(ap9p -> app).
+export const normalizeAppUrl = (url) => {
+  const raw = String(url || '').trim();
+  if (!raw) return raw;
+  return raw.replace('://ap9p.', '://app.').replace('//ap9p.', '//app.');
+};
 
 // 한글 주석: 안내 메시지를 화면에 표기합니다.
 export const renderMessage = (selector, message, type = 'info') => {

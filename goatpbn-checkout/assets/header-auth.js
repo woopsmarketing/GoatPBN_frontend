@@ -1,4 +1,4 @@
-// v1.3 - /en 경로 대응 다국어 헤더 지원 (2026.01.23)
+// v1.4 - app 도메인 정규화 추가 (2026.01.23)
 // 기능 요약: Supabase 로그인 여부에 따라 헤더 메뉴를 토글하고 로그아웃을 처리
 // 사용 예시: <script type="module" src="/assets/header-auth.js?v=1"></script>
 
@@ -9,8 +9,9 @@ import {
   signOutFromAllStorages,
   bindSsoLinks,
   resolveLocale,
-  isEnglishLocale
-} from './utils.js?v=13';
+  isEnglishLocale,
+  normalizeAppUrl
+} from './utils.js?v=15';
 
 const createHeaderAuthController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
@@ -58,9 +59,9 @@ const createHeaderAuthController = (userConfig = {}, deps = {}) => {
   // 한글 주석: locale에 맞는 대시보드 URL을 계산합니다.
   const resolveDashboardUrl = () => {
     if (isEnglish) {
-      return config.appDashboardUrlEn || 'https://ap9p.goatpbn.com/en/dashboard';
+      return normalizeAppUrl(config.appDashboardUrlEn || 'https://app.goatpbn.com/en/dashboard');
     }
-    return config.appDashboardUrlKo || 'https://app.goatpbn.com/ko/dashboard';
+    return normalizeAppUrl(config.appDashboardUrlKo || 'https://app.goatpbn.com/ko/dashboard');
   };
 
   // 한글 주석: locale에 맞는 홈 URL을 계산합니다.

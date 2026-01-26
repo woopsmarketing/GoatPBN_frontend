@@ -1,7 +1,7 @@
 'use client';
 
-// v2.2 - 업그레이드 차액 결제 강제 (2026.01.22)
-// 기능 요약: 업그레이드 시 차액 금액 로딩 전에는 결제를 막고 오류를 안내
+// v2.3 - 라이브 키 검증 추가 (2026.01.26)
+// 기능 요약: 테스트 키를 차단하고 라이브 키 누락을 안내
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
@@ -35,11 +35,32 @@ const FALLBACK_TOSS_PLAN_CONFIG = {
   }
 };
 
-const DEFAULT_TOSS_CLIENT_KEY = 'test_ck_kYG57Eba3G9KALol59k6rpWDOxmA';
+// 한글 주석: 라이브 환경에서는 반드시 환경변수로 설정합니다. 기본값은 비웁니다.
+const DEFAULT_TOSS_CLIENT_KEY = '';
 // 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
 const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
 const MAIN_PAYMENT_URL = process.env.NEXT_PUBLIC_MAIN_PAYMENT_URL || DEFAULT_MAIN_PAYMENT_URL;
+
+// 한글 주석: 토스 클라이언트 키가 테스트 키인지 확인합니다.
+const isTestTossClientKey = (clientKey) => String(clientKey || '').startsWith('test_');
+
+// 한글 주석: 라이브 결제에 필요한 토스 키가 준비됐는지 검증합니다.
+const validateLiveTossClientKey = (clientKey) => {
+  if (!clientKey) {
+    return {
+      ok: false,
+      message: '토스 클라이언트 키가 설정되지 않았습니다. 라이브 키를 설정해주세요.'
+    };
+  }
+  if (isTestTossClientKey(clientKey)) {
+    return {
+      ok: false,
+      message: '테스트 키가 설정되어 있습니다. 라이브 키로 교체해주세요.'
+    };
+  }
+  return { ok: true, message: '' };
+};
 
 export default function SubscriptionPageKo() {
   const [loading, setLoading] = useState(true);
@@ -619,6 +640,13 @@ export default function SubscriptionPageKo() {
         setPaymentStatus('');
         return;
       }
+    }
+
+    // 한글 주석: 라이브 키 검증에 실패하면 결제를 중단합니다.
+    const tossKeyCheck = validateLiveTossClientKey(tossClientKey);
+    if (!tossKeyCheck.ok) {
+      setBillingError(tossKeyCheck.message);
+      return;
     }
 
     // 한글 주석: 빌링키가 없으면 카드 등록(빌링 인증)부터 진행

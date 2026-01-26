@@ -1,4 +1,4 @@
-// v1.8 - /en 경로 다국어 마이페이지 지원 (2026.01.23)
+// v1.9 - app 도메인 정규화 추가 (2026.01.23)
 // 기능 요약: 구독 취소 처리 및 상태별 버튼 제어
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
@@ -9,8 +9,9 @@ import {
   getSessionFromAnyStorage,
   renderMessage,
   bindSsoLinks,
-  resolveLocale
-} from './utils.js?v=13';
+  resolveLocale,
+  normalizeAppUrl
+} from './utils.js?v=15';
 
 const createMypageController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
@@ -117,8 +118,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   // 한글 주석: locale에 맞는 대시보드 링크를 설정합니다.
   const applyLocaleLinks = () => {
     const dashboardUrl = isEnglish
-      ? config.appDashboardUrlEn || 'https://ap9p.goatpbn.com/en/dashboard'
-      : config.appDashboardUrlKo || 'https://app.goatpbn.com/ko/dashboard';
+      ? normalizeAppUrl(config.appDashboardUrlEn || 'https://app.goatpbn.com/en/dashboard')
+      : normalizeAppUrl(config.appDashboardUrlKo || 'https://app.goatpbn.com/ko/dashboard');
     const links = document.querySelectorAll('[data-goatpbn-sso]');
     links.forEach((link) => {
       link.setAttribute('href', dashboardUrl);
@@ -456,7 +457,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
         planButtons.forEach((btn) => btn.classList.add('hidden'));
         const ssoLinks = document.querySelectorAll('[data-goatpbn-sso]');
         ssoLinks.forEach((link) => link.classList.add('hidden'));
-      updateCancelSubscriptionButton('', 'canceled');
+        updateCancelSubscriptionButton('', 'canceled');
         return;
       }
       currentUserId = user.id;

@@ -1,10 +1,11 @@
-// v1.7 - locale 감지 개선 및 무료 플랜 자동 쿠폰 이동 (2026.01.23)
+// v2.1 - 무료 플랜 로딩 메시지 표시 (2026.01.23)
 // 기능 요약: 플랜 상태별 안내 팝업 추가 및 결제 진입 흐름 개선
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
 import {
   resolveConfig,
   validateConfig,
+  validateConfigWithKeys,
   createSupabaseClient,
   getSessionFromAnyStorage,
   ensureTossPayments,
@@ -14,17 +15,25 @@ import {
   renderMessage,
   fallbackString,
   buildSsoUrl,
-  resolveLocale
-} from './utils.js?v=13';
+  resolveLocale,
+  normalizeAppUrl
+} from './utils.js?v=15';
 
 // 한글 주석: 외부 의존성 주입으로 테스트 가능하게 구성합니다.
 const createCheckoutController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
-  const { ok, missing } = validateConfig(config);
+  const paidValidation = validateConfig(config);
+  const freeValidation = validateConfigWithKeys(config, ['supabaseUrl', 'supabaseAnonKey']);
   let supabaseClient = null;
   let cachedPlanSlug = '';
   let cachedPlanFetchedAt = 0;
   const PLAN_CACHE_TTL_MS = 30000;
+  const FREE_LOADING_MESSAGES_LOGGED_IN = [
+    '무료로 500크레딧을 받아보세요!',
+    'app 대시보드 으로 이동합니다 :)',
+    '쿠폰번호 작성까지 해드리겠습니다 :)'
+  ];
+  const FREE_LOADING_MESSAGES_LOGIN = ['로그인 페이지로 이동합니다 :)', '로그인 후 무료 쿠폰이 자동 적용됩니다 :)'];
 
   // 한글 주석: 플랜 슬러그를 소문자로 정규화합니다.
   const normalizePlanSlug = (planSlug) =>
@@ -39,8 +48,8 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   const resolveFreeCouponCode = () => fallbackString(config.freeCouponCode, 'BHWFREECREDIT');
 
   const resolveAppDashboardUrl = () => {
-    const fallbackKo = fallbackString(config.appDashboardUrlKo, 'https://app.goatpbn.com/ko/dashboard');
-    const fallbackEn = fallbackString(config.appDashboardUrlEn, 'https://ap9p.goatpbn.com/en/dashboard');
+    const fallbackKo = normalizeAppUrl(fallbackString(config.appDashboardUrlKo, 'https://app.goatpbn.com/ko/dashboard'));
+    const fallbackEn = normalizeAppUrl(fallbackString(config.appDashboardUrlEn, 'https://app.goatpbn.com/en/dashboard'));
     return isEnglishPage() ? fallbackEn : fallbackKo;
   };
 
@@ -55,6 +64,75 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
       return resolveAppDashboardUrl();
     }
   };
+
+  // 한글 주석: 무료 플로우용 로딩 오버레이를 생성합니다.
+  const ensureFreeLoadingOverlay = () => {
+    if (typeof document === 'undefined') return { overlay: null, messageEl: null };
+    const overlayId = 'goatpbn-free-loading';
+    let overlay = document.getElementById(overlayId);
+    let messageEl = overlay?.querySelector?.('[data-goatpbn-loading-message]');
+    if (overlay && messageEl) return { overlay, messageEl };
+
+    overlay = document.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.background = 'rgba(15, 23, 42, 0.45)';
+
+    const card = document.createElement('div');
+    card.style.background = '#ffffff';
+    card.style.borderRadius = '16px';
+    card.style.padding = '20px 24px';
+    card.style.boxShadow = '0 12px 30px rgba(15, 23, 42, 0.2)';
+    card.style.textAlign = 'center';
+    card.style.minWidth = '240px';
+
+    const spinner = document.createElement('div');
+    spinner.style.width = '28px';
+    spinner.style.height = '28px';
+    spinner.style.border = '3px solid #e2e8f0';
+    spinner.style.borderTop = '3px solid #2bb673';
+    spinner.style.borderRadius = '50%';
+    spinner.style.margin = '0 auto 12px auto';
+    spinner.style.animation = 'goatpbn-spin 0.9s linear infinite';
+
+    const style = document.createElement('style');
+    style.textContent = '@keyframes goatpbn-spin {0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}';
+
+    messageEl = document.createElement('div');
+    messageEl.setAttribute('data-goatpbn-loading-message', '1');
+    messageEl.style.fontSize = '13px';
+    messageEl.style.fontWeight = '600';
+    messageEl.style.color = '#0f172a';
+    messageEl.style.lineHeight = '1.5';
+    messageEl.textContent = '처리 중입니다...';
+
+    card.appendChild(spinner);
+    card.appendChild(messageEl);
+    overlay.appendChild(card);
+    overlay.appendChild(style);
+    document.body.appendChild(overlay);
+
+    return { overlay, messageEl };
+  };
+
+  // 한글 주석: 로딩 메시지를 순차적으로 표시합니다.
+  const showFreeLoadingMessages = async (isLoggedIn) => {
+    const { overlay, messageEl } = ensureFreeLoadingOverlay();
+    if (!overlay || !messageEl) return;
+    const messages = isLoggedIn ? FREE_LOADING_MESSAGES_LOGGED_IN : FREE_LOADING_MESSAGES_LOGIN;
+    for (const message of messages) {
+      messageEl.textContent = message;
+      await new Promise((resolve) => setTimeout(resolve, 650));
+    }
+  };
+
+  // 한글 주석: 플랜별로 필요한 설정만 검증합니다.
+  const getValidationForPlan = (planSlug) => (planSlug === 'free' ? freeValidation : paidValidation);
 
   // 한글 주석: Supabase 클라이언트를 재사용합니다.
   const getSupabase = async () => {
@@ -135,14 +213,15 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   // 한글 주석: 무료 플랜 진입(쿠폰 자동 입력)을 처리합니다.
   const startFreeFlow = async () => {
     try {
-      if (!ok) {
-        renderMessage(config.selectors.messageBox, `설정 누락: ${missing.join(', ')}`, 'error');
+      if (!freeValidation.ok) {
+        renderMessage(config.selectors.messageBox, `설정 누락: ${freeValidation.missing.join(', ')}`, 'error');
         return;
       }
 
       await getSupabase();
       const { user, session } = await getSessionFromAnyStorage(config, deps);
       const destinationUrl = buildFreeDashboardUrl();
+      await showFreeLoadingMessages(!!user);
       if (!user) {
         redirectToLogin('free', { returnToOverride: destinationUrl, forceSignup: true });
         return;
@@ -159,12 +238,12 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   // 한글 주석: 로그인 여부 확인 후 결제창을 호출합니다.
   const startCheckout = async (planSlug, triggerElement) => {
     try {
-      if (!ok) {
-        renderMessage(config.selectors.messageBox, `설정 누락: ${missing.join(', ')}`, 'error');
+      const normalizedPlanSlug = normalizePlanSlug(planSlug);
+      const validation = getValidationForPlan(normalizedPlanSlug);
+      if (!validation.ok) {
+        renderMessage(config.selectors.messageBox, `설정 누락: ${validation.missing.join(', ')}`, 'error');
         return;
       }
-
-      const normalizedPlanSlug = normalizePlanSlug(planSlug);
       if (!normalizedPlanSlug) {
         renderMessage(config.selectors.messageBox, '플랜 정보가 없습니다. data-plan 속성을 확인해주세요.', 'error');
         return;
@@ -295,11 +374,26 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     const buttons = document.querySelectorAll(config.selectors.checkoutButton);
     if (!buttons.length) return;
     buttons.forEach((button) => {
+      if (button.getAttribute('data-goatpbn-checkout-bound') === '1') return;
+      button.setAttribute('data-goatpbn-checkout-bound', '1');
       button.addEventListener('click', (event) => {
         event.preventDefault();
         const planSlug = getDataAttr(button, 'data-plan') || getDataAttr(button, 'data-plan-slug');
         startCheckout(planSlug, button);
       });
+    });
+  };
+
+  // 한글 주석: 동적 렌더링 버튼을 위한 이벤트 위임 처리입니다.
+  const bindCheckoutDelegation = () => {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('click', (event) => {
+      const target = event.target?.closest?.(config.selectors.checkoutButton);
+      if (!target) return;
+      if (target.getAttribute('data-goatpbn-checkout-bound') === '1') return;
+      event.preventDefault();
+      const planSlug = getDataAttr(target, 'data-plan') || getDataAttr(target, 'data-plan-slug');
+      startCheckout(planSlug, target);
     });
   };
 
@@ -314,10 +408,8 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
 
   // 한글 주석: 초기화 진입점입니다.
   const init = async () => {
-    if (!ok) {
-      renderMessage(config.selectors.messageBox, `설정 누락: ${missing.join(', ')}`, 'error');
-    }
     bindCheckoutButtons();
+    bindCheckoutDelegation();
     await handleAutoCheckout();
   };
 
