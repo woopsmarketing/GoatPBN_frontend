@@ -1,7 +1,7 @@
 'use client';
 
-// v2.3 - 라이브 키 검증 추가 (2026.01.26)
-// 기능 요약: 테스트 키를 차단하고 라이브 키 누락을 안내
+// v2.4 - 업그레이드 차액 고정 안내 문구 반영 (2026.01.26)
+// 기능 요약: 테스트 키를 차단하고 업그레이드 고정 차액 정책을 안내
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
@@ -467,7 +467,7 @@ export default function SubscriptionPageKo() {
                 : '카드 등록 후 정기결제'}
           </TailwindButton>
           {plan.slug === 'pro' && isUpgradeFlow && (
-            <p className="mt-2 text-xs text-gray-500">업그레이드 시 차액이 즉시 결제되며, 잔여 일수 기준으로 계산됩니다.</p>
+            <p className="mt-2 text-xs text-gray-500">업그레이드 시 차액이 즉시 결제되며, 잔여 일수와 무관하게 고정 금액으로 적용됩니다.</p>
           )}
         </>
       );
@@ -546,7 +546,7 @@ export default function SubscriptionPageKo() {
     };
   }, []);
 
-  // 한글 주석: 업그레이드 차액(일할 계산) 금액 조회
+  // 한글 주석: 업그레이드 차액(고정 차액) 금액 조회
   useEffect(() => {
     if (!userId || !isUpgradeFlow) {
       setUpgradeQuote(null);
@@ -882,9 +882,11 @@ export default function SubscriptionPageKo() {
                 결제 금액: <span className="font-semibold">{formatAmountKRW(upgradeQuote?.amount)}</span>
               </p>
               <p>
-                남은 기간: <span className="font-semibold">{Number.isFinite(daysRemaining) ? `${daysRemaining}일` : '확인 중'}</span>
+                현재 남은 기간: <span className="font-semibold">{Number.isFinite(daysRemaining) ? `${daysRemaining}일` : '확인 중'}</span>
               </p>
-              <p className="mt-2 text-xs text-gray-500">잔여 기간 기준으로 차액이 계산되며, 결제 즉시 프로 플랜이 적용됩니다.</p>
+              <p className="mt-2 text-xs text-gray-500">
+                차액은 잔여 기간과 무관하게 고정 결제되며, 결제일 기준으로 다음 결제일이 갱신됩니다.
+              </p>
             </div>
             <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
               <input
