@@ -1,4 +1,4 @@
-// v2.3 - 업그레이드 고정 차액 결제 흐름 추가 (2026.01.28)
+// v2.4 - return_to URL 정리 및 SSO 토큰 중복 방지 (2026.01.28)
 // 기능 요약: 베이직 -> 프로 업그레이드는 billing/charge로 고정 차액 결제를 수행합니다.
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
@@ -16,8 +16,9 @@ import {
   fallbackString,
   buildSsoUrl,
   resolveLocale,
-  normalizeAppUrl
-} from './utils.js?v=17';
+  normalizeAppUrl,
+  stripAuthTokensFromUrl
+} from './utils.js?v=18';
 
 // 한글 주석: 외부 의존성 주입으로 테스트 가능하게 구성합니다.
 const createCheckoutController = (userConfig = {}, deps = {}) => {
@@ -309,7 +310,9 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   const redirectToLogin = (planSlug, options = {}) => {
     try {
       const normalizedPlanSlug = normalizePlanSlug(planSlug);
-      const returnTo = options?.returnToOverride ? new URL(options.returnToOverride) : new URL(window.location.href);
+      const rawReturnTo = options?.returnToOverride || window.location.href;
+      const sanitizedReturnTo = stripAuthTokensFromUrl(rawReturnTo);
+      const returnTo = new URL(sanitizedReturnTo);
 
       if (!options?.returnToOverride) {
         returnTo.searchParams.set('auto_checkout', '1');

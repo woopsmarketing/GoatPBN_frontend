@@ -1,4 +1,4 @@
-// v1.4 - app 도메인 정규화 추가 (2026.01.23)
+// v1.5 - utils 버전 갱신 및 SSO 토큰 정리 반영 (2026.01.28)
 // 기능 요약: Supabase 로그인 여부에 따라 헤더 메뉴를 토글하고 로그아웃을 처리
 // 사용 예시: <script type="module" src="/assets/header-auth.js?v=1"></script>
 
@@ -11,7 +11,7 @@ import {
   resolveLocale,
   isEnglishLocale,
   normalizeAppUrl
-} from './utils.js?v=16';
+} from './utils.js?v=18';
 
 const createHeaderAuthController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);

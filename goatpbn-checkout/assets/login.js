@@ -1,4 +1,4 @@
-// v1.8 - 로그인 상태에서 자동 이동 조건 보강 (2026.01.23)
+// v1.9 - return_to URL 정리 및 SSO 토큰 중복 방지 (2026.01.28)
 // 기능 요약: Google OAuth + 이메일/비밀번호 로그인/회원가입 지원
 // 사용 예시: <script type="module" src="/assets/login.js"></script>
 
@@ -10,8 +10,9 @@ import {
   parseQuery,
   renderMessage,
   buildSsoUrl,
+  stripAuthTokensFromUrl,
   resolveLocale
-} from './utils.js?v=16';
+} from './utils.js?v=18';
 
 // 한글 주석: 의존성 주입을 고려한 로그인 컨트롤러
 const createLoginController = (userConfig = {}, deps = {}) => {
@@ -206,7 +207,8 @@ const createLoginController = (userConfig = {}, deps = {}) => {
     const shouldAutoCheckout = query?.auto_checkout === '1' || !!rawReturnTo || !!plan;
     try {
       const fallbackUrl = config.mypageUrl || config.pricingUrl || window.location.origin;
-      const target = rawReturnTo ? new URL(rawReturnTo) : new URL(fallbackUrl);
+      const sanitizedReturnTo = rawReturnTo ? stripAuthTokensFromUrl(rawReturnTo) : '';
+      const target = sanitizedReturnTo ? new URL(sanitizedReturnTo) : new URL(fallbackUrl);
       // 한글 주석: 영어 페이지에서 기본 리다이렉트에는 lang=en을 추가합니다.
       if (!rawReturnTo && locale === 'en' && !target.searchParams.get('lang')) {
         target.searchParams.set('lang', 'en');
@@ -252,11 +254,12 @@ const createLoginController = (userConfig = {}, deps = {}) => {
     try {
       if (!returnTo) return returnTo;
       if (typeof window === 'undefined') return returnTo;
-      const target = new URL(returnTo);
-      if (target.origin === window.location.origin) return returnTo;
+      const sanitizedReturnTo = stripAuthTokensFromUrl(returnTo);
+      const target = new URL(sanitizedReturnTo);
+      if (target.origin === window.location.origin) return sanitizedReturnTo;
       const { session } = await getSessionFromAnyStorage(config, deps);
-      if (!session?.access_token) return returnTo;
-      return buildSsoUrl(returnTo, session);
+      if (!session?.access_token) return sanitizedReturnTo;
+      return buildSsoUrl(sanitizedReturnTo, session);
     } catch (err) {
       console.warn('SSO return_to 생성 실패:', err);
       return returnTo;

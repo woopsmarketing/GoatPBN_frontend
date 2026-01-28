@@ -1,7 +1,7 @@
 'use client';
 
-// v2.5 - 구독 변경은 워드프레스 마이페이지로 이동 (2026.01.28)
-// 기능 요약: 앱 내 업그레이드/다운그레이드 버튼은 워드프레스에서 진행하도록 안내
+// v2.6 - 외부 결제 링크를 홈 #pricing으로 단순화 (2026.01.28)
+// 기능 요약: 앱 내 결제 버튼은 goatpbn.com/#pricing으로 이동하도록 처리
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
@@ -38,7 +38,7 @@ const FALLBACK_TOSS_PLAN_CONFIG = {
 // 한글 주석: 라이브 환경에서는 반드시 환경변수로 설정합니다. 기본값은 비웁니다.
 const DEFAULT_TOSS_CLIENT_KEY = '';
 // 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
-const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
+const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/#pricing';
 // 한글 주석: 워드프레스 마이페이지 이동 URL(구독 변경 전용)
 const DEFAULT_WP_MYPAGE_URL = 'https://goatpbn.com/mypage';
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
@@ -172,21 +172,14 @@ export default function SubscriptionPageKo() {
   const buildExternalPaymentUrl = (planSlug) => {
     try {
       if (!MAIN_PAYMENT_URL) return '';
-      const url = new URL(MAIN_PAYMENT_URL);
-      if (planSlug) url.searchParams.set('plan', String(planSlug));
-      url.searchParams.set('source', 'app');
-      if (origin) {
-        url.searchParams.set('return_to', externalReturnUrl);
-        url.searchParams.set('cancel_to', externalCancelUrl);
-      }
-      return url.toString();
+      return MAIN_PAYMENT_URL;
     } catch (err) {
       console.error('외부 결제 URL 생성 실패:', err);
       return '';
     }
   };
 
-  // 한글 주석: 메인 도메인 결제 페이지로 이동(팝업 차단 포함 예외 처리).
+  // 한글 주석: 메인 도메인 홈의 #pricing 섹션으로 이동합니다.
   const openExternalPayment = (planSlug) => {
     try {
       setPlanError('');
@@ -195,10 +188,7 @@ export default function SubscriptionPageKo() {
         setPlanError('결제 페이지 URL을 확인할 수 없습니다. 관리자에게 문의해주세요.');
         return;
       }
-      const nextWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      if (!nextWindow) {
-        setPlanError('팝업이 차단되었습니다. 브라우저에서 새 창 허용 후 다시 시도해주세요.');
-      }
+      window.location.href = targetUrl;
     } catch (err) {
       console.error('외부 결제 이동 실패:', err);
       setPlanError('외부 결제 페이지로 이동하지 못했습니다. 잠시 후 다시 시도해주세요.');

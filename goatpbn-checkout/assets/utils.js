@@ -1,4 +1,4 @@
-// v2.1 - Supabase CDN 고정 버전 + 대체 CDN 추가 (2026.01.26)
+// v2.2 - SSO 토큰 중복 방지 및 URL 정리 (2026.01.28)
 // 기능 요약: 설정 병합/검증, Supabase 로더, 토스 SDK 로더, 계획 조회 공통 제공
 // 사용 예시:
 //   import { resolveConfig, validateConfig } from './utils.js';
@@ -159,16 +159,56 @@ export const signOutFromAllStorages = async (config, deps = {}) => {
   return { ok: results.every((r) => r.ok), results };
 };
 
+// 한글 주석: SSO 토큰 파라미터 키 목록입니다.
+const SSO_TOKEN_KEYS = ['access_token', 'refresh_token', 'expires_in', 'token_type'];
+
+// 한글 주석: URL에 포함된 SSO 토큰을 제거해 반환합니다.
+export const stripAuthTokensFromUrl = (urlString) => {
+  try {
+    const url = new URL(urlString);
+    const searchParams = url.searchParams;
+    let changed = false;
+    SSO_TOKEN_KEYS.forEach((key) => {
+      if (searchParams.has(key)) {
+        searchParams.delete(key);
+        changed = true;
+      }
+    });
+    if (url.hash) {
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+      SSO_TOKEN_KEYS.forEach((key) => {
+        if (hashParams.has(key)) {
+          hashParams.delete(key);
+          changed = true;
+        }
+      });
+      url.hash = hashParams.toString();
+    }
+    return changed ? url.toString() : urlString;
+  } catch (err) {
+    console.warn('SSO URL 정리 실패:', err);
+    return urlString;
+  }
+};
+
 // 한글 주석: SSO 링크에 접근 토큰을 포함한 URL을 생성합니다.
 export const buildSsoUrl = (targetUrl, session) => {
   if (!session?.access_token) return targetUrl;
-  const hashParams = new URLSearchParams({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token || '',
-    expires_in: String(session.expires_in || ''),
-    token_type: session.token_type || 'bearer'
-  });
-  return `${targetUrl}#${hashParams.toString()}`;
+  try {
+    const cleaned = stripAuthTokensFromUrl(targetUrl);
+    const url = new URL(cleaned);
+    const hashParams = new URLSearchParams({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token || '',
+      expires_in: String(session.expires_in || ''),
+      token_type: session.token_type || 'bearer'
+    });
+    url.hash = hashParams.toString();
+    return url.toString();
+  } catch (err) {
+    console.warn('SSO URL 생성 실패:', err);
+    return targetUrl;
+  }
 };
 
 // 한글 주석: data-goatpbn-sso 링크에 SSO 동작을 연결합니다.

@@ -1,4 +1,4 @@
-// v2.2 - 환불 요청/구독 취소 안내 문구 보강 (2026.01.28)
+// v2.3 - utils 버전 갱신 및 SSO 토큰 정리 반영 (2026.01.28)
 // 기능 요약: 환불 요청은 관리자 알림 후 수동 처리, 구독 취소는 별도 진행을 안내합니다.
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
@@ -11,7 +11,7 @@ import {
   bindSsoLinks,
   resolveLocale,
   normalizeAppUrl
-} from './utils.js?v=16';
+} from './utils.js?v=18';
 
 const createMypageController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
@@ -670,8 +670,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
         const ssoLinks = document.querySelectorAll('[data-goatpbn-sso]');
         ssoLinks.forEach((link) => link.classList.add('hidden'));
         updateCancelSubscriptionButton('', 'canceled');
-      updateRefundButtonState('');
-      toggleRefundForm(false);
+        updateRefundButtonState('');
+        toggleRefundForm(false);
         return;
       }
       currentUserId = user.id;

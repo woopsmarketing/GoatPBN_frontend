@@ -1,7 +1,7 @@
 'use client';
 
-// v1.2 - 구독 변경은 워드프레스 마이페이지로 이동 (2026.01.28)
-// 기능 요약: 앱 내 업그레이드/다운그레이드는 워드프레스에서 진행하도록 안내
+// v1.3 - 외부 결제 링크를 홈 #pricing으로 단순화 (2026.01.28)
+// 기능 요약: 앱 내 결제 버튼은 goatpbn.com/en#pricing으로 이동하도록 처리
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -14,7 +14,7 @@ import { usePaypalPlans } from '@/hooks/usePaypalPlans';
 import { jsonHeaders } from '@/lib/api/httpClient';
 
 // 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
-const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
+const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/en#pricing';
 // 한글 주석: 워드프레스 마이페이지 이동 URL(구독 변경 전용)
 const DEFAULT_WP_MYPAGE_URL = 'https://goatpbn.com/en/mypage';
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
@@ -115,21 +115,14 @@ export default function SubscriptionPageEn() {
   const buildExternalPaymentUrl = (planSlug) => {
     try {
       if (!MAIN_PAYMENT_URL) return '';
-      const url = new URL(MAIN_PAYMENT_URL);
-      if (planSlug) url.searchParams.set('plan', String(planSlug));
-      url.searchParams.set('source', 'app');
-      if (origin) {
-        url.searchParams.set('return_to', externalReturnUrl);
-        url.searchParams.set('cancel_to', externalCancelUrl);
-      }
-      return url.toString();
+      return MAIN_PAYMENT_URL;
     } catch (err) {
       console.error('외부 결제 URL 생성 실패:', err);
       return '';
     }
   };
 
-  // 한글 주석: 메인 도메인 결제 페이지로 이동(팝업 차단 포함 예외 처리).
+  // 한글 주석: 메인 도메인 홈의 #pricing 섹션으로 이동합니다.
   const openExternalPayment = (planSlug) => {
     try {
       setPlanError('');
@@ -138,10 +131,7 @@ export default function SubscriptionPageEn() {
         setPlanError('Unable to resolve the checkout URL. Please contact support.');
         return;
       }
-      const nextWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      if (!nextWindow) {
-        setPlanError('Popup blocked. Please allow popups and try again.');
-      }
+      window.location.href = targetUrl;
     } catch (err) {
       console.error('외부 결제 이동 실패:', err);
       setPlanError('Unable to open the main checkout page. Please try again.');

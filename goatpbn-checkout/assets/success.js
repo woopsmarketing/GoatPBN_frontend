@@ -1,4 +1,4 @@
-// v1.2 - goatpbn.com 결제 성공 처리 스크립트 (2026.01.21)
+// v1.3 - utils 버전 갱신 및 SSO 토큰 정리 반영 (2026.01.28)
 // 기능 요약: authKey/customerKey로 빌링 발급 및 구독 반영 요청
 // 사용 예시: <script type="module" src="/assets/success.js"></script>
 
@@ -10,7 +10,7 @@ import {
   parseQuery,
   renderMessage,
   fallbackString
-} from './utils.js?v=16';
+} from './utils.js?v=18';
 
 // 한글 주석: 결제 성공 후 서버에 후처리를 요청합니다.
 const createSuccessController = (userConfig = {}, deps = {}) => {
