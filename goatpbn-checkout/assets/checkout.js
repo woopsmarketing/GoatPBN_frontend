@@ -1,5 +1,5 @@
-// v2.2 - utils 캐시 무효화를 위한 버전 갱신 (2026.01.28)
-// 기능 요약: utils 버전 쿼리를 갱신해 로컬 캐시 문제를 완화합니다.
+// v2.3 - 업그레이드 고정 차액 결제 흐름 추가 (2026.01.28)
+// 기능 요약: 베이직 -> 프로 업그레이드는 billing/charge로 고정 차액 결제를 수행합니다.
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
 import {
@@ -34,6 +34,7 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     '쿠폰번호 작성까지 해드리겠습니다 :)'
   ];
   const FREE_LOADING_MESSAGES_LOGIN = ['로그인 페이지로 이동합니다 :)', '로그인 후 무료 쿠폰이 자동 적용됩니다 :)'];
+  const TRIGGER_LOADING_ATTR = 'data-goatpbn-loading';
 
   // 한글 주석: 플랜 슬러그를 소문자로 정규화합니다.
   const normalizePlanSlug = (planSlug) =>
@@ -204,11 +205,24 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     }
 
     if (normalizedCurrent === 'basic' && normalizedTarget === 'pro') {
-      return window.confirm('프로 플랜으로 업그레이드하시겠습니까? 결제창이 바로 열립니다.');
+      return window.confirm('프로 플랜으로 업그레이드하시겠습니까? 고정 차액 결제가 진행됩니다.');
     }
 
     return true;
   };
+
+  // 한글 주석: 결제 버튼 중복 클릭을 방지합니다.
+  const setTriggerLoading = (element, isLoading) => {
+    if (!element) return;
+    if (isLoading) {
+      element.setAttribute(TRIGGER_LOADING_ATTR, '1');
+    } else {
+      element.removeAttribute(TRIGGER_LOADING_ATTR);
+    }
+  };
+
+  // 한글 주석: 현재 버튼이 로딩 상태인지 확인합니다.
+  const isTriggerLoading = (element) => element?.getAttribute?.(TRIGGER_LOADING_ATTR) === '1';
 
   // 한글 주석: 무료 플랜 진입(쿠폰 자동 입력)을 처리합니다.
   const startFreeFlow = async () => {
@@ -238,6 +252,8 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   // 한글 주석: 로그인 여부 확인 후 결제창을 호출합니다.
   const startCheckout = async (planSlug, triggerElement) => {
     try {
+      if (isTriggerLoading(triggerElement)) return;
+      setTriggerLoading(triggerElement, true);
       const normalizedPlanSlug = normalizePlanSlug(planSlug);
       const validation = getValidationForPlan(normalizedPlanSlug);
       if (!validation.ok) {
@@ -265,6 +281,11 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
       const shouldProceed = await confirmPlanAction(currentPlanSlug, normalizedPlanSlug);
       if (!shouldProceed) return;
 
+      if (currentPlanSlug === 'basic' && normalizedPlanSlug === 'pro') {
+        await requestUpgradeCharge(user, normalizedPlanSlug, triggerElement);
+        return;
+      }
+
       await requestBillingAuth(user, normalizedPlanSlug, triggerElement);
     } catch (err) {
       const message = String(err?.message || '');
@@ -279,6 +300,8 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
       }
       console.error('결제 시작 실패:', err);
       renderMessage(config.selectors.messageBox, '결제창 호출에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    } finally {
+      setTriggerLoading(triggerElement, false);
     }
   };
 
@@ -343,6 +366,52 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
       customerEmail: user?.email || undefined,
       customerName
     });
+  };
+
+  // 한글 주석: 업그레이드(베이직 -> 프로)는 billing/charge로 고정 차액 결제를 시도합니다.
+  const requestUpgradeCharge = async (user, planSlug, triggerElement) => {
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) {
+        renderMessage(config.selectors.messageBox, 'API 주소가 설정되지 않았습니다.', 'error');
+        return;
+      }
+
+      renderMessage(config.selectors.messageBox, '프로 업그레이드 결제를 진행 중입니다...', 'info');
+      const resp = await fetch(`${apiBase}/api/payments/toss/billing/charge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ plan_slug: planSlug })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 404) {
+          renderMessage(config.selectors.messageBox, '등록된 결제수단이 없어 결제창을 다시 열겠습니다.', 'info');
+          await requestBillingAuth(user, planSlug, triggerElement);
+          return;
+        }
+        throw new Error(data?.detail || data?.error || '업그레이드 결제에 실패했습니다.');
+      }
+
+      const paidAmount = Number(data?.payment?.totalAmount || data?.payment?.amount || 0);
+      const amountLabel = paidAmount ? ` (${paidAmount.toLocaleString()}원)` : '';
+      renderMessage(config.selectors.messageBox, `업그레이드 결제가 완료되었습니다${amountLabel}.`, 'info');
+
+      setTimeout(() => {
+        const redirectUrl = fallbackString(config.mypageUrl, fallbackString(config.afterSuccessRedirectUrl, ''));
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+        window.location.reload();
+      }, 1200);
+    } catch (err) {
+      console.error('업그레이드 결제 실패:', err);
+      renderMessage(config.selectors.messageBox, err?.message || '업그레이드 결제에 실패했습니다.', 'error');
+    }
   };
 
   // 한글 주석: 결제 성공/실패 URL을 구성합니다.
