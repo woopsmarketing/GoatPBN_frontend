@@ -1,7 +1,7 @@
 'use client';
 
-// v1.1 - 메인 도메인 결제 전환 (2026.01.20)
-// 기능 요약: 결제는 goatpbn.com에서 처리하고 앱에서는 상태만 표시
+// v1.2 - 구독 변경은 워드프레스 마이페이지로 이동 (2026.01.28)
+// 기능 요약: 앱 내 업그레이드/다운그레이드는 워드프레스에서 진행하도록 안내
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -15,8 +15,11 @@ import { jsonHeaders } from '@/lib/api/httpClient';
 
 // 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
 const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
+// 한글 주석: 워드프레스 마이페이지 이동 URL(구독 변경 전용)
+const DEFAULT_WP_MYPAGE_URL = 'https://goatpbn.com/en/mypage';
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
 const MAIN_PAYMENT_URL = process.env.NEXT_PUBLIC_MAIN_PAYMENT_URL || DEFAULT_MAIN_PAYMENT_URL;
+const WP_MYPAGE_URL = process.env.NEXT_PUBLIC_WP_MYPAGE_URL_EN || DEFAULT_WP_MYPAGE_URL;
 
 const PLAN_LABELS = {
   free: 'Free plan',
@@ -44,6 +47,14 @@ export default function SubscriptionPageEn() {
   const [refundError, setRefundError] = useState('');
   // 한글 주석: 메인 도메인 결제 모드일 때 앱 내 결제 흐름을 비활성화합니다.
   const isExternalPayment = PAYMENT_MODE === 'external';
+  // 한글 주석: 구독 변경은 워드프레스 마이페이지에서 진행합니다.
+  const redirectToWpMypage = (message) => {
+    setPlanError('');
+    setPaymentStatus(message || 'Manage your subscription on the WordPress site.');
+    if (typeof window !== 'undefined') {
+      window.location.href = WP_MYPAGE_URL;
+    }
+  };
 
   // helper: subscriptions + user_subscriptions 병합 조회
   const fetchSubAndUserSub = async (uid) => {
@@ -320,6 +331,14 @@ export default function SubscriptionPageEn() {
     }
 
     const isPaidPlan = ['basic', 'pro'].includes(plan.slug);
+    // 한글 주석: 앱 내 업그레이드/다운그레이드 대신 워드프레스 마이페이지로 이동합니다.
+    if (['basic', 'pro'].includes(currentPlanSlug) && ['basic', 'pro'].includes(plan.slug) && plan.slug !== currentPlanSlug) {
+      return (
+        <TailwindButton size="lg" variant="primary" className="mt-auto" onClick={() => redirectToWpMypage()}>
+          Manage on WordPress
+        </TailwindButton>
+      );
+    }
 
     if (isExternalPayment) {
       if (!isPaidPlan) {

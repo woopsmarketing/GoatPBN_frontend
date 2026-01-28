@@ -1,7 +1,7 @@
 'use client';
 
-// v2.4 - 업그레이드 차액 고정 안내 문구 반영 (2026.01.26)
-// 기능 요약: 테스트 키를 차단하고 업그레이드 고정 차액 정책을 안내
+// v2.5 - 구독 변경은 워드프레스 마이페이지로 이동 (2026.01.28)
+// 기능 요약: 앱 내 업그레이드/다운그레이드 버튼은 워드프레스에서 진행하도록 안내
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
@@ -39,8 +39,11 @@ const FALLBACK_TOSS_PLAN_CONFIG = {
 const DEFAULT_TOSS_CLIENT_KEY = '';
 // 한글 주석: 외부 결제 URL/모드 기본값(환경변수 없을 때 goatpbn.com 사용)
 const DEFAULT_MAIN_PAYMENT_URL = 'https://goatpbn.com/pricing';
+// 한글 주석: 워드프레스 마이페이지 이동 URL(구독 변경 전용)
+const DEFAULT_WP_MYPAGE_URL = 'https://goatpbn.com/mypage';
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'external';
 const MAIN_PAYMENT_URL = process.env.NEXT_PUBLIC_MAIN_PAYMENT_URL || DEFAULT_MAIN_PAYMENT_URL;
+const WP_MYPAGE_URL = process.env.NEXT_PUBLIC_WP_MYPAGE_URL || DEFAULT_WP_MYPAGE_URL;
 
 // 한글 주석: 토스 클라이언트 키가 테스트 키인지 확인합니다.
 const isTestTossClientKey = (clientKey) => String(clientKey || '').startsWith('test_');
@@ -78,6 +81,14 @@ export default function SubscriptionPageKo() {
   const [upgradeQuote, setUpgradeQuote] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeError, setUpgradeError] = useState('');
+  // 한글 주석: 구독 변경을 워드프레스 마이페이지로 이동시킵니다.
+  const redirectToWpMypage = (message) => {
+    setPlanError('');
+    setPaymentStatus(message || '구독 변경은 워드프레스 마이페이지에서 진행해주세요.');
+    if (typeof window !== 'undefined') {
+      window.location.href = WP_MYPAGE_URL;
+    }
+  };
   const [downgradeLoading, setDowngradeLoading] = useState(false);
   const [billingStatus, setBillingStatus] = useState(null);
   const [billingLoading, setBillingLoading] = useState(false);
@@ -584,6 +595,11 @@ export default function SubscriptionPageKo() {
     setPlanError('');
     setBillingError('');
     setPaymentStatus('');
+    // 한글 주석: 앱에서는 업그레이드/다운그레이드를 진행하지 않고 마이페이지로 이동합니다.
+    if ((currentPlanSlug === 'basic' && planSlug === 'pro') || (currentPlanSlug === 'pro' && planSlug === 'basic')) {
+      redirectToWpMypage('구독 변경은 워드프레스 마이페이지에서 진행해주세요.');
+      return;
+    }
     // 한글 주석: 외부 결제 모드에서는 메인 도메인으로 이동합니다.
     if (isExternalPayment) {
       openExternalPayment(planSlug);
@@ -673,6 +689,9 @@ export default function SubscriptionPageKo() {
 
   const handleScheduleDowngrade = async () => {
     if (!userId) return;
+    // 한글 주석: 다운그레이드 예약은 워드프레스 마이페이지에서 진행합니다.
+    redirectToWpMypage('다운그레이드 예약은 워드프레스 마이페이지에서 진행해주세요.');
+    return;
     setPlanError('');
     setPaymentStatus('다운그레이드를 예약하는 중입니다...');
     setDowngradeLoading(true);
@@ -700,6 +719,9 @@ export default function SubscriptionPageKo() {
 
   const handleCancelDowngrade = async () => {
     if (!userId) return;
+    // 한글 주석: 다운그레이드 예약 취소도 워드프레스 마이페이지에서 진행합니다.
+    redirectToWpMypage('다운그레이드 예약 취소는 워드프레스 마이페이지에서 진행해주세요.');
+    return;
     setPlanError('');
     setPaymentStatus('다운그레이드 예약을 취소하는 중입니다...');
     setDowngradeLoading(true);
