@@ -1,5 +1,5 @@
-// v2.0 - 환불 요청 버튼 추가 (2026.01.26)
-// 기능 요약: 구독 취소 처리, 상태별 버튼 제어, 환불 요청 폼 제공
+// v2.2 - 환불 요청/구독 취소 안내 문구 보강 (2026.01.28)
+// 기능 요약: 환불 요청은 관리자 알림 후 수동 처리, 구독 취소는 별도 진행을 안내합니다.
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
 import {
@@ -41,7 +41,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       cancelSubscriptionButton: '구독 취소',
       refundRequestButton: '환불 요청',
       refundRequestTitle: '환불 요청',
-      refundRequestHelp: '최근 결제 1건 기준으로 환불 요청이 접수됩니다. 승인 후 카드로 환불됩니다.',
+      refundRequestHelp:
+        '환불 요청이 접수되면 관리자 알림이 전송됩니다. 환불은 관리자 수동 처리로 진행되며, 구독 취소는 별도로 진행해주세요.',
       refundReasonPlaceholder: '환불 사유를 10자 이상 입력해주세요.',
       refundSubmitButton: '환불 요청 보내기',
       refundSubmitting: '요청 중...',
@@ -72,7 +73,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       refundNeedCancelDowngrade: '다운그레이드 예약이 있어 환불 요청이 불가합니다. 예약을 취소해주세요.',
       refundReasonTooShort: '환불 사유를 10자 이상 입력해주세요.',
       refundPending: '환불 요청을 전송하는 중입니다...',
-      refundDone: '환불 요청이 접수되었습니다. 관리자 승인 후 처리됩니다.',
+      refundDone: '환불 요청이 접수되었습니다. 관리자 확인 후 수동 처리됩니다.',
       refundFail: '환불 요청에 실패했습니다.',
       subscriptionLoadFail: '구독 정보를 불러오지 못했습니다.',
       initFail: '마이페이지 초기화 중 오류가 발생했습니다.',
@@ -94,7 +95,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       cancelSubscriptionButton: 'Cancel subscription',
       refundRequestButton: 'Request refund',
       refundRequestTitle: 'Request refund',
-      refundRequestHelp: 'Refund requests apply to the most recent charge and are processed after approval.',
+      refundRequestHelp:
+        'Refund requests notify the admin. Refunds are handled manually after review, and subscription cancellation is separate.',
       refundReasonPlaceholder: 'Please describe your refund reason (min 10 chars).',
       refundSubmitButton: 'Submit refund request',
       refundSubmitting: 'Submitting...',
@@ -125,7 +127,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       refundNeedCancelDowngrade: 'Cancel the scheduled downgrade before requesting a refund.',
       refundReasonTooShort: 'Please provide at least 10 characters for the refund reason.',
       refundPending: 'Submitting refund request...',
-      refundDone: 'Refund request submitted. We will review it shortly.',
+      refundDone: 'Refund request submitted. An admin will handle it manually.',
       refundFail: 'Failed to submit refund request.',
       subscriptionLoadFail: 'Unable to load subscription details.',
       initFail: 'Failed to initialize my page.',
