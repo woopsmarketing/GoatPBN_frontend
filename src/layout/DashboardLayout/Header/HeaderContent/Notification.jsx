@@ -1,6 +1,6 @@
 'use client';
-// v1.1 - Supabase 실시간 알림 연동 및 더미 데이터 제거 (2025.11.24)
-// 기능 요약: 관리자 알림 테이블과 실시간 구독을 사용해 사용자에게 최신 알림을 제공
+// v1.2 - 수동 환불 처리 버튼으로 전환 (2026.01.28)
+// 기능 요약: 환불 승인 버튼은 수동 환불 완료 후 DB 상태만 갱신합니다.
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 // next
@@ -280,7 +280,11 @@ export default function NotificationPage() {
           'Content-Type': 'application/json',
           'x-user-id': userId || ''
         },
-        body: JSON.stringify({ refund_request_id: selectedRefund.metadata.refund_request_id })
+        body: JSON.stringify({
+          refund_request_id: selectedRefund.metadata.refund_request_id,
+          skip_toss_cancel: true,
+          note: 'manual_refund'
+        })
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -443,6 +447,7 @@ export default function NotificationPage() {
         <DialogTitle>환불 승인</DialogTitle>
         <DialogContent dividers>
           <Stack sx={{ gap: 1 }}>
+            <Alert severity="info">토스에서 수동 환불 처리 후 아래 버튼을 눌러 DB 상태를 갱신해주세요.</Alert>
             <Typography variant="subtitle1">환불 요청 ID: {selectedRefund?.metadata?.refund_request_id}</Typography>
             <Typography variant="body2">사용자 ID: {selectedRefund?.metadata?.user_id}</Typography>
             <Typography variant="body2">구독 ID: {selectedRefund?.metadata?.subscription_id}</Typography>
@@ -459,7 +464,7 @@ export default function NotificationPage() {
             닫기
           </Button>
           <Button variant="contained" onClick={handleApproveRefund} disabled={approveLoading}>
-            {approveLoading ? '승인 중...' : '환불 승인'}
+            {approveLoading ? '처리 중...' : '수동 처리 완료'}
           </Button>
         </DialogActions>
       </Dialog>
