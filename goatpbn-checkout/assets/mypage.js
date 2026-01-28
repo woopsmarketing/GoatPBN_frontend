@@ -1,5 +1,5 @@
-// v1.9 - app 도메인 정규화 추가 (2026.01.23)
-// 기능 요약: 구독 취소 처리 및 상태별 버튼 제어
+// v2.0 - 환불 요청 버튼 추가 (2026.01.26)
+// 기능 요약: 구독 취소 처리, 상태별 버튼 제어, 환불 요청 폼 제공
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
 import {
@@ -11,7 +11,7 @@ import {
   bindSsoLinks,
   resolveLocale,
   normalizeAppUrl
-} from './utils.js?v=15';
+} from './utils.js?v=16';
 
 const createMypageController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
@@ -19,7 +19,9 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   let supabaseClient = null;
   let currentPlanSlug = '';
   let currentUserId = '';
+  let currentSubscriptionId = '';
   let activeSupabase = null;
+  let hasScheduledDowngrade = false;
   const locale = resolveLocale();
   const isEnglish = locale === 'en';
   const localeTextMap = {
@@ -37,6 +39,13 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       upgradeProButton: '프로로 업그레이드',
       cancelDowngradeButton: '다운그레이드 예약 취소',
       cancelSubscriptionButton: '구독 취소',
+      refundRequestButton: '환불 요청',
+      refundRequestTitle: '환불 요청',
+      refundRequestHelp: '최근 결제 1건 기준으로 환불 요청이 접수됩니다. 승인 후 카드로 환불됩니다.',
+      refundReasonPlaceholder: '환불 사유를 10자 이상 입력해주세요.',
+      refundSubmitButton: '환불 요청 보내기',
+      refundSubmitting: '요청 중...',
+      refundCancelButton: '닫기',
       dashboardLink: '대시보드로 이동',
       appDetailLink: '앱에서 상세 보기',
       checking: '확인 중...',
@@ -57,6 +66,14 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       cancelPending: '구독 취소를 진행하는 중입니다...',
       cancelDone: '구독 취소가 완료되었습니다.',
       cancelFail: '구독 취소 실패',
+      refundNeedLogin: '로그인 후 환불 요청이 가능합니다.',
+      refundNeedPaidPlan: '유료 플랜 결제 내역이 있어야 환불 요청이 가능합니다.',
+      refundNeedSubscription: '구독 정보를 확인할 수 없습니다. 새로고침 후 다시 시도해주세요.',
+      refundNeedCancelDowngrade: '다운그레이드 예약이 있어 환불 요청이 불가합니다. 예약을 취소해주세요.',
+      refundReasonTooShort: '환불 사유를 10자 이상 입력해주세요.',
+      refundPending: '환불 요청을 전송하는 중입니다...',
+      refundDone: '환불 요청이 접수되었습니다. 관리자 승인 후 처리됩니다.',
+      refundFail: '환불 요청에 실패했습니다.',
       subscriptionLoadFail: '구독 정보를 불러오지 못했습니다.',
       initFail: '마이페이지 초기화 중 오류가 발생했습니다.',
       missingConfig: (items) => `설정 누락: ${items.join(', ')}`
@@ -75,6 +92,13 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       upgradeProButton: 'Upgrade to Pro',
       cancelDowngradeButton: 'Cancel downgrade',
       cancelSubscriptionButton: 'Cancel subscription',
+      refundRequestButton: 'Request refund',
+      refundRequestTitle: 'Request refund',
+      refundRequestHelp: 'Refund requests apply to the most recent charge and are processed after approval.',
+      refundReasonPlaceholder: 'Please describe your refund reason (min 10 chars).',
+      refundSubmitButton: 'Submit refund request',
+      refundSubmitting: 'Submitting...',
+      refundCancelButton: 'Close',
       dashboardLink: 'Go to dashboard',
       appDetailLink: 'View in app',
       checking: 'Checking...',
@@ -95,6 +119,14 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       cancelPending: 'Canceling subscription...',
       cancelDone: 'Subscription canceled.',
       cancelFail: 'Failed to cancel subscription.',
+      refundNeedLogin: 'Login required to request a refund.',
+      refundNeedPaidPlan: 'A paid subscription is required to request a refund.',
+      refundNeedSubscription: 'Subscription data is missing. Please refresh and try again.',
+      refundNeedCancelDowngrade: 'Cancel the scheduled downgrade before requesting a refund.',
+      refundReasonTooShort: 'Please provide at least 10 characters for the refund reason.',
+      refundPending: 'Submitting refund request...',
+      refundDone: 'Refund request submitted. We will review it shortly.',
+      refundFail: 'Failed to submit refund request.',
       subscriptionLoadFail: 'Unable to load subscription details.',
       initFail: 'Failed to initialize my page.',
       missingConfig: (items) => `Missing config: ${items.join(', ')}`
@@ -112,6 +144,10 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     document.querySelectorAll('[data-goatpbn-i18n]').forEach((el) => {
       const key = el.getAttribute('data-goatpbn-i18n');
       if (key && texts[key]) el.textContent = texts[key];
+    });
+    document.querySelectorAll('[data-goatpbn-i18n-placeholder]').forEach((el) => {
+      const key = el.getAttribute('data-goatpbn-i18n-placeholder');
+      if (key && texts[key]) el.setAttribute('placeholder', texts[key]);
     });
   };
 
@@ -212,11 +248,13 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     const texts = getTexts();
 
     if (!isScheduled) {
+      hasScheduledDowngrade = false;
       noticeEl.textContent = '';
       noticeEl.classList.add('hidden');
       updateCancelButton(false);
       return;
     }
+    hasScheduledDowngrade = true;
 
     let dateLabel = '';
     if (nextBillingDate) {
@@ -235,6 +273,131 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     noticeEl.textContent = texts.downgradeSchedule(planLabel, dateLabel);
     noticeEl.classList.remove('hidden');
     updateCancelButton(true);
+  };
+
+  // 한글 주석: 환불 요청 버튼 노출/비활성 상태를 제어합니다.
+  const updateRefundButtonState = (planSlug) => {
+    const refundButton = document.querySelector('[data-goatpbn-refund-open]');
+    if (!refundButton) return;
+    const normalizedPlan = String(planSlug || '').toLowerCase();
+    const isPaidPlan = normalizedPlan === 'basic' || normalizedPlan === 'pro';
+    const canUse = isPaidPlan && !!currentUserId;
+    refundButton.classList.toggle('hidden', !currentUserId);
+    refundButton.disabled = !canUse;
+    refundButton.classList.toggle('opacity-50', !canUse);
+    refundButton.classList.toggle('cursor-not-allowed', !canUse);
+  };
+
+  // 한글 주석: 환불 요청 폼을 열거나 닫습니다.
+  const toggleRefundForm = (isOpen) => {
+    const formEl = document.querySelector('[data-goatpbn-refund-form]');
+    if (!formEl) return;
+    formEl.classList.toggle('hidden', !isOpen);
+  };
+
+  // 한글 주석: 환불 요청 폼 상태를 초기화합니다.
+  const resetRefundForm = () => {
+    const reasonEl = document.querySelector('[data-goatpbn-refund-reason]');
+    if (reasonEl) reasonEl.value = '';
+    const messageEl = document.querySelector('[data-goatpbn-refund-message]');
+    const errorEl = document.querySelector('[data-goatpbn-refund-error]');
+    if (messageEl) messageEl.textContent = '';
+    if (errorEl) errorEl.textContent = '';
+  };
+
+  // 한글 주석: 환불 요청 메시지를 표시합니다.
+  const setRefundNotice = (type, message) => {
+    const messageEl = document.querySelector('[data-goatpbn-refund-message]');
+    const errorEl = document.querySelector('[data-goatpbn-refund-error]');
+    if (type === 'error') {
+      if (errorEl) errorEl.textContent = message;
+      if (messageEl) messageEl.textContent = '';
+      return;
+    }
+    if (messageEl) messageEl.textContent = message;
+    if (errorEl) errorEl.textContent = '';
+  };
+
+  // 한글 주석: 환불 요청 폼을 엽니다.
+  const openRefundForm = () => {
+    const texts = getTexts();
+    if (!currentUserId) {
+      renderMessage(config.selectors.messageBox, texts.refundNeedLogin, 'error');
+      return;
+    }
+    if (!currentSubscriptionId) {
+      renderMessage(config.selectors.messageBox, texts.refundNeedSubscription, 'error');
+      return;
+    }
+    const normalizedPlan = String(currentPlanSlug || '').toLowerCase();
+    if (normalizedPlan !== 'basic' && normalizedPlan !== 'pro') {
+      renderMessage(config.selectors.messageBox, texts.refundNeedPaidPlan, 'error');
+      return;
+    }
+    if (hasScheduledDowngrade) {
+      renderMessage(config.selectors.messageBox, texts.refundNeedCancelDowngrade, 'error');
+      return;
+    }
+    resetRefundForm();
+    toggleRefundForm(true);
+  };
+
+  // 한글 주석: 환불 요청을 제출합니다.
+  const submitRefundRequest = async () => {
+    const texts = getTexts();
+    if (!currentUserId) {
+      setRefundNotice('error', texts.refundNeedLogin);
+      return;
+    }
+    if (!currentSubscriptionId) {
+      setRefundNotice('error', texts.refundNeedSubscription);
+      return;
+    }
+    if (hasScheduledDowngrade) {
+      setRefundNotice('error', texts.refundNeedCancelDowngrade);
+      return;
+    }
+    const reasonEl = document.querySelector('[data-goatpbn-refund-reason]');
+    const reason = String(reasonEl?.value || '').trim();
+    if (!reason || reason.length < 10) {
+      setRefundNotice('error', texts.refundReasonTooShort);
+      return;
+    }
+    const submitButton = document.querySelector('[data-goatpbn-refund-submit]');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = texts.refundSubmitting;
+    }
+    setRefundNotice('info', texts.refundPending);
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
+      const resp = await fetch(`${apiBase}/api/refunds/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUserId
+        },
+        body: JSON.stringify({
+          subscription_id: currentSubscriptionId,
+          reason,
+          currency: 'KRW'
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || texts.refundFail);
+      }
+      setRefundNotice('info', texts.refundDone);
+      if (reasonEl) reasonEl.value = '';
+    } catch (err) {
+      setRefundNotice('error', err?.message || texts.refundFail);
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = texts.refundSubmitButton;
+      }
+    }
   };
 
   // 한글 주석: 다운그레이드 예약 취소 버튼을 제어합니다.
@@ -404,6 +567,50 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     );
   };
 
+  // 한글 주석: 환불 요청 버튼을 연결합니다.
+  const bindRefundButtons = () => {
+    const openButton = document.querySelector('[data-goatpbn-refund-open]');
+    const submitButton = document.querySelector('[data-goatpbn-refund-submit]');
+    const cancelButton = document.querySelector('[data-goatpbn-refund-cancel]');
+    if (openButton && openButton.getAttribute('data-goatpbn-refund-open-bound') !== '1') {
+      openButton.setAttribute('data-goatpbn-refund-open-bound', '1');
+      openButton.addEventListener(
+        'click',
+        (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          openRefundForm();
+        },
+        true
+      );
+    }
+    if (submitButton && submitButton.getAttribute('data-goatpbn-refund-submit-bound') !== '1') {
+      submitButton.setAttribute('data-goatpbn-refund-submit-bound', '1');
+      submitButton.addEventListener(
+        'click',
+        (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          submitRefundRequest();
+        },
+        true
+      );
+    }
+    if (cancelButton && cancelButton.getAttribute('data-goatpbn-refund-cancel-bound') !== '1') {
+      cancelButton.setAttribute('data-goatpbn-refund-cancel-bound', '1');
+      cancelButton.addEventListener(
+        'click',
+        (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          toggleRefundForm(false);
+          resetRefundForm();
+        },
+        true
+      );
+    }
+  };
+
   const loadSubscriptionSummary = async (userId, supabase) => {
     try {
       const subscriptionRow = await fetchSubscriptionRow(userId, supabase);
@@ -412,6 +619,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       const resolvedPlanSlug = String(subscriptionRow?.plan || planSlugFromUserSub || 'free').toLowerCase();
       const resolvedStatus = subscriptionRow?.status || userSubRow?.status || '구독 정보가 없습니다.';
       const reservedPlanSlug = String(planSlugFromUserSub || '').toLowerCase();
+      currentSubscriptionId = subscriptionRow?.id || '';
       currentPlanSlug = resolvedPlanSlug;
 
       setText('[data-goatpbn-plan]', resolvePlanLabel(resolvedPlanSlug));
@@ -427,9 +635,11 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       updatePlanButtons(resolvedPlanSlug);
       updateDowngradeNotice(resolvedPlanSlug, reservedPlanSlug, userSubRow?.next_billing_date);
       updateCancelSubscriptionButton(resolvedPlanSlug, resolvedStatus);
+      updateRefundButtonState(resolvedPlanSlug);
       bindPlanActionButtons();
       bindCancelButton();
       bindCancelSubscriptionButton();
+      bindRefundButtons();
     } catch (err) {
       console.warn('구독 정보 조회 실패:', err);
       renderMessage(config.selectors.messageBox, getTexts().subscriptionLoadFail, 'error');
@@ -458,6 +668,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
         const ssoLinks = document.querySelectorAll('[data-goatpbn-sso]');
         ssoLinks.forEach((link) => link.classList.add('hidden'));
         updateCancelSubscriptionButton('', 'canceled');
+      updateRefundButtonState('');
+      toggleRefundForm(false);
         return;
       }
       currentUserId = user.id;

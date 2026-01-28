@@ -11,7 +11,7 @@ import {
   resolveLocale,
   isEnglishLocale,
   normalizeAppUrl
-} from './utils.js?v=15';
+} from './utils.js?v=16';
 
 const createHeaderAuthController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);

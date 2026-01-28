@@ -1,5 +1,5 @@
-// v2.1 - 무료 플랜 로딩 메시지 표시 (2026.01.23)
-// 기능 요약: 플랜 상태별 안내 팝업 추가 및 결제 진입 흐름 개선
+// v2.2 - utils 캐시 무효화를 위한 버전 갱신 (2026.01.28)
+// 기능 요약: utils 버전 쿼리를 갱신해 로컬 캐시 문제를 완화합니다.
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
 import {
@@ -17,7 +17,7 @@ import {
   buildSsoUrl,
   resolveLocale,
   normalizeAppUrl
-} from './utils.js?v=15';
+} from './utils.js?v=17';
 
 // 한글 주석: 외부 의존성 주입으로 테스트 가능하게 구성합니다.
 const createCheckoutController = (userConfig = {}, deps = {}) => {

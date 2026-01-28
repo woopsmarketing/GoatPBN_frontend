@@ -2,7 +2,7 @@
 // 기능 요약: 실패 사유를 표시하고 재시도 경로를 제공합니다.
 // 사용 예시: <script type="module" src="/assets/fail.js"></script>
 
-import { resolveConfig, parseQuery } from './utils.js?v=15';
+import { resolveConfig, parseQuery } from './utils.js?v=16';
 
 const createFailController = (userConfig = {}) => {
   const config = resolveConfig(userConfig);

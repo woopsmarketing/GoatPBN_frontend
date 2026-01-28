@@ -1,4 +1,4 @@
-// v2.0 - 무료 플랜 새 탭 옵션 추가 (2026.01.23)
+// v2.1 - Supabase CDN 고정 버전 + 대체 CDN 추가 (2026.01.26)
 // 기능 요약: 설정 병합/검증, Supabase 로더, 토스 SDK 로더, 계획 조회 공통 제공
 // 사용 예시:
 //   import { resolveConfig, validateConfig } from './utils.js';
@@ -7,6 +7,11 @@ const DEFAULT_PLAN_MAP = {
   basic: { amount: 20000, orderName: 'GoatPBN Basic 1개월' },
   pro: { amount: 50000, orderName: 'GoatPBN Pro 1개월' }
 };
+
+// 한글 주석: Supabase JS는 최신 버전이 jsDelivr에서 깨질 수 있어 고정 버전 사용.
+const SUPABASE_JS_VERSION = '2.39.7';
+const SUPABASE_ESM_URL = `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${SUPABASE_JS_VERSION}/+esm`;
+const SUPABASE_ESM_FALLBACK_URL = `https://esm.sh/@supabase/supabase-js@${SUPABASE_JS_VERSION}?bundle`;
 
 const DEFAULT_CONFIG = {
   supabaseUrl: '',
@@ -61,7 +66,16 @@ export const validateConfig = (config) => validateConfigWithKeys(config, DEFAULT
 
 // 한글 주석: Supabase 모듈을 동적으로 로드해 클라이언트를 생성합니다(테스트 주입 가능).
 export const createSupabaseClient = async (config, deps = {}, options = {}) => {
-  const importer = deps.importSupabase || (() => import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'));
+  const importer =
+    deps.importSupabase ||
+    (async () => {
+      try {
+        return await import(SUPABASE_ESM_URL);
+      } catch (err) {
+        console.warn('Supabase CDN 로드 실패, 대체 CDN으로 재시도합니다.', err);
+        return await import(SUPABASE_ESM_FALLBACK_URL);
+      }
+    });
   const { createClient } = await importer();
   return createClient(config.supabaseUrl, config.supabaseAnonKey, options);
 };

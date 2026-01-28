@@ -11,7 +11,7 @@ import {
   renderMessage,
   buildSsoUrl,
   resolveLocale
-} from './utils.js?v=15';
+} from './utils.js?v=16';
 
 // 한글 주석: 의존성 주입을 고려한 로그인 컨트롤러
 const createLoginController = (userConfig = {}, deps = {}) => {
