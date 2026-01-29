@@ -1,5 +1,5 @@
-// v2.4 - return_to URL 정리 및 SSO 토큰 중복 방지 (2026.01.28)
-// 기능 요약: 베이직 -> 프로 업그레이드는 billing/charge로 고정 차액 결제를 수행합니다.
+// v2.5 - 영문 PayPal 구독 분기 추가 (2026.01.29)
+// 기능 요약: 영문 페이지는 PayPal 구독을 우선 사용하고, 한글은 토스 빌링을 유지합니다.
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
 
 import {
@@ -25,9 +25,10 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   const config = resolveConfig(userConfig);
   const paidValidation = validateConfig(config);
   const freeValidation = validateConfigWithKeys(config, ['supabaseUrl', 'supabaseAnonKey']);
+  const paypalValidation = validateConfigWithKeys(config, ['supabaseUrl', 'supabaseAnonKey', 'apiBaseUrl']);
   let supabaseClient = null;
-  let cachedPlanSlug = '';
-  let cachedPlanFetchedAt = 0;
+  let cachedSubscriptionInfo = null;
+  let cachedSubscriptionFetchedAt = 0;
   const PLAN_CACHE_TTL_MS = 30000;
   const FREE_LOADING_MESSAGES_LOGGED_IN = [
     '무료로 500크레딧을 받아보세요!',
@@ -45,6 +46,17 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
 
   // 한글 주석: 현재 페이지가 영어 버전인지 판단합니다.
   const isEnglishPage = () => resolveLocale() === 'en';
+
+  // 한글 주석: 언어별 결제 제공자를 계산합니다. (기본: ko=toss, en=paypal)
+  const resolvePaymentProvider = () => {
+    const key = isEnglishPage() ? 'paymentProviderEn' : 'paymentProviderKo';
+    const configured = String(config?.[key] || '').trim().toLowerCase();
+    if (configured === 'paypal' || configured === 'toss') return configured;
+    return isEnglishPage() ? 'paypal' : 'toss';
+  };
+
+  // 한글 주석: 현재 로케일에서 PayPal을 사용할지 결정합니다.
+  const shouldUsePaypal = () => resolvePaymentProvider() === 'paypal';
 
   // 한글 주석: 무료 쿠폰 코드와 대시보드 URL을 구성합니다.
   const resolveFreeCouponCode = () => fallbackString(config.freeCouponCode, 'BHWFREECREDIT');
@@ -64,6 +76,48 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     } catch (err) {
       console.warn('무료 플랜 이동 URL 생성 실패:', err);
       return resolveAppDashboardUrl();
+    }
+  };
+
+  // 한글 주석: PayPal 리턴 URL을 구성합니다.
+  const buildPaypalReturnUrl = (planSlug) => {
+    try {
+      const baseUrl =
+        config.paypalReturnUrlEn ||
+        config.paypalReturnUrl ||
+        config.mypageUrl ||
+        window.location.origin;
+      const url = new URL(baseUrl, window.location.origin);
+      if (isEnglishPage() && !url.searchParams.get('lang')) {
+        url.searchParams.set('lang', 'en');
+      }
+      url.searchParams.set('paypal_status', 'success');
+      if (planSlug) url.searchParams.set('plan', planSlug);
+      return url.toString();
+    } catch (err) {
+      console.warn('PayPal return URL 생성 실패:', err);
+      return config.mypageUrl || window.location.origin;
+    }
+  };
+
+  // 한글 주석: PayPal 취소 URL을 구성합니다.
+  const buildPaypalCancelUrl = (planSlug) => {
+    try {
+      const baseUrl =
+        config.paypalCancelUrlEn ||
+        config.paypalCancelUrl ||
+        config.mypageUrl ||
+        window.location.origin;
+      const url = new URL(baseUrl, window.location.origin);
+      if (isEnglishPage() && !url.searchParams.get('lang')) {
+        url.searchParams.set('lang', 'en');
+      }
+      url.searchParams.set('paypal_status', 'cancel');
+      if (planSlug) url.searchParams.set('plan', planSlug);
+      return url.toString();
+    } catch (err) {
+      console.warn('PayPal cancel URL 생성 실패:', err);
+      return config.mypageUrl || window.location.origin;
     }
   };
 
@@ -134,7 +188,11 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
   };
 
   // 한글 주석: 플랜별로 필요한 설정만 검증합니다.
-  const getValidationForPlan = (planSlug) => (planSlug === 'free' ? freeValidation : paidValidation);
+  const getValidationForPlan = (planSlug) => {
+    if (planSlug === 'free') return freeValidation;
+    if (shouldUsePaypal()) return paypalValidation;
+    return paidValidation;
+  };
 
   // 한글 주석: Supabase 클라이언트를 재사용합니다.
   const getSupabase = async () => {
@@ -143,10 +201,13 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     return supabaseClient;
   };
 
-  // 한글 주석: 현재 로그인 사용자의 플랜을 조회합니다.
-  const getCurrentPlanSlug = async (userId) => {
+  // 한글 주석: 현재 로그인 사용자의 구독 정보를 조회합니다.
+  const getCurrentSubscriptionInfo = async (userId) => {
     const now = Date.now();
-    if (cachedPlanSlug && now - cachedPlanFetchedAt < PLAN_CACHE_TTL_MS) return cachedPlanSlug;
+    if (cachedSubscriptionInfo && now - cachedSubscriptionFetchedAt < PLAN_CACHE_TTL_MS) {
+      return cachedSubscriptionInfo;
+    }
+    const fallbackInfo = { planSlug: '', provider: '', providerSubscriptionId: '' };
     try {
       const supabase = await getSupabase();
       const { data: subscriptionRow, error: subscriptionError } = await supabase
@@ -156,17 +217,23 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
         .maybeSingle();
       if (subscriptionError) throw subscriptionError;
       let planSlug = String(subscriptionRow?.plan || '').toLowerCase();
+      let provider = '';
+      let providerSubscriptionId = '';
+
+      const { data: userSubRows, error: userSubError } = await supabase
+        .from('user_subscriptions')
+        .select('plan_id, status, provider, provider_subscription_id')
+        .eq('user_id', userId)
+        .in('status', ['active', 'approval_pending'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (userSubError) throw userSubError;
+      const userSubRow = Array.isArray(userSubRows) ? userSubRows[0] : null;
+      provider = String(userSubRow?.provider || '').toLowerCase();
+      providerSubscriptionId = String(userSubRow?.provider_subscription_id || '');
 
       if (!planSlug) {
-        const { data: userSubRows, error: userSubError } = await supabase
-          .from('user_subscriptions')
-          .select('plan_id, status')
-          .eq('user_id', userId)
-          .in('status', ['active', 'approval_pending'])
-          .order('created_at', { ascending: false })
-          .limit(1);
-        if (userSubError) throw userSubError;
-        const planId = Array.isArray(userSubRows) ? userSubRows[0]?.plan_id : '';
+        const planId = userSubRow?.plan_id || '';
         if (planId) {
           const { data: planRows, error: planError } = await supabase.from('billing_plans').select('slug').eq('id', planId).limit(1);
           if (planError) throw planError;
@@ -174,12 +241,13 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
         }
       }
 
-      cachedPlanSlug = planSlug;
-      cachedPlanFetchedAt = now;
-      return planSlug;
+      const info = { planSlug, provider, providerSubscriptionId };
+      cachedSubscriptionInfo = info;
+      cachedSubscriptionFetchedAt = now;
+      return info;
     } catch (err) {
       console.warn('현재 플랜 조회 실패:', err);
-      return '';
+      return fallbackInfo;
     }
   };
 
@@ -278,9 +346,21 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
         return;
       }
 
-      const currentPlanSlug = await getCurrentPlanSlug(user.id);
+      const subscriptionInfo = await getCurrentSubscriptionInfo(user.id);
+      const currentPlanSlug = subscriptionInfo.planSlug;
+      const currentProvider = subscriptionInfo.provider;
       const shouldProceed = await confirmPlanAction(currentPlanSlug, normalizedPlanSlug);
       if (!shouldProceed) return;
+
+      const usePaypalFlow = shouldUsePaypal() || currentProvider === 'paypal';
+      if (usePaypalFlow) {
+        if (currentPlanSlug === 'basic' && normalizedPlanSlug === 'pro') {
+          await requestPaypalUpgrade(user, normalizedPlanSlug, subscriptionInfo.providerSubscriptionId);
+          return;
+        }
+        await requestPaypalSubscription(user, normalizedPlanSlug);
+        return;
+      }
 
       if (currentPlanSlug === 'basic' && normalizedPlanSlug === 'pro') {
         await requestUpgradeCharge(user, normalizedPlanSlug, triggerElement);
@@ -332,6 +412,81 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     } catch (err) {
       console.error('로그인 이동 실패:', err);
       renderMessage(config.selectors.messageBox, '로그인 페이지로 이동할 수 없습니다.', 'error');
+    }
+  };
+
+  // 한글 주석: PayPal 구독을 생성하고 승인 URL로 이동합니다.
+  const requestPaypalSubscription = async (user, planSlug) => {
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) {
+        renderMessage(config.selectors.messageBox, 'API 주소가 설정되지 않았습니다.', 'error');
+        return;
+      }
+      renderMessage(config.selectors.messageBox, 'PayPal 결제를 준비 중입니다...', 'info');
+      const resp = await fetch(`${apiBase}/api/payments/paypal/create-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({
+          plan_slug: planSlug,
+          return_url: buildPaypalReturnUrl(planSlug),
+          cancel_url: buildPaypalCancelUrl(planSlug)
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || 'PayPal 구독 요청에 실패했습니다.');
+      }
+      if (!data?.approval_url) {
+        throw new Error('PayPal 승인 URL을 받지 못했습니다.');
+      }
+      window.location.href = data.approval_url;
+    } catch (err) {
+      console.error('PayPal 구독 요청 실패:', err);
+      renderMessage(config.selectors.messageBox, err?.message || 'PayPal 결제를 시작하지 못했습니다.', 'error');
+    }
+  };
+
+  // 한글 주석: PayPal 업그레이드 요청을 처리합니다.
+  const requestPaypalUpgrade = async (user, targetPlanSlug, previousSubscriptionId) => {
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) {
+        renderMessage(config.selectors.messageBox, 'API 주소가 설정되지 않았습니다.', 'error');
+        return;
+      }
+      renderMessage(config.selectors.messageBox, 'PayPal 업그레이드를 준비 중입니다...', 'info');
+      const resp = await fetch(`${apiBase}/api/payments/paypal/upgrade`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({
+          target_plan_slug: targetPlanSlug,
+          return_url: buildPaypalReturnUrl(targetPlanSlug),
+          cancel_url: buildPaypalCancelUrl(targetPlanSlug),
+          previous_subscription_id: previousSubscriptionId || undefined
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 404 || String(data?.detail || '').includes('subscription')) {
+          await requestPaypalSubscription(user, targetPlanSlug);
+          return;
+        }
+        throw new Error(data?.detail || data?.error || 'PayPal 업그레이드에 실패했습니다.');
+      }
+      if (!data?.approval_url) {
+        throw new Error('PayPal 승인 URL을 받지 못했습니다.');
+      }
+      window.location.href = data.approval_url;
+    } catch (err) {
+      console.error('PayPal 업그레이드 실패:', err);
+      renderMessage(config.selectors.messageBox, err?.message || 'PayPal 업그레이드에 실패했습니다.', 'error');
     }
   };
 

@@ -1,5 +1,5 @@
-// v2.3 - utils 버전 갱신 및 SSO 토큰 정리 반영 (2026.01.28)
-// 기능 요약: 환불 요청은 관리자 알림 후 수동 처리, 구독 취소는 별도 진행을 안내합니다.
+// v2.4 - PayPal 구독 처리 보강 (2026.01.29)
+// 기능 요약: PayPal 승인 확인/다운그레이드/취소를 지원합니다.
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
 
 import {
@@ -10,7 +10,8 @@ import {
   renderMessage,
   bindSsoLinks,
   resolveLocale,
-  normalizeAppUrl
+  normalizeAppUrl,
+  parseQuery
 } from './utils.js?v=18';
 
 const createMypageController = (userConfig = {}, deps = {}) => {
@@ -20,6 +21,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   let currentPlanSlug = '';
   let currentUserId = '';
   let currentSubscriptionId = '';
+  let currentProvider = '';
+  let currentProviderSubscriptionId = '';
   let activeSupabase = null;
   let hasScheduledDowngrade = false;
   const locale = resolveLocale();
@@ -67,6 +70,10 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       cancelPending: '구독 취소를 진행하는 중입니다...',
       cancelDone: '구독 취소가 완료되었습니다.',
       cancelFail: '구독 취소 실패',
+      paypalConfirming: 'PayPal 결제 승인을 확인하는 중입니다...',
+      paypalConfirmed: 'PayPal 구독이 승인되었습니다.',
+      paypalCancelled: 'PayPal 결제가 취소되었습니다.',
+      paypalConfirmFail: 'PayPal 승인 확인에 실패했습니다.',
       refundNeedLogin: '로그인 후 환불 요청이 가능합니다.',
       refundNeedPaidPlan: '유료 플랜 결제 내역이 있어야 환불 요청이 가능합니다.',
       refundNeedSubscription: '구독 정보를 확인할 수 없습니다. 새로고침 후 다시 시도해주세요.',
@@ -121,6 +128,10 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       cancelPending: 'Canceling subscription...',
       cancelDone: 'Subscription canceled.',
       cancelFail: 'Failed to cancel subscription.',
+      paypalConfirming: 'Confirming your PayPal approval...',
+      paypalConfirmed: 'PayPal subscription approved.',
+      paypalCancelled: 'PayPal payment was cancelled.',
+      paypalConfirmFail: 'Failed to confirm PayPal approval.',
       refundNeedLogin: 'Login required to request a refund.',
       refundNeedPaidPlan: 'A paid subscription is required to request a refund.',
       refundNeedSubscription: 'Subscription data is missing. Please refresh and try again.',
@@ -185,7 +196,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   const fetchUserSubscriptionRow = async (userId, supabase) => {
     const { data, error } = await supabase
       .from('user_subscriptions')
-      .select('plan_id, status, next_billing_date')
+      .select('plan_id, status, next_billing_date, provider, provider_subscription_id')
       .eq('user_id', userId)
       .in('status', ['active', 'approval_pending'])
       .order('created_at', { ascending: false })
@@ -216,6 +227,9 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     if (normalized === 'pro') return texts.planLabelPro;
     return normalized.toUpperCase();
   };
+
+  // 한글 주석: 현재 구독 제공자가 PayPal인지 확인합니다.
+  const isPaypalProvider = () => String(currentProvider || '').toLowerCase() === 'paypal';
 
   // 한글 주석: 상태 문자열을 표준화합니다.
   const normalizeStatus = (status) => String(status || '').toLowerCase();
@@ -383,7 +397,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
         body: JSON.stringify({
           subscription_id: currentSubscriptionId,
           reason,
-          currency: 'KRW'
+          currency: isPaypalProvider() ? 'USD' : 'KRW'
         })
       });
       const data = await resp.json().catch(() => ({}));
@@ -438,13 +452,20 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     try {
       const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
       if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
-      const resp = await fetch(`${apiBase}/api/payments/toss/downgrade`, {
+      const endpoint = isPaypalProvider() ? '/api/payments/paypal/downgrade' : '/api/payments/toss/downgrade';
+      const payload = isPaypalProvider()
+        ? { subscription_id: currentProviderSubscriptionId, target_plan_slug: 'basic' }
+        : { target_plan_slug: 'basic' };
+      if (isPaypalProvider() && !currentProviderSubscriptionId) {
+        throw new Error('PayPal 구독 정보를 찾을 수 없습니다.');
+      }
+      const resp = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': currentUserId
         },
-        body: JSON.stringify({ target_plan_slug: 'basic' })
+        body: JSON.stringify(payload)
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
@@ -466,12 +487,20 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     try {
       const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
       if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
-      const resp = await fetch(`${apiBase}/api/payments/toss/cancel-downgrade`, {
+      const endpoint = isPaypalProvider()
+        ? '/api/payments/paypal/cancel-downgrade'
+        : '/api/payments/toss/cancel-downgrade';
+      const payload = isPaypalProvider() ? { subscription_id: currentProviderSubscriptionId } : undefined;
+      if (isPaypalProvider() && !currentProviderSubscriptionId) {
+        throw new Error('PayPal 구독 정보를 찾을 수 없습니다.');
+      }
+      const resp = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': currentUserId
-        }
+        },
+        body: payload ? JSON.stringify(payload) : undefined
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
@@ -495,12 +524,20 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     try {
       const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
       if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
-      const resp = await fetch(`${apiBase}/api/payments/toss/cancel-subscription`, {
+      const endpoint = isPaypalProvider()
+        ? '/api/payments/paypal/cancel-subscription'
+        : '/api/payments/toss/cancel-subscription';
+      const payload = isPaypalProvider() ? { subscription_id: currentProviderSubscriptionId } : undefined;
+      if (isPaypalProvider() && !currentProviderSubscriptionId) {
+        throw new Error('PayPal 구독 정보를 찾을 수 없습니다.');
+      }
+      const resp = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': currentUserId
-        }
+        },
+        body: payload ? JSON.stringify(payload) : undefined
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
@@ -613,6 +650,62 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     }
   };
 
+  // 한글 주석: PayPal 결제 리다이렉트 결과를 처리합니다.
+  const handlePaypalReturn = async (userId) => {
+    const query = parseQuery();
+    const status = String(query?.paypal_status || '').toLowerCase();
+    if (!status) return;
+    const texts = getTexts();
+    const subscriptionId = String(query?.subscription_id || '').trim();
+
+    const cleanupUrl = () => {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('paypal_status');
+        url.searchParams.delete('subscription_id');
+        url.searchParams.delete('ba_token');
+        window.history.replaceState({}, document.title, url.toString());
+      } catch (err) {
+        console.warn('PayPal URL 정리 실패:', err);
+      }
+    };
+
+    if (status === 'cancel') {
+      renderMessage(config.selectors.messageBox, texts.paypalCancelled, 'info');
+      cleanupUrl();
+      return;
+    }
+
+    if (!userId || !subscriptionId) {
+      renderMessage(config.selectors.messageBox, texts.paypalConfirmFail, 'error');
+      cleanupUrl();
+      return;
+    }
+
+    renderMessage(config.selectors.messageBox, texts.paypalConfirming, 'info');
+    try {
+      const apiBase = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+      if (!apiBase) throw new Error('API 주소가 설정되지 않았습니다.');
+      const resp = await fetch(`${apiBase}/api/payments/paypal/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
+        body: JSON.stringify({ subscription_id: subscriptionId })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data?.detail || data?.error || texts.paypalConfirmFail);
+      }
+      renderMessage(config.selectors.messageBox, texts.paypalConfirmed, 'info');
+      cleanupUrl();
+    } catch (err) {
+      renderMessage(config.selectors.messageBox, err?.message || texts.paypalConfirmFail, 'error');
+      cleanupUrl();
+    }
+  };
+
   const loadSubscriptionSummary = async (userId, supabase) => {
     try {
       const subscriptionRow = await fetchSubscriptionRow(userId, supabase);
@@ -623,6 +716,8 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       const reservedPlanSlug = String(planSlugFromUserSub || '').toLowerCase();
       currentSubscriptionId = subscriptionRow?.id || '';
       currentPlanSlug = resolvedPlanSlug;
+      currentProvider = String(userSubRow?.provider || '').toLowerCase();
+      currentProviderSubscriptionId = String(userSubRow?.provider_subscription_id || '');
 
       setText('[data-goatpbn-plan]', resolvePlanLabel(resolvedPlanSlug));
       setText('[data-goatpbn-status]', resolvedStatus);
@@ -676,6 +771,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       }
       currentUserId = user.id;
       setText('[data-goatpbn-email]', user.email || '사용자');
+      await handlePaypalReturn(currentUserId);
       await loadSubscriptionSummary(user.id, supabase);
     } catch (err) {
       console.error('마이페이지 초기화 실패:', err);

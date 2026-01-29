@@ -1,5 +1,5 @@
-// v1.0 - PayPal 구독 생성 프록시 (2026.01.07)
-// 한글 주석: 클라이언트에서 Cloudtype 백엔드 주소를 직접 호출하지 않고, Next.js 서버에서 프록시합니다.
+// v1.0 - PayPal 구독 취소 프록시 (2026.01.29)
+// 한글 주석: goatpbn.com에서 PayPal 구독 취소를 호출할 수 있도록 프록시합니다.
 
 import { proxyToBackend } from '@/app/api/_utils/backendProxy';
 import { buildCorsHeaders, handleCorsPreflight, withCors } from '@/app/api/_utils/cors';
@@ -9,7 +9,7 @@ export async function POST(request) {
   const body = await request.text();
   const userId = request.headers.get('x-user-id') || '';
 
-  const response = await proxyToBackend('/api/payments/paypal/create-subscription', {
+  const response = await proxyToBackend('/api/payments/paypal/cancel-subscription', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

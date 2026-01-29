@@ -1,5 +1,5 @@
-// v1.5 - utils 버전 갱신 및 SSO 토큰 정리 반영 (2026.01.28)
-// 기능 요약: Supabase 로그인 여부에 따라 헤더 메뉴를 토글하고 로그아웃을 처리
+// v1.6 - 영문 페이지 메뉴 링크 보정 (2026.01.29)
+// 기능 요약: Supabase 로그인 여부에 따라 헤더 메뉴를 토글하고 영문 링크를 보정
 // 사용 예시: <script type="module" src="/assets/header-auth.js?v=1"></script>
 
 import {
@@ -106,6 +106,63 @@ const createHeaderAuthController = (userConfig = {}, deps = {}) => {
       logoutButton.textContent = resolveText('logout');
     }
   };
+
+  // 한글 주석: 헤더 인증 영역 링크인지 확인합니다.
+  const isHeaderAuthLink = (link) => {
+    if (!link) return false;
+    return !!link.closest('[data-goatpbn-header-guest], [data-goatpbn-header-logged]');
+  };
+
+  // 한글 주석: 언어별 헤더 메뉴 링크를 안전하게 보정합니다.
+  const normalizeEnglishNavHref = (rawHref) => {
+    try {
+      if (!rawHref || !isEnglish) return rawHref;
+      const url = new URL(rawHref, window.location.origin);
+      if (url.origin !== window.location.origin) return rawHref;
+
+      const pathname = url.pathname || '/';
+      const lowerPath = pathname.toLowerCase();
+      const needsLangParamPaths = ['/login', '/register', '/mypage'];
+
+      if (needsLangParamPaths.some((path) => lowerPath.startsWith(path))) {
+        return appendLangParam(url.toString());
+      }
+
+      if (pathname === '/' || pathname === '') {
+        url.pathname = '/en/';
+        return url.toString();
+      }
+
+      return rawHref;
+    } catch (err) {
+      console.warn('영문 메뉴 링크 보정 실패:', err);
+      return rawHref;
+    }
+  };
+
+  // 한글 주석: 헤더 영역의 메뉴 링크를 영어 페이지 기준으로 맞춥니다.
+  const applyEnglishNavLinks = () => {
+    if (!isEnglish || typeof document === 'undefined') return;
+    const headerLinks = document.querySelectorAll('.elementor-location-header a[href], nav a[href]');
+    if (!headerLinks.length) return;
+
+    headerLinks.forEach((link) => {
+      try {
+        const rawHref = link.getAttribute('href') || '';
+        if (!rawHref) return;
+        if (isHeaderAuthLink(link)) return;
+        if (rawHref.startsWith('mailto:') || rawHref.startsWith('tel:') || rawHref.startsWith('javascript:')) {
+          return;
+        }
+        const nextHref = normalizeEnglishNavHref(rawHref);
+        if (nextHref && nextHref !== rawHref) {
+          link.setAttribute('href', nextHref);
+        }
+      } catch (err) {
+        console.warn('헤더 메뉴 링크 처리 실패:', err);
+      }
+    });
+  };
   // 한글 주석: DOM 텍스트 업데이트 유틸
   const setText = (selector, text) => {
     const el = document.querySelector(selector);
@@ -139,6 +196,17 @@ const createHeaderAuthController = (userConfig = {}, deps = {}) => {
     }
   };
 
+  // 한글 주석: data-goatpbn-text 속성을 가진 요소들의 텍스트를 locale에 맞게 교체합니다.
+  const applyLocaleTexts = () => {
+    document.querySelectorAll('[data-goatpbn-text]').forEach((el) => {
+      const key = el.getAttribute('data-goatpbn-text');
+      if (key) {
+        const text = resolveText(key);
+        if (text) el.textContent = text;
+      }
+    });
+  };
+
   const init = async () => {
     if (!ok) {
       console.warn('헤더 위젯 설정 누락:', missing.join(', '));
@@ -146,6 +214,8 @@ const createHeaderAuthController = (userConfig = {}, deps = {}) => {
     }
 
     applyLocaleLinks();
+    applyEnglishNavLinks(); // 한글 주석: 영어 페이지 메뉴 링크 보정
+    applyLocaleTexts(); // 한글 주석: 다국어 텍스트 적용
     const logoutButton = document.querySelector('[data-goatpbn-logout]');
     if (logoutButton) logoutButton.addEventListener('click', handleLogout);
 

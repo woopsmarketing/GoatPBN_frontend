@@ -22,7 +22,7 @@ export const buildCorsHeaders = (request) => {
   if (!origin || !allowedOrigins.includes(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, x-user-id',
     'Access-Control-Allow-Credentials': 'true',
     Vary: 'Origin'

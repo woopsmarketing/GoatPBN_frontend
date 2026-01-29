@@ -1,5 +1,5 @@
-<!-- v1.4 - SSO 토큰 중복 방지 버전 반영 (2026.01.28) -->
-<!-- 기능 요약: 로그인/비로그인 메뉴를 토글하는 헤더 UI -->
+<!-- v1.5 - 영문 헤더 메뉴 링크 보정 (2026.01.29) -->
+<!-- 기능 요약: 로그인/비로그인 메뉴를 토글하고 영문 링크를 보정하는 헤더 UI -->
 <style>
   .goatpbn-header-auth {
     display: flex;
@@ -77,16 +77,16 @@
 </script>
 
 <div class="goatpbn-header-auth">
-  <!-- 비로그인 메뉴 -->
+  <!-- 한글 주석: 비로그인 메뉴 - data-goatpbn-i18n 속성으로 다국어 처리 -->
   <div data-goatpbn-header-guest>
-    <a class="goatpbn-link" href="https://goatpbn.com/login" data-goatpbn-login-link>로그인</a>
-    <a class="goatpbn-btn-outline" href="https://goatpbn.com/register" data-goatpbn-signup-link>회원가입</a>
+    <a class="goatpbn-link" href="https://goatpbn.com/login" data-goatpbn-login-link data-goatpbn-text="login">Login</a>
+    <a class="goatpbn-btn-outline" href="https://goatpbn.com/register" data-goatpbn-signup-link data-goatpbn-text="signup">Sign up</a>
   </div>
 
-  <!-- 로그인 메뉴 -->
+  <!-- 한글 주석: 로그인 메뉴 - data-goatpbn-i18n 속성으로 다국어 처리 -->
   <div class="goatpbn-hidden" data-goatpbn-header-logged style="display:flex;gap:10px;align-items:center;">
     <span class="goatpbn-user-chip" data-goatpbn-user-email>user@email.com</span>
-    <a class="goatpbn-link" href="https://goatpbn.com/mypage" data-goatpbn-mypage-link>마이페이지</a>
+    <a class="goatpbn-link" href="https://goatpbn.com/mypage" data-goatpbn-mypage-link data-goatpbn-text="mypage">My page</a>
     <a
       class="goatpbn-btn-outline"
       href="https://app.goatpbn.com/ko/dashboard"
@@ -96,12 +96,14 @@
       data-goatpbn-newtab="1"
       data-goatpbn-target="https://app.goatpbn.com/ko/dashboard"
       data-goatpbn-dashboard-link
+      data-goatpbn-text="dashboard"
     >
-      대시보드
+      Dashboard
     </a>
-    <button class="goatpbn-btn" type="button" data-goatpbn-logout>로그아웃</button>
+    <button class="goatpbn-btn" type="button" data-goatpbn-logout data-goatpbn-text="logout">Logout</button>
   </div>
 </div>
 
-<!-- 한글 주석: 헤더 위젯 스크립트 로드 -->
-<script type="module" src="/assets/header-auth.js?v=14"></script>
+<!-- 한글 주석: 헤더/푸터 다국어 스크립트 로드 -->
+<script type="module" src="/assets/i18n-main-site.js?v=2"></script>
+<script type="module" src="/assets/header-auth.js?v=15"></script>
