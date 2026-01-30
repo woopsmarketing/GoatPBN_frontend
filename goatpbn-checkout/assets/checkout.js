@@ -1,3 +1,4 @@
+// v2.6 - 영문 안내 팝업 메시지 현지화 (2026.01.30)
 // v2.5 - 영문 PayPal 구독 분기 추가 (2026.01.29)
 // 기능 요약: 영문 페이지는 PayPal 구독을 우선 사용하고, 한글은 토스 빌링을 유지합니다.
 // 사용 예시: <script type="module" src="/assets/checkout.js"></script>
@@ -57,6 +58,37 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
 
   // 한글 주석: 현재 로케일에서 PayPal을 사용할지 결정합니다.
   const shouldUsePaypal = () => resolvePaymentProvider() === 'paypal';
+
+  // 한글 주석: 안내창(팝업) 문구를 로케일별로 제공합니다.
+  const popupTextMap = {
+    ko: {
+      planLabel: (slug) => {
+        if (slug === 'basic') return '베이직';
+        if (slug === 'pro') return '프로';
+        if (slug === 'free') return '무료';
+        return slug ? slug.toUpperCase() : 'FREE';
+      },
+      alreadyCurrent: (label) => `현재 ${label} 플랜입니다.`,
+      alreadyPro:
+        '이미 프로 플랜입니다. 베이직 변경은 마이페이지에서 다운그레이드 예약을 진행해주세요.',
+      upgradeConfirm: '프로 플랜으로 업그레이드하시겠습니까? 고정 차액 결제가 진행됩니다.'
+    },
+    en: {
+      planLabel: (slug) => {
+        if (slug === 'basic') return 'Basic';
+        if (slug === 'pro') return 'Pro';
+        if (slug === 'free') return 'Free';
+        return slug ? slug.toUpperCase() : 'FREE';
+      },
+      alreadyCurrent: (label) => `You are already on the ${label} plan.`,
+      alreadyPro:
+        'You are already on the Pro plan. To switch to Basic, schedule a downgrade on My Page.',
+      upgradeConfirm: 'Upgrade to the Pro plan? A fixed price difference will be charged.'
+    }
+  };
+
+  // 한글 주석: 현재 로케일에 맞는 팝업 텍스트 세트를 반환합니다.
+  const getPopupTexts = () => (isEnglishPage() ? popupTextMap.en : popupTextMap.ko);
 
   // 한글 주석: 무료 쿠폰 코드와 대시보드 URL을 구성합니다.
   const resolveFreeCouponCode = () => fallbackString(config.freeCouponCode, 'BHWFREECREDIT');
@@ -257,24 +289,21 @@ const createCheckoutController = (userConfig = {}, deps = {}) => {
     const normalizedTarget = String(targetPlanSlug || '').toLowerCase();
     if (!normalizedTarget) return true;
 
-    const planLabel = (slug) => {
-      if (slug === 'basic') return '베이직';
-      if (slug === 'pro') return '프로';
-      return slug ? slug.toUpperCase() : 'FREE';
-    };
+    const texts = getPopupTexts();
+    const planLabel = texts.planLabel;
 
     if (normalizedCurrent && normalizedCurrent === normalizedTarget) {
-      window.alert(`현재 ${planLabel(normalizedTarget)} 플랜입니다.`);
+      window.alert(texts.alreadyCurrent(planLabel(normalizedTarget)));
       return false;
     }
 
     if (normalizedCurrent === 'pro' && normalizedTarget === 'basic') {
-      window.alert('이미 프로 플랜입니다. 베이직 변경은 마이페이지에서 다운그레이드 예약을 진행해주세요.');
+      window.alert(texts.alreadyPro);
       return false;
     }
 
     if (normalizedCurrent === 'basic' && normalizedTarget === 'pro') {
-      return window.confirm('프로 플랜으로 업그레이드하시겠습니까? 고정 차액 결제가 진행됩니다.');
+      return window.confirm(texts.upgradeConfirm);
     }
 
     return true;

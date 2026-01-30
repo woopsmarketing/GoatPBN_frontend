@@ -1,4 +1,5 @@
 'use client';
+// v1.3 - 환불 알림에서 결제 제공자 문구 개선 (2026.01.30)
 // v1.2 - 수동 환불 처리 버튼으로 전환 (2026.01.28)
 // 기능 요약: 환불 승인 버튼은 수동 환불 완료 후 DB 상태만 갱신합니다.
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -129,6 +130,35 @@ export default function NotificationPage() {
   const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const isAdmin = userId && ADMIN_USER_IDS.includes(userId);
+
+  // 한글 주석: 환불 요청의 결제 제공자를 추정합니다.
+  const resolveRefundProvider = (metadata = {}) => {
+    const invoiceNumber = String(metadata.invoice_number || '')
+      .trim()
+      .toLowerCase();
+    if (invoiceNumber.startsWith('ord_')) return 'toss';
+    if (invoiceNumber) return 'paypal';
+    const currency = String(metadata.currency || '').toUpperCase();
+    return currency === 'KRW' ? 'toss' : 'paypal';
+  };
+
+  // 한글 주석: 결제 제공자 라벨을 locale에 맞춰 반환합니다.
+  const resolveRefundProviderLabel = (provider) => {
+    if (provider === 'toss') return locale === 'en' ? 'Toss' : '토스';
+    return 'PayPal';
+  };
+
+  // 한글 주석: 수동 환불 안내 문구를 결제 제공자 기준으로 구성합니다.
+  const buildRefundManualMessage = (providerLabel) => {
+    if (locale === 'en') {
+      return `Please process the refund manually in ${providerLabel}, then click the button below to update the DB status.`;
+    }
+    return `${providerLabel}에서 수동 환불 처리 후 아래 버튼을 눌러 DB 상태를 갱신해주세요.`;
+  };
+
+  const refundProvider = resolveRefundProvider(selectedRefund?.metadata || {});
+  const refundProviderLabel = resolveRefundProviderLabel(refundProvider);
+  const refundManualMessage = buildRefundManualMessage(refundProviderLabel);
 
   const unreadCount = useMemo(() => notifications.filter((item) => !item.readAt).length, [notifications]);
 
@@ -447,7 +477,7 @@ export default function NotificationPage() {
         <DialogTitle>환불 승인</DialogTitle>
         <DialogContent dividers>
           <Stack sx={{ gap: 1 }}>
-            <Alert severity="info">토스에서 수동 환불 처리 후 아래 버튼을 눌러 DB 상태를 갱신해주세요.</Alert>
+            <Alert severity="info">{refundManualMessage}</Alert>
             <Typography variant="subtitle1">환불 요청 ID: {selectedRefund?.metadata?.refund_request_id}</Typography>
             <Typography variant="body2">사용자 ID: {selectedRefund?.metadata?.user_id}</Typography>
             <Typography variant="body2">구독 ID: {selectedRefund?.metadata?.subscription_id}</Typography>

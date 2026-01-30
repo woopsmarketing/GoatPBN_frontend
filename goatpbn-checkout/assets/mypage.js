@@ -1,3 +1,5 @@
+// v2.6 - 환불 요청 시 결제 제공자 판별 보강 (2026.01.30)
+// v2.5 - 결제 직후 플랜 표시/다운그레이드 안내 UX 개선 (2026.01.30)
 // v2.4 - PayPal 구독 처리 보강 (2026.01.29)
 // 기능 요약: PayPal 승인 확인/다운그레이드/취소를 지원합니다.
 // 사용 예시: <script type="module" src="/assets/mypage.js"></script>
@@ -234,6 +236,34 @@ const createMypageController = (userConfig = {}, deps = {}) => {
   // 한글 주석: 상태 문자열을 표준화합니다.
   const normalizeStatus = (status) => String(status || '').toLowerCase();
 
+  // 한글 주석: subscriptions의 provider_subscription_id로 결제 제공자를 추정합니다.
+  const resolveProviderFromSubscriptionId = (providerSubscriptionId) => {
+    const normalized = String(providerSubscriptionId || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (normalized.startsWith('toss-')) return 'toss';
+    return 'paypal';
+  };
+
+  // 한글 주석: subscriptions/user_subscriptions 정보를 합쳐 현재 표시할 플랜을 결정합니다.
+  const resolveEffectivePlanSlug = (subscriptionPlan, userPlan) => {
+    const normalizedSubscriptionPlan = String(subscriptionPlan || '').toLowerCase();
+    const normalizedUserPlan = String(userPlan || '').toLowerCase();
+
+    if (!normalizedSubscriptionPlan) return normalizedUserPlan || 'free';
+    // 한글 주석: 결제 직후 subscriptions가 아직 free일 수 있어 유료 플랜을 우선 표시합니다.
+    if (normalizedSubscriptionPlan === 'free' && normalizedUserPlan && normalizedUserPlan !== 'free') {
+      return normalizedUserPlan;
+    }
+    return normalizedSubscriptionPlan || normalizedUserPlan || 'free';
+  };
+
+  // 한글 주석: 다운그레이드 예약 여부를 판단합니다. (현재 pro -> basic)
+  const isDowngradeScheduled = (currentPlan, reservedPlan) => {
+    const normalizedCurrent = String(currentPlan || '').toLowerCase();
+    const normalizedReserved = String(reservedPlan || '').toLowerCase();
+    return normalizedCurrent === 'pro' && normalizedReserved && normalizedReserved !== normalizedCurrent;
+  };
+
   const updatePlanButtons = (currentPlanSlug) => {
     const normalized = String(currentPlanSlug || '').toLowerCase();
     const planButtons = document.querySelectorAll('[data-goatpbn-plan-action]');
@@ -260,7 +290,7 @@ const createMypageController = (userConfig = {}, deps = {}) => {
     if (!noticeEl) return;
     const normalizedCurrent = String(currentPlan || '').toLowerCase();
     const normalizedReserved = String(reservedPlan || '').toLowerCase();
-    const isScheduled = normalizedCurrent && normalizedReserved && normalizedCurrent !== normalizedReserved;
+    const isScheduled = isDowngradeScheduled(normalizedCurrent, normalizedReserved);
     const texts = getTexts();
 
     if (!isScheduled) {
@@ -711,13 +741,20 @@ const createMypageController = (userConfig = {}, deps = {}) => {
       const subscriptionRow = await fetchSubscriptionRow(userId, supabase);
       const userSubRow = await fetchUserSubscriptionRow(userId, supabase);
       const planSlugFromUserSub = await fetchPlanSlugById(userSubRow?.plan_id, supabase);
-      const resolvedPlanSlug = String(subscriptionRow?.plan || planSlugFromUserSub || 'free').toLowerCase();
+      const resolvedPlanSlug = resolveEffectivePlanSlug(subscriptionRow?.plan, planSlugFromUserSub);
       const resolvedStatus = subscriptionRow?.status || userSubRow?.status || '구독 정보가 없습니다.';
       const reservedPlanSlug = String(planSlugFromUserSub || '').toLowerCase();
       currentSubscriptionId = subscriptionRow?.id || '';
       currentPlanSlug = resolvedPlanSlug;
       currentProvider = String(userSubRow?.provider || '').toLowerCase();
       currentProviderSubscriptionId = String(userSubRow?.provider_subscription_id || '');
+      // 한글 주석: active 구독이 없을 때 subscriptions의 provider_subscription_id로 제공자를 추정합니다.
+      if (!currentProvider) {
+        currentProvider = resolveProviderFromSubscriptionId(subscriptionRow?.provider_subscription_id);
+      }
+      if (!currentProviderSubscriptionId && subscriptionRow?.provider_subscription_id) {
+        currentProviderSubscriptionId = String(subscriptionRow.provider_subscription_id || '');
+      }
 
       setText('[data-goatpbn-plan]', resolvePlanLabel(resolvedPlanSlug));
       setText('[data-goatpbn-status]', resolvedStatus);
