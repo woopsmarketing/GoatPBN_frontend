@@ -162,8 +162,8 @@ export async function POST(request) {
 
     console.log('📥 외부 주문 데이터 수신:', orderData);
 
-    // 4. 필수 파라미터 검증
-    const requiredFields = ['campaignName', 'siteId', 'targetSite', 'keywords', 'quantity', 'duration'];
+    // 4. 필수 파라미터 검증 (siteId는 선택적으로 변경)
+    const requiredFields = ['campaignName', 'targetSite', 'keywords', 'quantity', 'duration'];
     const missingFields = requiredFields.filter((field) => !orderData[field]);
 
     if (missingFields.length > 0) {
@@ -197,26 +197,62 @@ export async function POST(request) {
       );
     }
 
-    // 6. 사이트 존재 여부 확인
+    // 6. 사이트 자동 선택 또는 검증
     const supabase = getServiceSupabaseClient();
-    const { data: siteData, error: siteError } = await supabase
-      .from('sites')
-      .select('id, name, url, status')
-      .eq('id', orderData.siteId)
-      .eq('user_id', userId)
-      .single();
 
-    if (siteError || !siteData) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: '유효하지 않은 siteId입니다. 사이트가 존재하지 않거나 접근 권한이 없습니다.'
-        },
-        { status: 404 }
-      );
+    // 한글 주석: siteId가 null이거나 siteIds가 빈 배열이면 자동 배포 모드
+    // 사용자의 모든 사이트를 조회하여 자동으로 선택
+    let targetSiteId = orderData.siteId;
+    let targetSiteIds = Array.isArray(orderData.siteIds) && orderData.siteIds.length > 0 ? orderData.siteIds : [];
+
+    // 자동 배포 모드: 모든 사이트 조회
+    if (!targetSiteId || targetSiteIds.length === 0) {
+      console.log('🔄 자동 배포 모드: 사용자의 모든 사이트 조회 중...');
+
+      const { data: allSites, error: sitesError } = await supabase
+        .from('sites')
+        .select('id, name, url, status')
+        .eq('user_id', userId)
+        .eq('status', 'connected')
+        .order('created_at', { ascending: true });
+
+      if (sitesError || !allSites || allSites.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: '등록된 사이트가 없습니다. 먼저 사이트를 등록해주세요.'
+          },
+          { status: 404 }
+        );
+      }
+
+      // 첫 번째 사이트를 대표 사이트로, 전체를 배포 대상으로
+      targetSiteId = allSites[0].id;
+      targetSiteIds = allSites.map((site) => site.id);
+
+      console.log(`✅ 자동 배포 설정 완료: ${allSites.length}개 사이트`);
+      console.log(`   대표 사이트: ${allSites[0].name || allSites[0].url}`);
+    } else {
+      // 수동 선택 모드: 지정된 사이트 검증
+      const { data: siteData, error: siteError } = await supabase
+        .from('sites')
+        .select('id, name, url, status')
+        .eq('id', targetSiteId)
+        .eq('user_id', userId)
+        .single();
+
+      if (siteError || !siteData) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: '유효하지 않은 siteId입니다. 사이트가 존재하지 않거나 접근 권한이 없습니다.'
+          },
+          { status: 404 }
+        );
+      }
+
+      console.log('✅ 사이트 검증 완료:', siteData.name);
     }
-
-    console.log('✅ 사이트 검증 완료:', siteData.name);
 
     // 7. 캠페인 데이터 준비
     const quantity = parseInt(orderData.quantity);
@@ -226,15 +262,15 @@ export async function POST(request) {
     const kstNowIso = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString();
     const todayKst = kstNowIso.split('T')[0];
 
-    // 선택된 사이트 ID 배열 처리
-    const selectedSiteIds = Array.isArray(orderData.siteIds) ? Array.from(new Set(orderData.siteIds.filter(Boolean))) : [orderData.siteId];
+    // 선택된 사이트 ID 배열 처리 (자동 배포 모드 반영)
+    const selectedSiteIds = Array.from(new Set(targetSiteIds.filter(Boolean)));
 
     const newCampaign = {
       user_id: userId,
       name: orderData.campaignName,
       description: orderData.description || '외부 API를 통해 자동 생성된 캠페인',
-      site_id: orderData.siteId,
-      selected_site_ids: selectedSiteIds,
+      site_id: targetSiteId, // 자동 선택된 대표 사이트 ID
+      selected_site_ids: selectedSiteIds, // 자동 배포 대상 사이트 배열
       target_site: orderData.targetSite,
       keywords: orderData.keywords,
       quantity,
