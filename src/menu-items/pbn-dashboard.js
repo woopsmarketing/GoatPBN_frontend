@@ -4,7 +4,7 @@
  */
 
 // assets - 아이콘 import
-import { Home, Chart, AddCircle, DocumentText, Global, DocumentDownload, MagicStar } from '@wandersonalwes/iconsax-react';
+import { Home, Chart, AddCircle, DocumentText, Global, DocumentDownload, MagicStar, Setting2 } from '@wandersonalwes/iconsax-react';
 
 // 아이콘 매핑
 const icons = {
@@ -14,7 +14,8 @@ const icons = {
   logs: DocumentText,
   sites: Global,
   reports: DocumentDownload,
-  contentGenerator: MagicStar
+  contentGenerator: MagicStar,
+  settings: Setting2
 };
 
 // ==============================|| PBN 대시보드 메뉴 ||============================== //
@@ -107,6 +108,28 @@ const pbnDashboard = {
       url: '/reports',
       icon: icons.reports,
       breadcrumbs: false
+    },
+    {
+      id: 'settings',
+      title: '설정',
+      type: 'collapse',
+      icon: icons.settings,
+      children: [
+        {
+          id: 'settings-account',
+          title: '계정 설정',
+          type: 'item',
+          url: '/settings',
+          breadcrumbs: false
+        },
+        {
+          id: 'settings-api-keys',
+          title: 'API 키 관리',
+          type: 'item',
+          url: '/settings/api-keys',
+          breadcrumbs: false
+        }
+      ]
     }
   ]
 };
