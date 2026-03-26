@@ -86,6 +86,28 @@ const pbnDashboard = {
       ]
     },
     {
+      id: 'spintax-templates',
+      title: '스핀택스 템플릿',
+      type: 'collapse',
+      icon: icons.contentGenerator,
+      children: [
+        {
+          id: 'template-list',
+          title: '템플릿 목록',
+          type: 'item',
+          url: '/templates',
+          breadcrumbs: false
+        },
+        {
+          id: 'template-create',
+          title: '새 템플릿 생성',
+          type: 'item',
+          url: '/templates/create',
+          breadcrumbs: false
+        }
+      ]
+    },
+    {
       id: 'content-generator',
       title: 'AI 콘텐츠 생성기',
       type: 'item',
