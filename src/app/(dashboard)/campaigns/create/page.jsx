@@ -13,7 +13,6 @@ import TailwindButton from '../../../../components/ui/TailwindButton';
 import CreditCalculator from '../../../../components/CreditCalculator';
 import { sitesAPI } from '../../../../lib/api/sites';
 import { campaignsAPI } from '../../../../lib/api/campaigns';
-import { spintaxAPI } from '../../../../lib/api/spintax';
 import { buildApiUrl } from '../../../../lib/api/httpClient';
 import { authAPI } from '../../../../lib/supabase';
 
@@ -44,10 +43,6 @@ export default function CampaignCreatePage() {
     scheduledTime: '',
     delayMinutes: 10, // 기본값을 10분으로 변경
 
-    // 콘텐츠 생성 방식
-    contentMode: 'llm', // llm (AI 매번 생성) | spintax (템플릿 기반)
-    spintaxTemplateId: null, // 스핀택스 모드일 때 사용할 템플릿 ID
-
     // 콘텐츠 생성 옵션 (content_generation_pipeline.py 매개변수와 일치)
     persona: 'expert', // expert, beginner, professional
     sectionCount: 5, // 기본값 6 → 5로 변경
@@ -72,7 +67,6 @@ export default function CampaignCreatePage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [userCredits, setUserCredits] = useState(100); // 사용자 보유 크레딧
-  const [spintaxTemplates, setSpintaxTemplates] = useState([]); // 스핀택스 템플릿 목록
 
   // 계산된 값들
   const [calculations, setCalculations] = useState({
@@ -104,23 +98,11 @@ export default function CampaignCreatePage() {
     setErrors({});
   };
 
-  // 사이트 목록, 크레딧, 스핀택스 템플릿 로드
+  // 사이트 목록, 크레딧 로드
   useEffect(() => {
     loadSites();
     loadUserCredits();
-    loadSpintaxTemplates();
   }, []);
-
-  const loadSpintaxTemplates = async () => {
-    try {
-      const result = await spintaxAPI.getReadyTemplates();
-      if (result.success) {
-        setSpintaxTemplates(result.templates || []);
-      }
-    } catch (err) {
-      console.log('스핀택스 템플릿 로드 실패 (무시):', err.message);
-    }
-  };
 
   // 사용자 크레딧 로드
   const loadUserCredits = async () => {
@@ -278,11 +260,6 @@ export default function CampaignCreatePage() {
       if (!formData.scheduledTime) newErrors.scheduledTime = '시작 시간을 선택하세요';
     }
 
-    // 스핀택스 모드 검증
-    if (formData.contentMode === 'spintax' && !formData.spintaxTemplateId) {
-      newErrors.spintaxTemplateId = '스핀택스 템플릿을 선택하세요';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -338,10 +315,6 @@ export default function CampaignCreatePage() {
 
         // 💳 크레딧 계산 (프론트엔드에서 계산하여 전달)
         creditsPerContent: calculateCreditsPerContent(formData),
-
-        // 스핀택스 모드
-        contentMode: formData.contentMode || 'llm',
-        spintaxTemplateId: formData.contentMode === 'spintax' ? formData.spintaxTemplateId : null,
 
         // Supabase 호환 필드 (대표 사이트용, 필요 시 첫 번째 사이트 사용)
         site_id: targetSiteIds.length > 0 ? targetSiteIds[0] : null,
@@ -628,172 +601,98 @@ export default function CampaignCreatePage() {
           )}
         </MainCard>
 
-        {/* 콘텐츠 생성 방식 */}
-        <MainCard title="콘텐츠 생성 방식">
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label
-                className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  formData.contentMode === 'llm' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="contentMode"
-                  value="llm"
-                  checked={formData.contentMode === 'llm'}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, contentMode: e.target.value, spintaxTemplateId: null }))}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-semibold text-gray-900">LLM (AI 생성)</div>
-                  <div className="text-sm text-gray-500 mt-1">매번 AI가 새로운 콘텐츠를 생성합니다. 크레딧 10/건</div>
-                </div>
-              </label>
-              <label
-                className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  formData.contentMode === 'spintax' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="contentMode"
-                  value="spintax"
-                  checked={formData.contentMode === 'spintax'}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, contentMode: e.target.value }))}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-semibold text-gray-900">스핀택스 (템플릿 기반)</div>
-                  <div className="text-sm text-gray-500 mt-1">미리 만든 템플릿에서 즉시 생성. 크레딧 1/건</div>
-                </div>
-              </label>
+        {/* 콘텐츠 생성 옵션 */}
+        <MainCard title="콘텐츠 생성 옵션">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">섹션 수</label>
+              <input
+                type="number"
+                min="3"
+                max="15"
+                value={formData.sectionCount}
+                onChange={(e) => setFormData((prev) => ({ ...prev, sectionCount: parseInt(e.target.value) || 5 }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                콘텐츠에 포함될 섹션 개수 (3-15개).
+                <span className="text-blue-600 font-semibold">5개 초과 시 +1 크레딧/개</span>
+              </p>
             </div>
 
-            {formData.contentMode === 'spintax' && (
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">스핀택스 템플릿 선택</label>
-                {spintaxTemplates.length === 0 ? (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                    사용 가능한 템플릿이 없습니다.{' '}
-                    <a href="/templates/create" className="text-blue-600 underline">
-                      템플릿 먼저 생성하기
-                    </a>
-                  </div>
-                ) : (
-                  <select
-                    value={formData.spintaxTemplateId || ''}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, spintaxTemplateId: e.target.value || null }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">템플릿을 선택하세요</option>
-                    {spintaxTemplates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.main_keyword}) - {t.spin_count || 0}회 사용
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {errors.spintaxTemplateId && <p className="mt-1 text-sm text-red-600">{errors.spintaxTemplateId}</p>}
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">섹션 이미지 개수</label>
+              <input
+                type="number"
+                min="0"
+                max={formData.sectionCount || 5}
+                value={formData.sectionImageCount}
+                onChange={(e) => setFormData((prev) => ({ ...prev, sectionImageCount: parseInt(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!formData.includeImages}
+              />
+              <p className="text-xs text-gray-500 mt-1">메인 이미지(1개)는 자동 생성됩니다. +2 크레딧/개</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="includeImages"
+                checked={formData.includeImages}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeImages: e.target.checked }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="includeImages" className="ml-2 text-sm text-gray-700">
+                이미지 생성
+              </label>
+              <span className="ml-2 text-xs text-gray-500">AI로 관련 이미지를 자동 생성합니다</span>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="includeToc"
+                checked={formData.includeToc}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeToc: e.target.checked }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="includeToc" className="ml-2 text-sm text-gray-700">
+                목차 포함 <span className="text-blue-600 font-semibold">(+1 크레딧)</span>
+              </label>
+              <span className="ml-2 text-xs text-gray-500">콘텐츠 상단에 목차를 추가합니다</span>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="includeBacklinks"
+                checked={formData.includeBacklinks}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeBacklinks: e.target.checked }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="includeBacklinks" className="ml-2 text-sm text-gray-700">
+                외부 백링크 생성 <span className="text-blue-600 font-semibold">(+1 크레딧)</span>
+              </label>
+              <span className="ml-2 text-xs text-gray-500">메인 키워드에 타겟 사이트로의 링크를 추가합니다</span>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="includeInternalLinks"
+                checked={formData.includeInternalLinks}
+                onChange={(e) => setFormData((prev) => ({ ...prev, includeInternalLinks: e.target.checked }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="includeInternalLinks" className="ml-2 text-sm text-gray-700">
+                내부 링크 생성 <span className="text-blue-600 font-semibold">(+1 크레딧)</span>
+              </label>
+              <span className="ml-2 text-xs text-gray-500">키워드 기반으로 내부 콘텐츠 간 링크를 자동 생성합니다</span>
+            </div>
           </div>
         </MainCard>
-
-        {/* 콘텐츠 생성 옵션 (LLM 모드에서만 표시) */}
-        {formData.contentMode !== 'spintax' && (
-          <MainCard title="콘텐츠 생성 옵션">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">섹션 수</label>
-                <input
-                  type="number"
-                  min="3"
-                  max="15"
-                  value={formData.sectionCount}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, sectionCount: parseInt(e.target.value) || 5 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  콘텐츠에 포함될 섹션 개수 (3-15개).
-                  <span className="text-blue-600 font-semibold">5개 초과 시 +1 크레딧/개</span>
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">섹션 이미지 개수</label>
-                <input
-                  type="number"
-                  min="0"
-                  max={formData.sectionCount || 5}
-                  value={formData.sectionImageCount}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, sectionImageCount: parseInt(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!formData.includeImages}
-                />
-                <p className="text-xs text-gray-500 mt-1">메인 이미지(1개)는 자동 생성됩니다. +2 크레딧/개</p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="includeImages"
-                  checked={formData.includeImages}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, includeImages: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="includeImages" className="ml-2 text-sm text-gray-700">
-                  이미지 생성
-                </label>
-                <span className="ml-2 text-xs text-gray-500">AI로 관련 이미지를 자동 생성합니다</span>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="includeToc"
-                  checked={formData.includeToc}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, includeToc: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="includeToc" className="ml-2 text-sm text-gray-700">
-                  목차 포함 <span className="text-blue-600 font-semibold">(+1 크레딧)</span>
-                </label>
-                <span className="ml-2 text-xs text-gray-500">콘텐츠 상단에 목차를 추가합니다</span>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="includeBacklinks"
-                  checked={formData.includeBacklinks}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, includeBacklinks: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="includeBacklinks" className="ml-2 text-sm text-gray-700">
-                  외부 백링크 생성 <span className="text-blue-600 font-semibold">(+1 크레딧)</span>
-                </label>
-                <span className="ml-2 text-xs text-gray-500">메인 키워드에 타겟 사이트로의 링크를 추가합니다</span>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="includeInternalLinks"
-                  checked={formData.includeInternalLinks}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, includeInternalLinks: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="includeInternalLinks" className="ml-2 text-sm text-gray-700">
-                  내부 링크 생성 <span className="text-blue-600 font-semibold">(+1 크레딧)</span>
-                </label>
-                <span className="ml-2 text-xs text-gray-500">키워드 기반으로 내부 콘텐츠 간 링크를 자동 생성합니다</span>
-              </div>
-            </div>
-          </MainCard>
-        )}
 
         {/* 크레딧 계산기 */}
         <CreditCalculator formData={formData} userCredits={userCredits} />

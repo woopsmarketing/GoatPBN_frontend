@@ -87,7 +87,7 @@ const pbnDashboard = {
     },
     {
       id: 'spintax-templates',
-      title: '스핀택스 템플릿',
+      title: '스핀택스',
       type: 'collapse',
       icon: icons.contentGenerator,
       children: [
@@ -103,6 +103,20 @@ const pbnDashboard = {
           title: '새 템플릿 생성',
           type: 'item',
           url: '/templates/create',
+          breadcrumbs: false
+        },
+        {
+          id: 'spintax-campaign-create',
+          title: '스핀택스 캠페인 생성',
+          type: 'item',
+          url: '/campaigns/spintax',
+          breadcrumbs: false
+        },
+        {
+          id: 'spintax-campaign-list',
+          title: '스핀택스 캠페인 목록',
+          type: 'item',
+          url: '/campaigns/spintax/list',
           breadcrumbs: false
         }
       ]

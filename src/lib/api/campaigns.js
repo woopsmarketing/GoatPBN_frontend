@@ -127,10 +127,6 @@ export const campaignsAPI = {
         credits_per_content: parseInt(campaignData.creditsPerContent) || 10,
         content_language: campaignData.contentLanguage || 'ko',
 
-        // 스핀택스 모드 (기본: llm)
-        content_mode: campaignData.contentMode || 'llm',
-        spintax_template_id: campaignData.spintaxTemplateId || null,
-
         // 시작 시간 설정
         start_type: campaignData.start_type || 'immediate',
         scheduled_start: campaignData.scheduled_start,
