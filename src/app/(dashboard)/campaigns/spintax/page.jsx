@@ -417,7 +417,7 @@ export default function SpintaxCampaignCreatePage() {
                 className="h-4 w-4 text-blue-600 rounded"
               />
               <label htmlFor="includeImages" className="ml-2 text-sm text-gray-700">
-                플레이스홀더 이미지 포함
+                AI 이미지 생성 (gpt-image-1)
               </label>
             </div>
             <div className="flex items-center">
