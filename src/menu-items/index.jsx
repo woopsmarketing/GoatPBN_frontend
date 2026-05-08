@@ -2,13 +2,14 @@
 
 // project-imports
 import pbnDashboard from './pbn-dashboard';
+import sncDashboard from './snc-dashboard';
 import individualTools from './individual-tools';
 
 // ==============================|| MENU ITEMS ||============================== //
 
 const menuItems = {
   // ✅ 대시보드 관련 핵심 메뉴만 노출 (개별 도구 그룹 숨김)
-  items: [pbnDashboard]
+  items: [pbnDashboard, sncDashboard]
 };
 
 export default menuItems;
