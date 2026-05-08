@@ -137,9 +137,6 @@ export default function SncCampaignCreatePage() {
     if (selectedSites.length === 0) return '발행 대상 사이트를 1개 이상 선택하세요.';
     if (keywords.length === 0) return '키워드를 1개 이상 입력하세요.';
     if (!Number.isInteger(quantity) || quantity <= 0) return '발행 수량은 1 이상의 정수여야 합니다.';
-    if (keywords.length < quantity) {
-      return `키워드 수(${keywords.length})가 발행 수량(${quantity})보다 적습니다.`;
-    }
     if (!Number.isInteger(duration) || duration <= 0) return '캠페인 기간은 1일 이상이어야 합니다.';
     return null;
   };
@@ -280,8 +277,8 @@ export default function SncCampaignCreatePage() {
                 </div>
               ) : null}
               <p className="text-xs text-gray-500">
-                각 키워드로 1편씩 글이 생성됩니다. 키워드가 본문 내 백링크의 앵커 텍스트로도 사용되므로 수가 발행 수량보다 같거나 많아야
-                합니다. (Enter 또는 추가 버튼으로 추가)
+                키워드 풀 — 매 발행 잡마다 풀에서 무작위로 1개 선택되어 글 주제 + 본문 백링크 앵커로 사용됩니다. 재사용 가능하므로 발행
+                수량보다 적어도 OK. (Enter 또는 추가 버튼으로 추가)
               </p>
             </div>
           </div>
