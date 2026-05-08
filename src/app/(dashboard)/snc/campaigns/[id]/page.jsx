@@ -171,15 +171,20 @@ export default function SncCampaignDetailPage() {
             </div>
             <div className="border rounded px-2 py-1.5">
               <div className="text-gray-500">오늘 발행</div>
-              <div className="font-medium">{campaign.dailyExecutionCount}</div>
+              <div className="font-medium">
+                {campaign.dailyExecutionCount}
+                {campaign.quantity > 0 && campaign.duration > 0
+                  ? ` / ${Math.ceil((campaign.quantity - campaign.completedCount) / Math.max(1, campaign.duration))}`
+                  : ''}
+              </div>
             </div>
             <div className="border rounded px-2 py-1.5">
               <div className="text-gray-500">사이트</div>
               <div className="font-medium">{campaign.selectedSites.length}개</div>
             </div>
             <div className="border rounded px-2 py-1.5">
-              <div className="text-gray-500">스케줄(KST)</div>
-              <div className="font-medium">{campaign.scheduleHours.length ? campaign.scheduleHours.join(', ') + '시' : '-'}</div>
+              <div className="text-gray-500">다음 발행</div>
+              <div className="font-medium">{campaign.nextExecutionAt ? fmtTime(campaign.nextExecutionAt) : '대기 없음'}</div>
             </div>
           </div>
 

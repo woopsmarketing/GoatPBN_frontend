@@ -2,9 +2,10 @@
  * SNC 캠페인 생성 페이지 — Phase 4-B.
  *
  * 입력: name, target_url, external_anchor, selected_sites (체크박스),
- *       keywords (줄바꿈 구분), quantity, duration, schedule_hours (체크박스).
- * 검증: 사이트 1개 이상, 키워드 1개 이상, quantity > 0, duration > 0.
- * 결과: snc_campaigns + snc_campaign_keywords 생성 → 상세 페이지로 이동.
+ *       keywords (줄바꿈 구분), quantity, duration.
+ * 발행 분배: WP PBN 과 동일 — daily_target = ceil(quantity/duration) 자동 계산,
+ *          worker 가 24h / daily_target 간격으로 next_execution_at 갱신하여 균등 분배.
+ *          (사용자가 시간대 직접 고를 필요 없음 — 코드가 자동 분배.)
  */
 
 'use client';
@@ -14,9 +15,6 @@ import { useRouter } from 'next/navigation';
 import MainCard from '../../../../../components/MainCard';
 import TailwindButton from '../../../../../components/ui/TailwindButton';
 import { sncCampaignCreateAPI, sncSitesAPI } from '../../../../../features/snc/api';
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const DEFAULT_HOURS = [9, 15, 21];
 
 function FieldLabel({ children, required }) {
   return (
@@ -36,7 +34,6 @@ export default function SncCampaignCreatePage() {
   const [keywordsText, setKeywordsText] = useState('');
   const [quantity, setQuantity] = useState(3);
   const [duration, setDuration] = useState(7);
-  const [scheduleHours, setScheduleHours] = useState(DEFAULT_HOURS);
   const [selectedSites, setSelectedSites] = useState([]);
 
   const [sites, setSites] = useState([]);
@@ -84,9 +81,16 @@ export default function SncCampaignCreatePage() {
     setSelectedSites((prev) => (prev.includes(siteId) ? prev.filter((s) => s !== siteId) : [...prev, siteId]));
   };
 
-  const toggleHour = (h) => {
-    setScheduleHours((prev) => (prev.includes(h) ? prev.filter((x) => x !== h) : [...prev, h].sort((a, b) => a - b)));
-  };
+  // 예상 일일 발행 = ceil(quantity / duration)
+  const dailyTarget = useMemo(() => {
+    if (quantity <= 0 || duration <= 0) return 0;
+    return Math.ceil(quantity / duration);
+  }, [quantity, duration]);
+
+  const intervalHours = useMemo(() => {
+    if (dailyTarget <= 0) return 0;
+    return 24 / dailyTarget;
+  }, [dailyTarget]);
 
   const validate = () => {
     if (!name.trim()) return '캠페인 이름을 입력하세요.';
@@ -104,7 +108,6 @@ export default function SncCampaignCreatePage() {
       return `키워드 수(${keywords.length})가 발행 수량(${quantity})보다 적습니다.`;
     }
     if (!Number.isInteger(duration) || duration <= 0) return '캠페인 기간은 1일 이상이어야 합니다.';
-    if (scheduleHours.length === 0) return '발행 시간대를 1개 이상 선택하세요.';
     return null;
   };
 
@@ -125,7 +128,6 @@ export default function SncCampaignCreatePage() {
       keywords,
       quantity,
       duration,
-      scheduleHours,
       status: 'paused' // 생성 시 일단 paused, 사용자가 검토 후 시작
     });
     setSubmitting(false);
@@ -290,24 +292,23 @@ export default function SncCampaignCreatePage() {
 
         <MainCard>
           <div className="space-y-2">
-            <FieldLabel required>발행 시간대 (KST, {scheduleHours.length}개 선택)</FieldLabel>
-            <p className="text-xs text-gray-500">선택된 시간대에 worker가 매 분 스캔하여 잡을 enqueue 합니다.</p>
-            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-1.5">
-              {HOURS.map((h) => {
-                const checked = scheduleHours.includes(h);
-                return (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => toggleHour(h)}
-                    className={`text-xs py-1.5 rounded border transition-colors ${
-                      checked ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    {h}시
-                  </button>
-                );
-              })}
+            <div className="text-sm font-medium text-gray-700">자동 발행 분배 (참고)</div>
+            <p className="text-xs text-gray-500">
+              발행 수량과 기간을 기반으로 worker 가 24시간 안에 균등 분배합니다. 시간대를 직접 선택할 필요 없음.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs pt-1">
+              <div className="border rounded px-2 py-1.5 bg-gray-50">
+                <div className="text-gray-500">예상 일일 발행</div>
+                <div className="font-medium">{dailyTarget > 0 ? `${dailyTarget}건/일` : '-'}</div>
+              </div>
+              <div className="border rounded px-2 py-1.5 bg-gray-50">
+                <div className="text-gray-500">발행 간격</div>
+                <div className="font-medium">{intervalHours > 0 ? `약 ${intervalHours.toFixed(1)}시간` : '-'}</div>
+              </div>
+              <div className="border rounded px-2 py-1.5 bg-gray-50">
+                <div className="text-gray-500">총 기간</div>
+                <div className="font-medium">{duration > 0 ? `${duration}일 (${quantity}건 발행)` : '-'}</div>
+              </div>
             </div>
           </div>
         </MainCard>
