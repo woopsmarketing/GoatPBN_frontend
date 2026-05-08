@@ -32,7 +32,8 @@ export default function SncCampaignCreatePage() {
 
   const [name, setName] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
-  const [keywordsText, setKeywordsText] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
+  const [keywordsList, setKeywordsList] = useState([]);
   const [quantity, setQuantity] = useState(3);
   const [duration, setDuration] = useState(7);
   const [selectedSites, setSelectedSites] = useState([]);
@@ -61,12 +62,44 @@ export default function SncCampaignCreatePage() {
     loadSites();
   }, [loadSites]);
 
-  const keywords = useMemo(() => {
-    return keywordsText
+  // 칩 리스트가 진실 — keywords 는 서밋 시 그대로 사용
+  const keywords = keywordsList;
+
+  const handleAddKeywords = () => {
+    const parsed = keywordInput
       .split(/[\n,]/)
       .map((k) => k.trim())
       .filter(Boolean);
-  }, [keywordsText]);
+    if (parsed.length === 0) return;
+    // 중복 제거하면서 기존 순서 유지 + 새 항목 뒤에 추가
+    setKeywordsList((prev) => {
+      const seen = new Set(prev);
+      const merged = [...prev];
+      for (const k of parsed) {
+        if (!seen.has(k)) {
+          seen.add(k);
+          merged.push(k);
+        }
+      }
+      return merged;
+    });
+    setKeywordInput('');
+  };
+
+  const handleRemoveKeyword = (kw) => {
+    setKeywordsList((prev) => prev.filter((k) => k !== kw));
+  };
+
+  const handleKeywordKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddKeywords();
+    }
+  };
+
+  const handleClearKeywords = () => {
+    setKeywordsList([]);
+  };
 
   const sitesByGroup = useMemo(() => {
     const map = new Map();
@@ -204,18 +237,51 @@ export default function SncCampaignCreatePage() {
               </div>
             </div>
 
-            <div>
-              <FieldLabel required>키워드 (앵커텍스트) — {keywords.length}개</FieldLabel>
-              <textarea
-                value={keywordsText}
-                onChange={(e) => setKeywordsText(e.target.value)}
-                rows={6}
-                className="w-full border rounded px-3 py-2 text-sm font-mono"
-                placeholder={'키워드를 줄바꿈 또는 콤마(,)로 구분하여 입력\n예:\n백링크 전략\nSEO 가이드\n도메인 권한'}
-              />
-              <p className="text-xs text-gray-500 mt-1">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <FieldLabel required>키워드 (앵커텍스트) — {keywords.length}개</FieldLabel>
+                {keywords.length > 0 ? (
+                  <button type="button" onClick={handleClearKeywords} className="text-xs text-gray-500 hover:text-red-600 hover:underline">
+                    전체 삭제
+                  </button>
+                ) : null}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  onKeyDown={handleKeywordKeyDown}
+                  className="flex-1 border rounded px-3 py-2 text-sm"
+                  placeholder="키워드를 입력하세요 (콤마로 구분하여 여러 키워드 입력 가능)"
+                />
+                <TailwindButton type="button" variant="primary" onClick={handleAddKeywords} disabled={!keywordInput.trim()}>
+                  추가
+                </TailwindButton>
+              </div>
+              {keywords.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {keywords.map((kw) => (
+                    <span
+                      key={kw}
+                      className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded text-xs"
+                    >
+                      {kw}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveKeyword(kw)}
+                        className="text-blue-400 hover:text-red-500 leading-none"
+                        aria-label={`${kw} 삭제`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <p className="text-xs text-gray-500">
                 각 키워드로 1편씩 글이 생성됩니다. 키워드가 본문 내 백링크의 앵커 텍스트로도 사용되므로 수가 발행 수량보다 같거나 많아야
-                합니다.
+                합니다. (Enter 또는 추가 버튼으로 추가)
               </p>
             </div>
           </div>
