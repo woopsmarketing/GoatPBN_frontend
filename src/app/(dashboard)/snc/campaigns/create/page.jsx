@@ -1,11 +1,13 @@
 /**
- * SNC 캠페인 생성 페이지 — Phase 4-B.
+ * SNC 캠페인 생성 페이지 — Phase 4-B (앵커 통합 후).
  *
- * 입력: name, target_url, external_anchor, selected_sites (체크박스),
- *       keywords (줄바꿈 구분), quantity, duration.
- * 발행 분배: WP PBN 과 동일 — daily_target = ceil(quantity/duration) 자동 계산,
- *          worker 가 24h / daily_target 간격으로 next_execution_at 갱신하여 균등 분배.
- *          (사용자가 시간대 직접 고를 필요 없음 — 코드가 자동 분배.)
+ * 입력: name, target_url, selected_sites (체크박스), keywords (줄바꿈/콤마 구분),
+ *       quantity, duration.
+ * 앵커 처리: 별도 입력 없음. WP PBN 동일 — 키워드 자체가 본문 내 백링크 앵커로 사용됨
+ *          (pipeline_runner stages.py:62 fallback `external_anchor or main_kw`).
+ *          AI 가 키워드 기반으로 longtail 앵커 변형도 자동 생성하여 다양성 확보.
+ * 발행 분배: daily_target = ceil(quantity/duration) 자동 계산, worker 가
+ *          24h / daily_target 간격으로 next_execution_at 갱신하여 균등 분배.
  */
 
 'use client';
@@ -30,7 +32,6 @@ export default function SncCampaignCreatePage() {
 
   const [name, setName] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
-  const [externalAnchor, setExternalAnchor] = useState('');
   const [keywordsText, setKeywordsText] = useState('');
   const [quantity, setQuantity] = useState(3);
   const [duration, setDuration] = useState(7);
@@ -100,7 +101,6 @@ export default function SncCampaignCreatePage() {
     } catch {
       return '타겟 URL 형식이 올바르지 않습니다 (http:// 또는 https:// 포함).';
     }
-    if (!externalAnchor.trim()) return '앵커 텍스트를 입력하세요.';
     if (selectedSites.length === 0) return '발행 대상 사이트를 1개 이상 선택하세요.';
     if (keywords.length === 0) return '키워드를 1개 이상 입력하세요.';
     if (!Number.isInteger(quantity) || quantity <= 0) return '발행 수량은 1 이상의 정수여야 합니다.';
@@ -123,7 +123,6 @@ export default function SncCampaignCreatePage() {
     const { data, error } = await sncCampaignCreateAPI.create({
       name: name.trim(),
       targetUrl: targetUrl.trim(),
-      externalAnchor: externalAnchor.trim(),
       selectedSites,
       keywords,
       quantity,
@@ -184,49 +183,40 @@ export default function SncCampaignCreatePage() {
                 />
               </div>
               <div>
-                <FieldLabel required>앵커 텍스트</FieldLabel>
+                <FieldLabel required>발행 수량 (총)</FieldLabel>
                 <input
-                  type="text"
-                  value={externalAnchor}
-                  onChange={(e) => setExternalAnchor(e.target.value)}
+                  type="number"
+                  min={1}
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 0)}
                   className="w-full border rounded px-3 py-2 text-sm"
-                  placeholder="예: 자세히 보기"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <FieldLabel required>발행 수량 (총)</FieldLabel>
-                  <input
-                    type="number"
-                    min={1}
-                    value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 0)}
-                    className="w-full border rounded px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <FieldLabel required>기간 (일)</FieldLabel>
-                  <input
-                    type="number"
-                    min={1}
-                    value={duration}
-                    onChange={(e) => setDuration(parseInt(e.target.value, 10) || 0)}
-                    className="w-full border rounded px-3 py-2 text-sm"
-                  />
-                </div>
+              <div>
+                <FieldLabel required>기간 (일)</FieldLabel>
+                <input
+                  type="number"
+                  min={1}
+                  value={duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value, 10) || 0)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
               </div>
             </div>
 
             <div>
-              <FieldLabel required>키워드 ({keywords.length}개)</FieldLabel>
+              <FieldLabel required>키워드 (앵커텍스트) — {keywords.length}개</FieldLabel>
               <textarea
                 value={keywordsText}
                 onChange={(e) => setKeywordsText(e.target.value)}
                 rows={6}
                 className="w-full border rounded px-3 py-2 text-sm font-mono"
-                placeholder={'키워드를 줄바꿈 또는 콤마(,)로 구분\n예:\n백링크 전략\nSEO 가이드\n도메인 권한'}
+                placeholder={'키워드를 줄바꿈 또는 콤마(,)로 구분하여 입력\n예:\n백링크 전략\nSEO 가이드\n도메인 권한'}
               />
-              <p className="text-xs text-gray-500 mt-1">키워드 수가 발행 수량보다 같거나 많아야 합니다 (각 잡당 키워드 1개 사용).</p>
+              <p className="text-xs text-gray-500 mt-1">
+                각 키워드로 1편씩 글이 생성됩니다. 키워드가 본문 내 백링크의 앵커 텍스트로도 사용되므로 수가 발행 수량보다 같거나 많아야
+                합니다.
+              </p>
             </div>
           </div>
         </MainCard>

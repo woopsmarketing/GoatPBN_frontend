@@ -150,7 +150,7 @@ export default function SncCampaignDetailPage() {
             <div className="min-w-0">
               <div className="text-lg font-semibold truncate">{campaign.name || '(이름 없음)'}</div>
               <div className="text-xs text-gray-500 mt-0.5">
-                target: <span className="font-mono">{campaign.targetUrl}</span> · 앵커: {campaign.externalAnchor || '-'}
+                target: <span className="font-mono">{campaign.targetUrl}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

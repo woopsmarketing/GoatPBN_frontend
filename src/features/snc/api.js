@@ -106,10 +106,11 @@ export const sncCampaignCreateAPI = {
    * keywords insert 가 실패하면 캠페인은 생성되지만 키워드는 비어있는 상태로
    * 남는다. 이 경우 호출자는 별도 fix 가능 (delete or retry insert keywords).
    */
-  async create({ name, targetUrl, externalAnchor, selectedSites, keywords, quantity, duration, status = 'paused' }) {
+  async create({ name, targetUrl, selectedSites, keywords, quantity, duration, status = 'paused' }) {
     const userId = await currentUserId();
     if (!userId) return { data: null, error: { message: '로그인이 필요합니다.' } };
 
+    // external_anchor=null 이면 pipeline 이 main keyword 를 앵커로 fallback 사용 (stages.py:62).
     // schedule_hours 컬럼은 NOT NULL 가능성이 있어 빈 배열로 채움 (worker 는 next_execution_at 만 사용).
     const { data: campaign, error: cErr } = await supabase
       .from(TABLE_CAMPAIGNS)
@@ -119,7 +120,7 @@ export const sncCampaignCreateAPI = {
           name,
           status,
           target_url: targetUrl,
-          external_anchor: externalAnchor,
+          external_anchor: null,
           selected_sites: selectedSites,
           quantity,
           duration,

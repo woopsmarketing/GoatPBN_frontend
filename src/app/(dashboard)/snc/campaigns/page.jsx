@@ -88,8 +88,8 @@ function CampaignCard({ campaign, onToggle, isToggling, onOpen }) {
             <span className="font-medium">{campaign.duration ? `${campaign.duration}일` : '-'}</span>
           </div>
           <div className="flex justify-between border rounded px-2 py-1">
-            <span className="text-gray-500">앵커</span>
-            <span className="font-medium truncate ml-1">{campaign.externalAnchor || '-'}</span>
+            <span className="text-gray-500">남은 일수</span>
+            <span className="font-medium">{campaign.remainingDays != null ? `${campaign.remainingDays}일` : '-'}</span>
           </div>
         </div>
 
