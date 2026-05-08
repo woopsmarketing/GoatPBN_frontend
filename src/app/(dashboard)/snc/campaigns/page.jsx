@@ -12,6 +12,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import MainCard from '../../../../components/MainCard';
 import TailwindButton from '../../../../components/ui/TailwindButton';
 import { sncCampaignsAPI } from '../../../../features/snc/api';
@@ -53,7 +54,7 @@ function ProgressBar({ completed, total }) {
   );
 }
 
-function CampaignCard({ campaign, onToggle, isToggling }) {
+function CampaignCard({ campaign, onToggle, isToggling, onOpen }) {
   const isActive = campaign.status === 'active';
   const isPaused = campaign.status === 'paused';
   const canToggle = isActive || isPaused;
@@ -64,10 +65,10 @@ function CampaignCard({ campaign, onToggle, isToggling }) {
     <MainCard sx={{ height: '100%' }}>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+          <button type="button" onClick={() => onOpen(campaign)} className="min-w-0 text-left flex-1 hover:text-blue-600 transition-colors">
             <div className="text-base font-semibold truncate">{campaign.name || '(이름 없음)'}</div>
             <div className="text-xs text-gray-500 truncate mt-0.5">target: {campaign.targetUrl || '-'}</div>
-          </div>
+          </button>
           <StatusBadge status={campaign.status} />
         </div>
 
@@ -108,6 +109,7 @@ function CampaignCard({ campaign, onToggle, isToggling }) {
 }
 
 export default function SncCampaignsPage() {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -148,9 +150,14 @@ export default function SncCampaignsPage() {
           <h1 className="text-xl font-semibold">Next.js PBN 캠페인</h1>
           <p className="text-sm text-gray-500 mt-0.5">SNC 파이프라인 기반 자동 발행 캠페인 관리 (격리 개발 버전)</p>
         </div>
-        <TailwindButton variant="secondary" size="sm" onClick={load} disabled={loading}>
-          {loading ? '로딩 중…' : '새로고침'}
-        </TailwindButton>
+        <div className="flex items-center gap-2">
+          <TailwindButton variant="primary" size="sm" onClick={() => router.push('/snc/campaigns/create')}>
+            + 새 캠페인
+          </TailwindButton>
+          <TailwindButton variant="secondary" size="sm" onClick={load} disabled={loading}>
+            {loading ? '로딩 중…' : '새로고침'}
+          </TailwindButton>
+        </div>
       </div>
 
       {errorMsg ? <div className="rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">{errorMsg}</div> : null}
@@ -167,7 +174,13 @@ export default function SncCampaignsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {campaigns.map((c) => (
-            <CampaignCard key={c.id} campaign={c} onToggle={handleToggle} isToggling={togglingId === c.id} />
+            <CampaignCard
+              key={c.id}
+              campaign={c}
+              onToggle={handleToggle}
+              isToggling={togglingId === c.id}
+              onOpen={(camp) => router.push(`/snc/campaigns/${camp.id}`)}
+            />
           ))}
         </div>
       )}

@@ -12,6 +12,8 @@ import { supabase } from '../../lib/supabase';
 
 const TABLE_CAMPAIGNS = 'snc_campaigns';
 const TABLE_JOBS = 'snc_publish_jobs';
+const TABLE_KEYWORDS = 'snc_campaign_keywords';
+const TABLE_SITES = 'snc_sites_cache';
 
 function mapCampaign(row) {
   if (!row) return row;
@@ -80,5 +82,65 @@ export const sncJobsAPI = {
       .limit(limit);
     if (error) return { data: null, error };
     return { data: data || [], error: null };
+  }
+};
+
+export const sncSitesAPI = {
+  async listEnabled() {
+    const { data, error } = await supabase
+      .from(TABLE_SITES)
+      .select('site_id,brand_name,homepage_url,topic_focus,group_tag,active,enabled_for_dashboard,total_posts')
+      .eq('active', true)
+      .eq('enabled_for_dashboard', true)
+      .order('display_order', { ascending: true });
+    if (error) return { data: null, error };
+    return { data: data || [], error: null };
+  }
+};
+
+export const sncCampaignCreateAPI = {
+  /**
+   * 캠페인 + 키워드 일괄 생성.
+   *
+   * 트랜잭션이 아닌 2-step (Supabase REST 한계). campaign insert 성공 후
+   * keywords insert 가 실패하면 캠페인은 생성되지만 키워드는 비어있는 상태로
+   * 남는다. 이 경우 호출자는 별도 fix 가능 (delete or retry insert keywords).
+   */
+  async create({ name, targetUrl, externalAnchor, selectedSites, keywords, quantity, duration, scheduleHours, status = 'paused' }) {
+    const userId = await currentUserId();
+    if (!userId) return { data: null, error: { message: '로그인이 필요합니다.' } };
+
+    const { data: campaign, error: cErr } = await supabase
+      .from(TABLE_CAMPAIGNS)
+      .insert([
+        {
+          user_id: userId,
+          name,
+          status,
+          target_url: targetUrl,
+          external_anchor: externalAnchor,
+          selected_sites: selectedSites,
+          quantity,
+          duration,
+          schedule_hours: scheduleHours,
+          completed_count: 0,
+          daily_execution_count: 0,
+          remaining_quantity: quantity,
+          remaining_days: duration
+        }
+      ])
+      .select('*')
+      .single();
+    if (cErr) return { data: null, error: cErr };
+
+    if (Array.isArray(keywords) && keywords.length > 0) {
+      const rows = keywords.map((k) => ({ campaign_id: campaign.id, keyword: k }));
+      const { error: kErr } = await supabase.from(TABLE_KEYWORDS).insert(rows);
+      if (kErr) {
+        return { data: mapCampaign(campaign), error: { message: '캠페인은 생성됐지만 키워드 등록 실패: ' + kErr.message } };
+      }
+    }
+
+    return { data: mapCampaign(campaign), error: null };
   }
 };

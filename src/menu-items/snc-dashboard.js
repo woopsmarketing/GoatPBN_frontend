@@ -17,12 +17,26 @@ const sncDashboard = {
   type: 'group',
   children: [
     {
-      id: 'snc-campaign-list',
-      title: '캠페인 목록',
-      type: 'item',
-      url: '/snc/campaigns',
+      id: 'snc-campaigns',
+      title: 'SNC 캠페인',
+      type: 'collapse',
       icon: icons.campaigns,
-      breadcrumbs: false
+      children: [
+        {
+          id: 'snc-campaign-create',
+          title: '새 캠페인 생성',
+          type: 'item',
+          url: '/snc/campaigns/create',
+          breadcrumbs: false
+        },
+        {
+          id: 'snc-campaign-list',
+          title: '캠페인 목록',
+          type: 'item',
+          url: '/snc/campaigns',
+          breadcrumbs: false
+        }
+      ]
     }
   ]
 };
