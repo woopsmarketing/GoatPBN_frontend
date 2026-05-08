@@ -82,6 +82,121 @@ export const sncJobsAPI = {
       .limit(limit);
     if (error) return { data: null, error };
     return { data: data || [], error: null };
+  },
+
+  /**
+   * 사용자 소유 모든 캠페인의 잡 통합 조회.
+   * 2-step: campaigns 조회 → 그 id 들의 jobs 조회. snc_publish_jobs 에 user_id 컬럼이
+   * 없어 join 대신 campaign_id IN (...) 로 처리. campaignName 도 attach 해서 반환.
+   */
+  async listAllForUser({ limit = 200, status = null } = {}) {
+    const userId = await currentUserId();
+    if (!userId) return { data: [], error: { message: '로그인이 필요합니다.' } };
+
+    const { data: campaigns, error: cErr } = await supabase.from(TABLE_CAMPAIGNS).select('id,name').eq('user_id', userId);
+    if (cErr) return { data: null, error: cErr };
+    if (!campaigns || campaigns.length === 0) return { data: [], error: null };
+
+    const idMap = Object.fromEntries(campaigns.map((c) => [c.id, c.name]));
+    const campaignIds = campaigns.map((c) => c.id);
+
+    let q = supabase
+      .from(TABLE_JOBS)
+      .select('id,campaign_id,status,keyword,site_id,exit_code,started_at,finished_at,snc_post_url,quality_score,cost_usd,error,llm_calls')
+      .in('campaign_id', campaignIds)
+      .order('started_at', { ascending: false })
+      .limit(limit);
+    if (status) q = q.eq('status', status);
+
+    const { data, error } = await q;
+    if (error) return { data: null, error };
+    return {
+      data: (data || []).map((j) => ({ ...j, campaignName: idMap[j.campaign_id] || '-' })),
+      error: null
+    };
+  }
+};
+
+export const sncReportsAPI = {
+  /**
+   * 사용자 소유 캠페인 + 잡 한 번에 가져와 클라이언트에서 집계.
+   * 데이터 양 < 1000 가정 (한 사용자 잡 수). 향후 RPC 로 이동 가능.
+   */
+  async summary() {
+    const userId = await currentUserId();
+    if (!userId) return { data: null, error: { message: '로그인이 필요합니다.' } };
+
+    const { data: campaigns, error: cErr } = await supabase
+      .from(TABLE_CAMPAIGNS)
+      .select('id,name,status,quantity,completed_count,created_at')
+      .eq('user_id', userId);
+    if (cErr) return { data: null, error: cErr };
+
+    const campaignIds = (campaigns || []).map((c) => c.id);
+    let jobs = [];
+    if (campaignIds.length > 0) {
+      const { data: jdata, error: jErr } = await supabase
+        .from(TABLE_JOBS)
+        .select('id,campaign_id,status,started_at,finished_at,quality_score,cost_usd')
+        .in('campaign_id', campaignIds)
+        .order('started_at', { ascending: false })
+        .limit(1000);
+      if (jErr) return { data: null, error: jErr };
+      jobs = jdata || [];
+    }
+
+    // 집계
+    const total = jobs.length;
+    const byStatus = jobs.reduce((acc, j) => {
+      acc[j.status] = (acc[j.status] || 0) + 1;
+      return acc;
+    }, {});
+    const posted = byStatus.posted || 0;
+    const successRate = total > 0 ? Math.round((posted / total) * 100) : 0;
+    const totalCost = jobs.reduce((s, j) => s + (Number(j.cost_usd) || 0), 0);
+    const qualityScores = jobs.filter((j) => j.quality_score != null).map((j) => Number(j.quality_score));
+    const avgQuality = qualityScores.length > 0 ? Math.round(qualityScores.reduce((s, v) => s + v, 0) / qualityScores.length) : null;
+
+    // 최근 7일 일별 posted 카운트 (KST 기준 자정 경계 — 단순화 위해 UTC 사용)
+    const dailyCounts = {};
+    const now = new Date();
+    for (let i = 6; i >= 0; i -= 1) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const k = d.toISOString().slice(0, 10);
+      dailyCounts[k] = 0;
+    }
+    for (const j of jobs) {
+      if (j.status !== 'posted' || !j.finished_at) continue;
+      const k = String(j.finished_at).slice(0, 10);
+      if (k in dailyCounts) dailyCounts[k] += 1;
+    }
+
+    // 캠페인별 잡 카운트
+    const byCampaign = (campaigns || []).map((c) => {
+      const cJobs = jobs.filter((j) => j.campaign_id === c.id);
+      return {
+        ...c,
+        totalJobs: cJobs.length,
+        postedJobs: cJobs.filter((j) => j.status === 'posted').length,
+        failedJobs: cJobs.filter((j) => j.status === 'failed' || j.status === 'dead').length
+      };
+    });
+
+    return {
+      data: {
+        campaigns: campaigns || [],
+        total,
+        byStatus,
+        posted,
+        successRate,
+        totalCost,
+        avgQuality,
+        dailyCounts,
+        byCampaign
+      },
+      error: null
+    };
   }
 };
 

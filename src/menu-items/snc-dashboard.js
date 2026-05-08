@@ -5,10 +5,12 @@
  * 캠페인 외 화면(사이트/로그/생성 폼)은 후속 phase 에서 추가.
  */
 
-import { AddCircle } from '@wandersonalwes/iconsax-react';
+import { AddCircle, DocumentText, DocumentDownload } from '@wandersonalwes/iconsax-react';
 
 const icons = {
-  campaigns: AddCircle
+  campaigns: AddCircle,
+  logs: DocumentText,
+  reports: DocumentDownload
 };
 
 const sncDashboard = {
@@ -37,6 +39,22 @@ const sncDashboard = {
           breadcrumbs: false
         }
       ]
+    },
+    {
+      id: 'snc-logs',
+      title: '로그',
+      type: 'item',
+      url: '/snc/logs',
+      icon: icons.logs,
+      breadcrumbs: false
+    },
+    {
+      id: 'snc-reports',
+      title: '결과 보고서',
+      type: 'item',
+      url: '/snc/reports',
+      icon: icons.reports,
+      breadcrumbs: false
     }
   ]
 };
