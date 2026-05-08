@@ -13,7 +13,52 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainCard from '../../../../components/MainCard';
 import TailwindButton from '../../../../components/ui/TailwindButton';
-import { sncReportsAPI } from '../../../../features/snc/api';
+import { sncJobsAPI, sncReportsAPI } from '../../../../features/snc/api';
+
+// CSV 내보내기 유틸 (Excel 호환 — UTF-8 BOM + 따옴표 escape).
+function exportToCsv(filename, rows) {
+  if (!rows || rows.length === 0) {
+    alert('내보낼 데이터가 없습니다.');
+    return;
+  }
+  const processRow = (row) => row.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
+  const headers = Object.keys(rows[0]);
+  const csvRows = rows.map((row) => processRow(headers.map((key) => row[key])));
+  const csvContent = '﻿' + [processRow(headers), ...csvRows].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function fmtKstDateTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  } catch {
+    return String(iso);
+  }
+}
+
+function buildBacklinkRows(jobs) {
+  return jobs.map((j, i) => ({
+    번호: i + 1,
+    발행시각: fmtKstDateTime(j.finished_at || j.started_at),
+    캠페인: j.campaign_name || '',
+    타겟URL: j.target_url || '',
+    '앵커(키워드)': j.keyword || '',
+    발행사이트: j.site_id || '',
+    발행URL: j.snc_post_url || '',
+    품질점수: j.quality_score ?? '',
+    비용USD: j.cost_usd != null ? Number(j.cost_usd).toFixed(4) : ''
+  }));
+}
 
 const STATUS_LABEL = {
   active: '진행 중',
@@ -53,6 +98,8 @@ export default function SncReportsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [exportingAll, setExportingAll] = useState(false);
+  const [exportingCampaignId, setExportingCampaignId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +118,43 @@ export default function SncReportsPage() {
     load();
   }, [load]);
 
+  const handleExportAllBacklinks = async () => {
+    if (exportingAll) return;
+    setExportingAll(true);
+    try {
+      const { data: rows, error } = await sncJobsAPI.listPostedBacklinks({ limit: 5000 });
+      if (error) {
+        alert('백링크 조회 실패: ' + (error.message || '오류'));
+        return;
+      }
+      const csvRows = buildBacklinkRows(rows || []);
+      const filename = `snc_backlinks_${new Date().toISOString().slice(0, 10)}.csv`;
+      exportToCsv(filename, csvRows);
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
+  const handleExportCampaignBacklinks = async (campaign) => {
+    if (exportingCampaignId) return;
+    setExportingCampaignId(campaign.id);
+    try {
+      const { data: rows, error } = await sncJobsAPI.listPostedBacklinks({ campaignId: campaign.id, limit: 5000 });
+      if (error) {
+        alert('캠페인 백링크 조회 실패: ' + (error.message || '오류'));
+        return;
+      }
+      const csvRows = buildBacklinkRows(rows || []);
+      const safeName = String(campaign.name || campaign.id)
+        .replace(/[^a-zA-Z0-9가-힣_-]/g, '_')
+        .slice(0, 40);
+      const filename = `snc_backlinks_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`;
+      exportToCsv(filename, csvRows);
+    } finally {
+      setExportingCampaignId(null);
+    }
+  };
+
   const dailyEntries = useMemo(() => {
     if (!data?.dailyCounts) return [];
     return Object.entries(data.dailyCounts).map(([date, count]) => ({ date, count }));
@@ -83,14 +167,19 @@ export default function SncReportsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-semibold">SNC 결과 보고서</h1>
           <p className="text-sm text-gray-500 mt-0.5">사용자 소유 모든 캠페인의 발행 통계 집계 (최근 1000건 기준).</p>
         </div>
-        <TailwindButton variant="secondary" size="sm" onClick={load} disabled={loading}>
-          {loading ? '로딩 중…' : '새로고침'}
-        </TailwindButton>
+        <div className="flex items-center gap-2">
+          <TailwindButton variant="primary" size="sm" onClick={handleExportAllBacklinks} disabled={exportingAll}>
+            {exportingAll ? '내보내는 중…' : '📥 전체 백링크 CSV'}
+          </TailwindButton>
+          <TailwindButton variant="secondary" size="sm" onClick={load} disabled={loading}>
+            {loading ? '로딩 중…' : '새로고침'}
+          </TailwindButton>
+        </div>
       </div>
 
       {errorMsg ? <div className="rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">{errorMsg}</div> : null}
@@ -154,7 +243,8 @@ export default function SncReportsPage() {
                         <th className="py-2 pr-2">총 잡</th>
                         <th className="py-2 pr-2">발행</th>
                         <th className="py-2 pr-2">실패</th>
-                        <th className="py-2">생성일</th>
+                        <th className="py-2 pr-2">생성일</th>
+                        <th className="py-2">CSV</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -183,7 +273,24 @@ export default function SncReportsPage() {
                             <td className="py-2 pr-2">{c.totalJobs}</td>
                             <td className="py-2 pr-2 text-green-700">{c.postedJobs}</td>
                             <td className="py-2 pr-2 text-red-600">{c.failedJobs}</td>
-                            <td className="py-2 whitespace-nowrap text-gray-500">{(c.created_at || '').slice(0, 10)}</td>
+                            <td className="py-2 pr-2 whitespace-nowrap text-gray-500">{(c.created_at || '').slice(0, 10)}</td>
+                            <td className="py-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExportCampaignBacklinks(c);
+                                }}
+                                disabled={exportingCampaignId === c.id || c.postedJobs === 0}
+                                className={`text-xs px-2 py-1 rounded border ${
+                                  c.postedJobs === 0
+                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                    : 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                                }`}
+                              >
+                                {exportingCampaignId === c.id ? '…' : '📥'}
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}

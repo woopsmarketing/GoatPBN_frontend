@@ -85,6 +85,40 @@ export const sncJobsAPI = {
   },
 
   /**
+   * 사용자 소유 캠페인의 발행 성공(posted + snc_post_url 존재) 잡만 조회.
+   * 백링크 CSV 다운로드용. campaign target_url + name 도 attach.
+   */
+  async listPostedBacklinks({ campaignId = null, limit = 5000 } = {}) {
+    const userId = await currentUserId();
+    if (!userId) return { data: [], error: { message: '로그인이 필요합니다.' } };
+
+    const { data: campaigns, error: cErr } = await supabase.from(TABLE_CAMPAIGNS).select('id,name,target_url').eq('user_id', userId);
+    if (cErr) return { data: null, error: cErr };
+    if (!campaigns || campaigns.length === 0) return { data: [], error: null };
+
+    const idMap = Object.fromEntries(campaigns.map((c) => [c.id, c]));
+    const campaignIds = campaignId ? [campaignId] : campaigns.map((c) => c.id);
+
+    const { data, error } = await supabase
+      .from(TABLE_JOBS)
+      .select('id,campaign_id,status,keyword,site_id,started_at,finished_at,snc_post_url,quality_score,cost_usd')
+      .in('campaign_id', campaignIds)
+      .eq('status', 'posted')
+      .not('snc_post_url', 'is', null)
+      .order('finished_at', { ascending: false })
+      .limit(limit);
+    if (error) return { data: null, error };
+    return {
+      data: (data || []).map((j) => ({
+        ...j,
+        campaign_name: idMap[j.campaign_id]?.name || '-',
+        target_url: idMap[j.campaign_id]?.target_url || ''
+      })),
+      error: null
+    };
+  },
+
+  /**
    * 사용자 소유 모든 캠페인의 잡 통합 조회.
    * 2-step: campaigns 조회 → 그 id 들의 jobs 조회. snc_publish_jobs 에 user_id 컬럼이
    * 없어 join 대신 campaign_id IN (...) 로 처리. campaignName 도 attach 해서 반환.
