@@ -9,11 +9,49 @@
  */
 
 import { supabase } from '../../lib/supabase';
+import { findSncPostsBulk } from './supabase-snc';
 
 const TABLE_CAMPAIGNS = 'snc_campaigns';
 const TABLE_JOBS = 'snc_publish_jobs';
 const TABLE_KEYWORDS = 'snc_campaign_keywords';
 const TABLE_SITES = 'snc_sites_cache';
+
+/**
+ * GPB.snc_publish_jobs 행 배열을 SNC DB.snc_posts 메타로 self-heal.
+ *
+ * status='posted' 인데 snc_post_url 비어있는 행이 있으면 SNC DB 에서 (site_id, keyword) 매칭 1건씩
+ * 가져와 빈 컬럼 채움. 워커 update 누락에 무관하게 화면 정확도 보장.
+ *
+ * 채울 가능 컬럼: snc_post_url, quality_score, cost_usd, llm_calls
+ *   ('posted' 인데 빠진 것들만 — 다른 status 는 그대로 둠.)
+ */
+async function enrichJobsFromSnc(jobs) {
+  if (!Array.isArray(jobs) || jobs.length === 0) return jobs;
+  const needsEnrich = jobs.filter((j) => j.status === 'posted' && !j.snc_post_url);
+  if (needsEnrich.length === 0) return jobs;
+
+  const pairs = needsEnrich.map((j) => ({ siteId: j.site_id, keyword: j.keyword }));
+  const map = await findSncPostsBulk(pairs);
+  if (map.size === 0) return jobs;
+
+  return jobs.map((j) => {
+    if (j.status !== 'posted' || j.snc_post_url) return j;
+    const post = map.get(`${j.site_id}|${j.keyword}`);
+    if (!post) return j;
+    const md = post.metadata || {};
+    const cost = md.cost_usd_estimate;
+    return {
+      ...j,
+      snc_post_url: j.snc_post_url || post.post_url || null,
+      quality_score: j.quality_score ?? md.quality_score ?? null,
+      cost_usd: j.cost_usd ?? (cost != null ? Number(cost) : null),
+      llm_calls: j.llm_calls ?? md.llm_calls ?? null,
+      // 보너스: 글 제목 표시 가능
+      post_title: post.title || null,
+      _enriched: true
+    };
+  });
+}
 
 function mapCampaign(row) {
   if (!row) return row;
@@ -76,12 +114,13 @@ export const sncJobsAPI = {
   async listByCampaign(campaignId, { limit = 20 } = {}) {
     const { data, error } = await supabase
       .from(TABLE_JOBS)
-      .select('id,status,keyword,exit_code,started_at,finished_at,snc_post_url,quality_score,cost_usd,error')
+      .select('id,site_id,status,keyword,exit_code,started_at,finished_at,snc_post_url,quality_score,cost_usd,llm_calls,error')
       .eq('campaign_id', campaignId)
       .order('started_at', { ascending: false })
       .limit(limit);
     if (error) return { data: null, error };
-    return { data: data || [], error: null };
+    const enriched = await enrichJobsFromSnc(data || []);
+    return { data: enriched, error: null };
   },
 
   /**
@@ -144,10 +183,9 @@ export const sncJobsAPI = {
 
     const { data, error } = await q;
     if (error) return { data: null, error };
-    return {
-      data: (data || []).map((j) => ({ ...j, campaignName: idMap[j.campaign_id] || '-' })),
-      error: null
-    };
+    const withCampaign = (data || []).map((j) => ({ ...j, campaignName: idMap[j.campaign_id] || '-' }));
+    const enriched = await enrichJobsFromSnc(withCampaign);
+    return { data: enriched, error: null };
   }
 };
 

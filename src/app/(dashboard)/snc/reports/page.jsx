@@ -9,8 +9,9 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import MainCard from '../../../../components/MainCard';
 import TailwindButton from '../../../../components/ui/TailwindButton';
 import { sncJobsAPI, sncReportsAPI } from '../../../../features/snc/api';
@@ -93,30 +94,26 @@ function shortDate(iso) {
   return `${d.getMonth() + 1}/${d.getDate()} (${dows[d.getDay()]})`;
 }
 
+async function fetchSummary() {
+  const { data, error } = await sncReportsAPI.summary();
+  if (error) throw new Error(error.message || '리포트를 불러오지 못했습니다.');
+  return data;
+}
+
 export default function SncReportsPage() {
   const router = useRouter();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [exportingAll, setExportingAll] = useState(false);
   const [exportingCampaignId, setExportingCampaignId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg('');
-    const { data: d, error } = await sncReportsAPI.summary();
-    if (error) {
-      setErrorMsg(error.message || '리포트를 불러오지 못했습니다.');
-      setData(null);
-    } else {
-      setData(d);
-    }
-    setLoading(false);
-  }, []);
+  const { data, error, isLoading, isValidating, mutate } = useSWR('/snc/reports/summary', fetchSummary, {
+    refreshInterval: 120000,
+    revalidateOnFocus: true,
+    dedupingInterval: 60000
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const errorMsg = error?.message || '';
+  const loading = isLoading || isValidating;
+  const load = mutate;
 
   const handleExportAllBacklinks = async () => {
     if (exportingAll) return;

@@ -7,8 +7,9 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import MainCard from '../../../../../components/MainCard';
 import TailwindButton from '../../../../../components/ui/TailwindButton';
 import { sncCampaignsAPI, sncJobsAPI } from '../../../../../features/snc/api';
@@ -62,35 +63,38 @@ function elapsedMin(start, end) {
   return Math.round((b - a) / 60000);
 }
 
+async function fetchCampaignDetail(campaignId) {
+  if (!campaignId) return { campaign: null, jobs: [] };
+  const [{ data: c, error: ce }, { data: js }] = await Promise.all([
+    sncCampaignsAPI.getById(campaignId),
+    sncJobsAPI.listByCampaign(campaignId, { limit: 50 })
+  ]);
+  if (ce) throw new Error(ce.message || '캠페인을 불러오지 못했습니다.');
+  return { campaign: c, jobs: js || [] };
+}
+
 export default function SncCampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
   const campaignId = params?.id;
-
-  const [campaign, setCampaign] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [toggling, setToggling] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!campaignId) return;
-    setLoading(true);
-    setErrorMsg('');
-    const [{ data: c, error: ce }, { data: js, error: je }] = await Promise.all([
-      sncCampaignsAPI.getById(campaignId),
-      sncJobsAPI.listByCampaign(campaignId, { limit: 50 })
-    ]);
-    if (ce) setErrorMsg(ce.message || '캠페인을 불러오지 못했습니다.');
-    else setCampaign(c);
-    if (je) console.error('jobs load error', je);
-    setJobs(js || []);
-    setLoading(false);
-  }, [campaignId]);
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    campaignId ? ['/snc/campaign-detail', campaignId] : null,
+    () => fetchCampaignDetail(campaignId),
+    {
+      refreshInterval: 60000,
+      revalidateOnFocus: true,
+      dedupingInterval: 20000
+    }
+  );
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const campaign = data?.campaign || null;
+  const jobs = data?.jobs || [];
+  const loading = isLoading || isValidating;
+  const errorMsg = error?.message || '';
+  const load = () => mutate();
+  const setCampaign = (next) => mutate({ ...(data || { jobs: [] }), campaign: next }, { revalidate: false });
 
   const handleToggle = async () => {
     if (!campaign) return;

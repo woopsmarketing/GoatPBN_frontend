@@ -7,8 +7,9 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import MainCard from '../../../../components/MainCard';
 import TailwindButton from '../../../../components/ui/TailwindButton';
 import { sncJobsAPI } from '../../../../features/snc/api';
@@ -64,29 +65,31 @@ const FILTERS = [
   { key: 'dead', label: '재시도 한도' }
 ];
 
+async function fetchJobs() {
+  const { data, error } = await sncJobsAPI.listAllForUser({ limit: 200 });
+  if (error) throw new Error(error.message || '잡 목록을 불러오지 못했습니다.');
+  return data || [];
+}
+
 export default function SncLogsPage() {
   const router = useRouter();
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [filter, setFilter] = useState('all');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg('');
-    const { data, error } = await sncJobsAPI.listAllForUser({ limit: 200 });
-    if (error) {
-      setErrorMsg(error.message || '잡 목록을 불러오지 못했습니다.');
-      setJobs([]);
-    } else {
-      setJobs(data || []);
-    }
-    setLoading(false);
-  }, []);
+  // SWR — 60초마다 자동 갱신, 창 포커스 시 갱신, 30초 내 중복 요청 합침
+  const {
+    data: jobs = [],
+    error,
+    isLoading,
+    isValidating,
+    mutate
+  } = useSWR('/snc/logs', fetchJobs, {
+    refreshInterval: 60000,
+    revalidateOnFocus: true,
+    dedupingInterval: 30000
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const errorMsg = error?.message || '';
+  const loading = isLoading || isValidating;
 
   const filtered = useMemo(() => {
     if (filter === 'all') return jobs;
@@ -108,7 +111,7 @@ export default function SncLogsPage() {
           <h1 className="text-xl font-semibold">SNC 로그</h1>
           <p className="text-sm text-gray-500 mt-0.5">최근 200건 발행 잡을 통합 표시합니다.</p>
         </div>
-        <TailwindButton variant="secondary" size="sm" onClick={load} disabled={loading}>
+        <TailwindButton variant="secondary" size="sm" onClick={() => mutate()} disabled={loading}>
           {loading ? '로딩 중…' : '새로고침'}
         </TailwindButton>
       </div>

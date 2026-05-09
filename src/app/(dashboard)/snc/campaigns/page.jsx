@@ -11,8 +11,9 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import MainCard from '../../../../components/MainCard';
 import TailwindButton from '../../../../components/ui/TailwindButton';
 import { sncCampaignsAPI } from '../../../../features/snc/api';
@@ -108,29 +109,38 @@ function CampaignCard({ campaign, onToggle, isToggling, onOpen }) {
   );
 }
 
+async function fetchCampaigns() {
+  const { data, error } = await sncCampaignsAPI.list();
+  if (error) throw new Error(error.message || '캠페인 목록을 불러오지 못했습니다.');
+  return data || [];
+}
+
 export default function SncCampaignsPage() {
   const router = useRouter();
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [togglingId, setTogglingId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg('');
-    const { data, error } = await sncCampaignsAPI.list();
-    if (error) {
-      setErrorMsg(error.message || '캠페인 목록을 불러오지 못했습니다.');
-      setCampaigns([]);
-    } else {
-      setCampaigns(data || []);
-    }
-    setLoading(false);
-  }, []);
+  const {
+    data: campaigns = [],
+    error,
+    isLoading,
+    isValidating,
+    mutate
+  } = useSWR('/snc/campaigns', fetchCampaigns, {
+    refreshInterval: 60000,
+    revalidateOnFocus: true,
+    dedupingInterval: 20000
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const errorMsg = error?.message || '';
+  const loading = isLoading || isValidating;
+  const load = () => mutate();
+  const setCampaigns = (updater) => {
+    if (typeof updater === 'function') {
+      mutate(updater(campaigns), { revalidate: false });
+    } else {
+      mutate(updater, { revalidate: false });
+    }
+  };
 
   const handleToggle = async (campaign, nextStatus) => {
     setTogglingId(campaign.id);
