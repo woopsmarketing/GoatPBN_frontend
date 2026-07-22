@@ -18,6 +18,10 @@ import MainCard from '../../../../../components/MainCard';
 import TailwindButton from '../../../../../components/ui/TailwindButton';
 import { sfnCampaignCreateAPI, sfnSitesAPI } from '../../../../../features/sfn/api';
 
+// group_tag → 화면 표시 라벨 ('sfn' 은 마이그레이션 전 잔여값 대비 폴백)
+const GROUP_LABELS = { 'sfn-own': '자사 PBN', 'sfn-client': '고객 PBN', sfn: 'SFN' };
+const GROUP_ORDER = { 'sfn-own': 0, 'sfn-client': 1 };
+
 function FieldLabel({ children, required }) {
   return (
     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -108,11 +112,19 @@ export default function SfnCampaignCreatePage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(s);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(map.entries()).sort(([a], [b]) => (GROUP_ORDER[a] ?? 9) - (GROUP_ORDER[b] ?? 9) || a.localeCompare(b));
   }, [sites]);
 
   const toggleSite = (siteId) => {
     setSelectedSites((prev) => (prev.includes(siteId) ? prev.filter((s) => s !== siteId) : [...prev, siteId]));
+  };
+
+  const ownSiteIds = useMemo(() => sites.filter((s) => s.group_tag === 'sfn-own').map((s) => s.site_id), [sites]);
+  const clientSiteIds = useMemo(() => sites.filter((s) => s.group_tag === 'sfn-client').map((s) => s.site_id), [sites]);
+
+  // 일괄 선택은 추가 방식(토글 아님) — 자사+고객 연달아 누르면 합집합
+  const addSites = (ids) => {
+    setSelectedSites((prev) => Array.from(new Set([...prev, ...ids])));
   };
 
   // 예상 일일 발행 = ceil(quantity / duration)
@@ -286,18 +298,33 @@ export default function SfnCampaignCreatePage() {
 
         <MainCard>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <FieldLabel required>대상 사이트 ({selectedSites.length}개 선택)</FieldLabel>
-              <div className="flex gap-2 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <FieldLabel required>
+                대상 사이트 — 선택됨: {selectedSites.length} / {sites.length}
+              </FieldLabel>
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
-                  className="text-blue-600 hover:underline"
-                  onClick={() => setSelectedSites(sites.map((s) => s.site_id))}
+                  className="text-xs border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1"
+                  onClick={() => addSites(ownSiteIds)}
+                  disabled={ownSiteIds.length === 0}
                 >
-                  전체 선택
+                  자사 전체 ({ownSiteIds.length})
                 </button>
-                <span className="text-gray-300">|</span>
-                <button type="button" className="text-gray-500 hover:underline" onClick={() => setSelectedSites([])}>
+                <button
+                  type="button"
+                  className="text-xs border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded px-2 py-1"
+                  onClick={() => addSites(clientSiteIds)}
+                  disabled={clientSiteIds.length === 0}
+                >
+                  고객 전체 ({clientSiteIds.length})
+                </button>
+                <button
+                  type="button"
+                  className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 rounded px-2 py-1"
+                  onClick={() => setSelectedSites([])}
+                  disabled={selectedSites.length === 0}
+                >
                   전체 해제
                 </button>
               </div>
@@ -314,7 +341,7 @@ export default function SfnCampaignCreatePage() {
                 {sitesByGroup.map(([group, list]) => (
                   <div key={group}>
                     <div className="text-xs font-medium text-gray-600 mb-1.5">
-                      {group} <span className="text-gray-400">({list.length})</span>
+                      {GROUP_LABELS[group] || group} <span className="text-gray-400">({list.length})</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {list.map((s) => {
