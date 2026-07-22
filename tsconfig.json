@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -16,7 +20,9 @@
     "incremental": true,
     "baseUrl": "src",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
@@ -32,13 +38,16 @@
     ]
   },
   "include": [
-    "next-env.d.js",
     "**/*.js",
     "**/*.jsx",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.js",
-    "next.config.js"
+    "next-env.d.js",
+    "next.config.js",
+    ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

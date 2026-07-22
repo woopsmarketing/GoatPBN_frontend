@@ -1,0 +1,11 @@
+{
+  "name": "spintax-engine",
+  "version": "1.0.0",
+  "description": "Multi-layer spintax content generation engine",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node test/test-engine.js",
+    "demo": "node test/demo.js"
+  }
+}
