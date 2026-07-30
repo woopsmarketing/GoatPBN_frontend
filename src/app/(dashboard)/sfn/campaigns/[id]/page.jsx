@@ -152,10 +152,35 @@ export default function SfnCampaignDetailPage() {
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-lg font-semibold truncate">{campaign.name || '(이름 없음)'}</div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                target: <span className="font-mono">{campaign.targetUrl}</span>
+              <div className="text-lg font-semibold truncate flex items-center gap-1.5">
+                {campaign.spintax ? (
+                  <span className="inline-block text-[10px] font-medium bg-purple-100 text-purple-700 rounded px-1.5 py-0.5 shrink-0">
+                    스핀택스
+                  </span>
+                ) : null}
+                <span className="truncate">{campaign.name || '(이름 없음)'}</span>
               </div>
+              {campaign.spintax ? (
+                <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
+                  <div>
+                    템플릿: <span className="font-mono">{campaign.spintax.template}</span> · 발행{' '}
+                    {campaign.spintax.publish_status === 'draft' ? '초안' : '공개'}
+                    {campaign.spintax.include_image === false ? '' : ' · 대표이미지 O'}
+                    {campaign.spintax.single_target === false ? ' · 링크 혼합' : ' · 한 글=한 사이트'}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(campaign.spintax.urls || []).map((u) => (
+                      <span key={u} className="font-mono bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-1.5 py-0.5">
+                        {u}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-gray-500 mt-0.5">
+                  target: <span className="font-mono">{campaign.targetUrl}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge status={campaign.status} />

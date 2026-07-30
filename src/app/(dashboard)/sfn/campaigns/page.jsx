@@ -67,8 +67,15 @@ function CampaignCard({ campaign, onToggle, isToggling, onOpen }) {
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <button type="button" onClick={() => onOpen(campaign)} className="min-w-0 text-left flex-1 hover:text-blue-600 transition-colors">
-            <div className="text-base font-semibold truncate">{campaign.name || '(이름 없음)'}</div>
-            <div className="text-xs text-gray-500 truncate mt-0.5">target: {campaign.targetUrl || '-'}</div>
+            <div className="text-base font-semibold truncate flex items-center gap-1.5">
+              {campaign.spintax ? (
+                <span className="inline-block text-[10px] font-medium bg-purple-100 text-purple-700 rounded px-1.5 py-0.5 shrink-0">
+                  스핀택스
+                </span>
+              ) : null}
+              <span className="truncate">{campaign.name || '(이름 없음)'}</span>
+            </div>
+            <div className="text-xs text-gray-500 truncate mt-0.5">target: {campaign.targetUrlDisplay || '-'}</div>
           </button>
           <StatusBadge status={campaign.status} />
         </div>

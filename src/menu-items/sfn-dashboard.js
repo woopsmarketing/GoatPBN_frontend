@@ -33,6 +33,13 @@ const sfnDashboard = {
           breadcrumbs: false
         },
         {
+          id: 'sfn-campaign-create-spintax',
+          title: '스핀택스 캠페인 생성',
+          type: 'item',
+          url: '/sfn/campaigns/create-spintax',
+          breadcrumbs: false
+        },
+        {
           id: 'sfn-campaign-list',
           title: '캠페인 목록',
           type: 'item',

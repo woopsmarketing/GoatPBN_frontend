@@ -16,14 +16,32 @@ const TABLE_JOBS = 'sfn_publish_jobs';
 const TABLE_KEYWORDS = 'sfn_campaign_keywords';
 const TABLE_SITES = 'sfn_sites_cache';
 
+// 스핀택스 캠페인은 target_url 컬럼에 설정 JSON 을 담는다(zero-DDL — 백엔드
+// sfn_workers/sfn_spintax_tasks.spintax_config 와 동일 규약). LLM 캠페인은 평범한 URL 문자열.
+function parseSpintax(targetUrl) {
+  if (typeof targetUrl === 'string' && targetUrl.trim().startsWith('{')) {
+    try {
+      const cfg = JSON.parse(targetUrl);
+      if (cfg && cfg.mode === 'spintax') return cfg;
+    } catch {
+      /* 평범한 URL 로 취급 */
+    }
+  }
+  return null;
+}
+
 function mapCampaign(row) {
   if (!row) return row;
+  const spintax = parseSpintax(row.target_url);
   return {
     ...row,
     selectedSites: row.selected_sites || [],
     completedCount: row.completed_count ?? 0,
     dailyExecutionCount: row.daily_execution_count ?? 0,
     targetUrl: row.target_url,
+    spintax, // null 이면 LLM 캠페인
+    contentMode: spintax ? 'spintax' : 'llm',
+    targetUrlDisplay: spintax ? `스핀택스 · ${spintax.template} · 링크 ${(spintax.urls || []).length}개` : row.target_url,
     externalAnchor: row.external_anchor,
     scheduleHours: row.schedule_hours || [],
     lastExecutionDate: row.last_execution_date,
@@ -210,6 +228,77 @@ export const sfnReportsAPI = {
       data: { campaigns: campaigns || [], total, byStatus, posted, successRate, totalCost, avgQuality, dailyCounts, byCampaign },
       error: null
     };
+  }
+};
+
+// 스핀택스 템플릿 목록 — 캠페인 생성 시 선택용. spintax_templates 는 GPB DB 에 있고
+// RLS(auth.uid()=user_id)로 보호되므로 사용자 소유 템플릿만 조회된다.
+export const sfnSpintaxTemplatesAPI = {
+  async list() {
+    const userId = await currentUserId();
+    if (!userId) return { data: [], error: { message: '로그인이 필요합니다.' } };
+    const { data, error } = await supabase
+      .from('spintax_templates')
+      .select('id,name,status,main_keyword,section_count,master_count,created_at')
+      .eq('user_id', userId)
+      .eq('status', 'ready')
+      .order('created_at', { ascending: false });
+    if (error) return { data: null, error };
+    return { data: data || [], error: null };
+  }
+};
+
+// 스핀택스 SFN 캠페인 생성 — sfn_campaigns 에 직접 insert.
+// 설정(템플릿·복수 URL·발행옵션)은 target_url 에 JSON 으로 담는다(zero-DDL, 마이그레이션 불요).
+// 키워드는 템플릿에 내장돼 있으므로 sfn_campaign_keywords 는 비운다 → 기존 LLM 스캔은
+// pick_keyword=None 으로 이 캠페인을 건너뛰고, 스핀택스 스캔만 처리한다(경로 분리).
+export const sfnSpintaxCampaignCreateAPI = {
+  async create({
+    name,
+    template,
+    targetUrls,
+    selectedSites,
+    quantity,
+    duration,
+    publishStatus = 'published',
+    singleTarget = true,
+    includeImage = true,
+    linkRange = [3, 5],
+    status = 'paused'
+  }) {
+    const userId = await currentUserId();
+    if (!userId) return { data: null, error: { message: '로그인이 필요합니다.' } };
+
+    const cfg = {
+      mode: 'spintax',
+      template,
+      urls: targetUrls,
+      publish_status: publishStatus,
+      link_count_range: linkRange,
+      single_target: singleTarget,
+      include_image: includeImage
+    };
+
+    const { data: campaign, error: cErr } = await supabase
+      .from('sfn_campaigns')
+      .insert([
+        {
+          user_id: userId,
+          name,
+          status,
+          target_url: JSON.stringify(cfg),
+          external_anchor: null,
+          selected_sites: selectedSites,
+          quantity,
+          duration,
+          completed_count: 0,
+          daily_execution_count: 0
+        }
+      ])
+      .select('*')
+      .single();
+    if (cErr) return { data: null, error: cErr };
+    return { data: mapCampaign(campaign), error: null };
   }
 };
 
