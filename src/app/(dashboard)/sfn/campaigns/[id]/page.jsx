@@ -73,11 +73,26 @@ async function fetchCampaignDetail(campaignId) {
   return { campaign: c, jobs: js || [] };
 }
 
+function normalizeUrl(raw) {
+  const s = (raw || '').trim();
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
 export default function SfnCampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
   const campaignId = params?.id;
   const [toggling, setToggling] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [savingUrls, setSavingUrls] = useState(false);
+  const [urlMsg, setUrlMsg] = useState('');
 
   const { data, error, isLoading, isValidating, mutate } = useSWR(
     campaignId ? ['/sfn/campaign-detail', campaignId] : null,
@@ -107,6 +122,44 @@ export default function SfnCampaignDetailPage() {
       return;
     }
     setCampaign(data);
+  };
+
+  const spintaxUrls = campaign?.spintax?.urls || [];
+
+  const saveUrls = async (nextUrls) => {
+    if (!campaign) return;
+    setSavingUrls(true);
+    setUrlMsg('');
+    const { data, error } = await sfnCampaignsAPI.updateSpintaxConfig(campaign.id, { urls: nextUrls });
+    setSavingUrls(false);
+    if (error) {
+      setUrlMsg(error.message || '저장 실패');
+      return;
+    }
+    setCampaign(data);
+    setUrlMsg('저장되었습니다. 이후 발행되는 글부터 반영됩니다.');
+  };
+
+  const handleAddUrls = async () => {
+    const parsed = urlInput
+      .split(/[\n,\s]+/)
+      .map((u) => normalizeUrl(u))
+      .filter(Boolean);
+    if (parsed.length === 0) {
+      setUrlMsg(urlInput.trim() ? '올바른 URL 형식이 아닙니다 (http:// 또는 https:// 포함).' : '');
+      return;
+    }
+    const merged = Array.from(new Set([...spintaxUrls, ...parsed]));
+    setUrlInput('');
+    await saveUrls(merged);
+  };
+
+  const handleRemoveUrl = async (u) => {
+    if (spintaxUrls.length <= 1) {
+      setUrlMsg('타겟 URL은 최소 1개 이상이어야 합니다.');
+      return;
+    }
+    await saveUrls(spintaxUrls.filter((x) => x !== u));
   };
 
   const stat = jobs.reduce(
@@ -229,6 +282,58 @@ export default function SfnCampaignDetailPage() {
           )}
         </div>
       </MainCard>
+
+      {campaign.spintax ? (
+        <MainCard>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-semibold">타겟 URL (백링크 대상) — {spintaxUrls.length}개</div>
+              <div className="text-xs text-gray-400">진행 중에도 추가/삭제 가능 · 이후 글부터 반영</div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {spintaxUrls.map((u) => (
+                <span
+                  key={u}
+                  className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1 rounded text-xs font-mono"
+                >
+                  {u}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveUrl(u)}
+                    disabled={savingUrls || spintaxUrls.length <= 1}
+                    className="text-emerald-400 hover:text-red-500 leading-none disabled:opacity-40"
+                    aria-label={`${u} 삭제`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddUrls();
+                  }
+                }}
+                disabled={savingUrls}
+                className="flex-1 border rounded px-3 py-2 text-sm font-mono"
+                placeholder="https://example.com/  (여러 개는 콤마·줄바꿈·공백으로 구분)"
+              />
+              <TailwindButton type="button" variant="primary" onClick={handleAddUrls} disabled={savingUrls || !urlInput.trim()}>
+                {savingUrls ? '저장 중…' : '추가'}
+              </TailwindButton>
+            </div>
+            {urlMsg ? <div className="text-xs text-gray-500">{urlMsg}</div> : null}
+          </div>
+        </MainCard>
+      ) : null}
 
       <MainCard>
         <div className="space-y-3">

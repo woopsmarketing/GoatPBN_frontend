@@ -86,6 +86,45 @@ export const sfnCampaignsAPI = {
     const { data, error } = await supabase.from(TABLE_CAMPAIGNS).update({ status }).eq('id', id).eq('user_id', userId).select('*').single();
     if (error) return { data: null, error };
     return { data: mapCampaign(data), error: null };
+  },
+
+  /**
+   * 스핀택스 캠페인의 설정(타겟 URL 등)을 부분 수정. 진행 중이어도 가능 —
+   * 워커가 매 발행마다 설정을 새로 읽으므로 이후 글부터 반영된다.
+   * patch: { urls?, publishStatus?, singleTarget?, includeImage? }
+   */
+  async updateSpintaxConfig(id, patch = {}) {
+    const userId = await currentUserId();
+    if (!userId) return { data: null, error: { message: '로그인이 필요합니다.' } };
+    const { data: row, error: rErr } = await supabase
+      .from(TABLE_CAMPAIGNS)
+      .select('target_url')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    if (rErr) return { data: null, error: rErr };
+    const cfg = parseSpintax(row?.target_url);
+    if (!cfg) return { data: null, error: { message: '스핀택스 캠페인이 아닙니다.' } };
+
+    const next = { ...cfg };
+    if (Array.isArray(patch.urls)) {
+      const cleaned = Array.from(new Set(patch.urls.map((u) => String(u).trim()).filter(Boolean)));
+      if (cleaned.length === 0) return { data: null, error: { message: '타겟 URL은 1개 이상이어야 합니다.' } };
+      next.urls = cleaned;
+    }
+    if (patch.publishStatus) next.publish_status = patch.publishStatus;
+    if (typeof patch.singleTarget === 'boolean') next.single_target = patch.singleTarget;
+    if (typeof patch.includeImage === 'boolean') next.include_image = patch.includeImage;
+
+    const { data, error } = await supabase
+      .from(TABLE_CAMPAIGNS)
+      .update({ target_url: JSON.stringify(next) })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('*')
+      .single();
+    if (error) return { data: null, error };
+    return { data: mapCampaign(data), error: null };
   }
 };
 
