@@ -20,8 +20,8 @@ import MainCard from '../../../../../components/MainCard';
 import TailwindButton from '../../../../../components/ui/TailwindButton';
 import { sfnSitesAPI, sfnSpintaxTemplatesAPI, sfnSpintaxCampaignCreateAPI } from '../../../../../features/sfn/api';
 
-const GROUP_LABELS = { 'sfn-own': '자사 PBN', 'sfn-client': '고객 PBN', sfn: 'SFN' };
-const GROUP_ORDER = { 'sfn-own': 0, 'sfn-client': 1 };
+const GROUP_LABELS = { 'sfn-own': '자사 PBN', 'sfn-client': '고객 PBN', 'sfn-client2': '타사 PBN 2', sfn: 'SFN' };
+const GROUP_ORDER = { 'sfn-own': 0, 'sfn-client': 1, 'sfn-client2': 2 };
 
 function FieldLabel({ children, required }) {
   return (
@@ -145,6 +145,7 @@ export default function SfnSpintaxCampaignCreatePage() {
 
   const ownSiteIds = useMemo(() => sites.filter((s) => s.group_tag === 'sfn-own').map((s) => s.site_id), [sites]);
   const clientSiteIds = useMemo(() => sites.filter((s) => s.group_tag === 'sfn-client').map((s) => s.site_id), [sites]);
+  const client2SiteIds = useMemo(() => sites.filter((s) => s.group_tag === 'sfn-client2').map((s) => s.site_id), [sites]);
   const addSites = (ids) => setSelectedSites((prev) => Array.from(new Set([...prev, ...ids])));
 
   const dailyTarget = useMemo(() => {
@@ -363,6 +364,14 @@ export default function SfnSpintaxCampaignCreatePage() {
                   disabled={clientSiteIds.length === 0}
                 >
                   고객 전체 ({clientSiteIds.length})
+                </button>
+                <button
+                  type="button"
+                  className="text-xs border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded px-2 py-1"
+                  onClick={() => addSites(client2SiteIds)}
+                  disabled={client2SiteIds.length === 0}
+                >
+                  타사2 전체 ({client2SiteIds.length})
                 </button>
                 <button
                   type="button"
